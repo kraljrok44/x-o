@@ -5,19 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tic Tac Toe Multiplayer Firebase</title>
 <style>
-body { font-family: Arial; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f0f0f0; }
-#game { display: grid; grid-template-columns: repeat(3,100px); grid-template-rows: repeat(3,100px); gap:5px; }
+body { font-family: Arial; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f0f0f0; min-height: 100vh; }
+#game { display: grid; grid-template-columns: repeat(3,100px); grid-template-rows: repeat(3,100px); gap:5px; margin-top:10px; }
 .cell { background:#fff; border:2px solid #333; display:flex; justify-content:center; align-items:center; font-size:2.5rem; cursor:pointer; }
 .cell.my-turn:hover { background-color: #d0ffd0; }
 #status { margin-top: 20px; font-size:1.2rem; }
-#resetBtn { margin-top:10px; padding:10px 20px; font-size:1rem; cursor:pointer; }
+#resetBtn, #newGameBtn { margin-top:10px; padding:10px 20px; font-size:1rem; cursor:pointer; }
+#linkDiv { margin-top:10px; font-size:0.9rem; word-break: break-all; text-align:center;}
 </style>
 </head>
 <body>
 
 <h2>Tic Tac Toe Multiplayer</h2>
+<button id="newGameBtn">Ustvari novo igro</button>
+<div id="linkDiv"></div>
 <div id="game"></div>
-<div id="status">Povezovanje...</div>
+<div id="status">Čakamo igro...</div>
 <button id="resetBtn">Ponastavi igro</button>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -38,12 +41,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Get game ID from URL
-const urlParams = new URLSearchParams(window.location.search);
-const gameId = urlParams.get('game') || 'default';
-const gameRef = db.ref('games/' + gameId);
-
-// Game variables
+let gameId = null;
+let gameRef = null;
 let board = Array(9).fill(null);
 let currentPlayer = 'X';
 let gameOver = false;
@@ -53,13 +52,15 @@ const clientId = Math.random().toString(36).substring(2, 9);
 const gameBoard = document.getElementById('game');
 const statusDiv = document.getElementById('status');
 const resetBtn = document.getElementById('resetBtn');
+const newGameBtn = document.getElementById('newGameBtn');
+const linkDiv = document.getElementById('linkDiv');
+
 const winCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
 
-// Create board UI
 function createBoard(){
-    gameBoard.innerHTML = '';
+    gameBoard.innerHTML='';
     board.forEach((cell, idx)=>{
-        const div = document.createElement('div');
+        const div=document.createElement('div');
         div.className='cell';
         if(!gameOver && mySymbol===currentPlayer && !cell) div.classList.add('my-turn');
         div.innerText=cell||'';
@@ -68,71 +69,77 @@ function createBoard(){
     });
 }
 
-// Check win
 function checkWin(player){ return winCombos.some(c=>c.every(i=>board[i]===player)); }
 
-// Handle move
 function handleMove(idx){
     if(gameOver || mySymbol!==currentPlayer || board[idx]) return;
     board[idx]=mySymbol;
     if(checkWin(mySymbol)) gameOver=true;
     else if(board.every(c=>c)) gameOver=true;
     else currentPlayer=(currentPlayer==='X')?'O':'X';
-    // Update only board, currentPlayer, gameOver
     gameRef.update({ board, currentPlayer, gameOver });
 }
 
-// Initialize players and board only if not exists
-gameRef.once('value').then(snapshot=>{
-    const data = snapshot.val();
-    let players = data?.players || {};
-    let dbBoard = data?.board || Array(9).fill(null);
-    let dbCurrent = data?.currentPlayer || 'X';
-    let dbGameOver = data?.gameOver || false;
+function initGame(id){
+    gameId=id;
+    gameRef = db.ref('games/'+gameId);
 
-    // Assign symbol
-    if(!players.X){ players.X = clientId; mySymbol='X'; }
-    else if(!players.O && clientId!==players.X){ players.O = clientId; mySymbol='O'; }
-    else if(clientId===players.X) mySymbol='X';
-    else if(clientId===players.O) mySymbol='O';
+    gameRef.once('value').then(snapshot=>{
+        const data = snapshot.val();
+        let players = data?.players || {};
+        let dbBoard = data?.board || Array(9).fill(null);
+        let dbCurrent = data?.currentPlayer || 'X';
+        let dbGameOver = data?.gameOver || false;
 
-    // Set initial state if board is empty
-    if(!data){
-        gameRef.set({ board: dbBoard, currentPlayer: dbCurrent, gameOver: dbGameOver, players });
-    } else {
-        gameRef.update({ players });
-    }
+        // Assign symbol
+        if(!players.X){ players.X=clientId; mySymbol='X'; }
+        else if(!players.O && clientId!==players.X){ players.O=clientId; mySymbol='O'; }
+        else if(clientId===players.X) mySymbol='X';
+        else if(clientId===players.O) mySymbol='O';
 
-    board = dbBoard;
-    currentPlayer = dbCurrent;
-    gameOver = dbGameOver;
-    createBoard();
+        // Initialize board if doesn't exist
+        if(!data){
+            gameRef.set({ board: dbBoard, currentPlayer: dbCurrent, gameOver: dbGameOver, players });
+        } else {
+            gameRef.update({ players });
+        }
+
+        board = dbBoard;
+        currentPlayer = dbCurrent;
+        gameOver = dbGameOver;
+        createBoard();
+
+        // Listener
+        gameRef.on('value', snap=>{
+            const d = snap.val();
+            if(!d) return;
+            if(d.board) board=d.board;
+            if(d.currentPlayer) currentPlayer=d.currentPlayer;
+            if(typeof d.gameOver==='boolean') gameOver=d.gameOver;
+            createBoard();
+
+            if(checkWin('X')) statusDiv.innerText='Zmagal je: X!';
+            else if(checkWin('O')) statusDiv.innerText='Zmagal je: O!';
+            else if(board.every(c=>c)) statusDiv.innerText='Neodločeno!';
+            else statusDiv.innerText=`Na potezi je: ${currentPlayer}` + (mySymbol?` (Ti si ${mySymbol})`:'');
+        });
+    });
+
+    linkDiv.innerHTML=`Pošlji ta link nasprotniku: <br>${location.origin+location.pathname}?game=${gameId}`;
+}
+
+// Gumb za novo igro
+newGameBtn.addEventListener('click', ()=>{
+    const randomId = Math.random().toString(36).substring(2,14); // 12-mestno
+    initGame(randomId);
 });
 
-// Listener for updates
-gameRef.on('value', snap=>{
-    const d = snap.val();
-    if(!d) return;
-
-    // Update local board from Firebase without overwriting players
-    if(d.board) board = d.board;
-    if(d.currentPlayer) currentPlayer = d.currentPlayer;
-    if(typeof d.gameOver === 'boolean') gameOver = d.gameOver;
-
-    createBoard();
-
-    if(checkWin('X')) statusDiv.innerText='Zmagal je: X!';
-    else if(checkWin('O')) statusDiv.innerText='Zmagal je: O!';
-    else if(board.every(c=>c)) statusDiv.innerText='Neodločeno!';
-    else statusDiv.innerText=`Na potezi je: ${currentPlayer}` + (mySymbol?` (Ti si ${mySymbol})`:'');
-});
-
-// Reset
+// Reset gumb
 resetBtn.addEventListener('click', ()=>{
-    board = Array(9).fill(null);
+    board=Array(9).fill(null);
     currentPlayer='X';
     gameOver=false;
-    gameRef.update({ board, currentPlayer, gameOver });
+    if(gameRef) gameRef.update({ board, currentPlayer, gameOver });
 });
 </script>
 </body>
