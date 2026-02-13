@@ -4,11 +4,7 @@
 <meta charset="UTF-8">
 <title>ILIRIKA Tic Tac Toe</title>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
-
 <style>
-
 :root{
     --primary:#2E3F8F;
     --primary-light:#3F57B3;
@@ -18,7 +14,7 @@
 
 body{
     margin:0;
-    font-family: 'Segoe UI', Arial, sans-serif;
+    font-family:'Segoe UI',Arial,sans-serif;
     background:var(--bg);
     display:flex;
     justify-content:center;
@@ -37,18 +33,7 @@ body{
 
 .logo{
     height:60px;
-    margin-bottom:10px;
-}
-
-h1{
-    color:var(--primary);
-    margin:10px 0 5px 0;
-}
-
-.subtitle{
-    color:#6B7280;
-    font-size:14px;
-    margin-bottom:20px;
+    margin-bottom:15px;
 }
 
 #board{
@@ -69,7 +54,6 @@ h1{
     background:#E8EDFF;
     color:var(--primary);
     cursor:pointer;
-    transition:0.2s;
 }
 
 .cell:hover{
@@ -80,16 +64,9 @@ h1{
 #status{
     margin-top:20px;
     font-weight:600;
-    color:var(--text);
 }
 
-.room{
-    margin-top:10px;
-    font-size:13px;
-    color:#6B7280;
-}
-
-button.reset{
+button{
     margin-top:20px;
     padding:10px 18px;
     border:none;
@@ -97,32 +74,27 @@ button.reset{
     background:var(--primary);
     color:white;
     cursor:pointer;
-    font-weight:600;
 }
 
-button.reset:hover{
+button:hover{
     background:var(--primary-light);
 }
-
 </style>
 </head>
 <body>
 
 <div class="card">
-
     <img src="logo.png" class="logo">
-    <h1>Tic Tac Toe</h1>
-    <div class="subtitle">ILIRIKA Teams Multiplayer</div>
-
+    <h2>Tic Tac Toe</h2>
     <div id="board"></div>
     <div id="status"></div>
-    <div class="room" id="room"></div>
-
-    <button class="reset" onclick="resetGame()">Nova igra</button>
-
+    <button onclick="resetGame()">Nova igra</button>
 </div>
 
-<script>
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 // 🔥 VSTAVI SVOJ FIREBASE CONFIG
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -133,24 +105,15 @@ const firebaseConfig = {
   projectId: "x--o-f01ff",
   storageBucket: "x--o-f01ff.firebasestorage.app",
   messagingSenderId: "1086881785971",
-  appId: "1:1086881785971:web:d527d04ae13a14a413e206",
-  measurementId: "G-ELM6P84NJL"
+  appId: "1:1086881785971:web:21cd28671de4f4dc13e206",
+  measurementId: "G-YXN9TBK7J4"
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-const urlParams = new URLSearchParams(window.location.search);
-let roomId = urlParams.get("room");
-
-if(!roomId){
-    roomId = Math.random().toString(36).substring(2,8);
-    window.location.search = "?room=" + roomId;
-}
-
-document.getElementById("room").innerText = "Room: " + roomId;
-
-const roomRef = db.ref("rooms/" + roomId);
+const roomId = "ilirika-room"; 
+const roomRef = ref(db, "rooms/" + roomId);
 
 let player = Math.random() < 0.5 ? "X" : "O";
 let board = Array(9).fill("");
@@ -189,20 +152,20 @@ function makeMove(i){
     board[i]=player;
 
     if(checkWinner()){
-        roomRef.set({board,currentPlayer:"END",winner:player});
+        set(roomRef,{board,currentPlayer:"END",winner:player});
         return;
     }
 
     if(!board.includes("")){
-        roomRef.set({board,currentPlayer:"END",winner:"DRAW"});
+        set(roomRef,{board,currentPlayer:"END",winner:"DRAW"});
         return;
     }
 
     currentPlayer=player==="X"?"O":"X";
-    roomRef.set({board,currentPlayer});
+    set(roomRef,{board,currentPlayer});
 }
 
-roomRef.on("value",(snapshot)=>{
+onValue(roomRef,(snapshot)=>{
     const data=snapshot.val();
     if(!data) return;
 
@@ -222,10 +185,10 @@ roomRef.on("value",(snapshot)=>{
     }
 });
 
-function resetGame(){
+window.resetGame=function(){
     board=Array(9).fill("");
     currentPlayer="X";
-    roomRef.set({board,currentPlayer});
+    set(roomRef,{board,currentPlayer});
 }
 
 drawBoard();
