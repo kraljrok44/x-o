@@ -79,7 +79,7 @@ let board = Array(9).fill(null);
 let currentPlayer = 'X';
 let gameOver = false;
 let mySymbol = null;
-let clientId = Math.random().toString(36).substring(2, 9);
+const clientId = Math.random().toString(36).substring(2, 9);
 
 const gameBoard = document.getElementById('game');
 const statusDiv = document.getElementById('status');
@@ -107,11 +107,11 @@ function createBoard() {
 }
 
 function handleMove(index) {
-  if(gameOver) return;
-  if(mySymbol !== currentPlayer) return;
-  if(board[index]) return;
+  if(gameOver || mySymbol !== currentPlayer || board[index]) return;
 
   board[index] = mySymbol;
+
+  // preveri zmago ali neodločeno
   if(checkWin(mySymbol)) {
     gameOver = true;
   } else if(board.every(c => c)) {
@@ -119,14 +119,8 @@ function handleMove(index) {
   } else {
     currentPlayer = (currentPlayer === 'X') ? 'O' : 'X';
   }
-  updateFirebase();
-}
 
-function checkWin(player) {
-  return winCombos.some(combo => combo.every(i => board[i] === player));
-}
-
-function updateFirebase() {
+  // posodobi le potezo in stanje, ne prepiši players
   gameRef.update({
     board: board,
     currentPlayer: currentPlayer,
@@ -134,7 +128,11 @@ function updateFirebase() {
   });
 }
 
-// Initialize game session and assign players
+function checkWin(player) {
+  return winCombos.some(combo => combo.every(i => board[i] === player));
+}
+
+// Inicializacija igralcev
 gameRef.once('value').then(snapshot => {
   const data = snapshot.val() || {};
   let players = data.players || {};
@@ -146,7 +144,7 @@ gameRef.once('value').then(snapshot => {
 
   gameRef.update({ players: players });
 
-  // Now start listening
+  // Listener za posodabljanje igre
   gameRef.on('value', snap => {
     const d = snap.val();
     if(!d) return;
@@ -168,8 +166,15 @@ resetBtn.addEventListener('click', () => {
   board = Array(9).fill(null);
   currentPlayer = 'X';
   gameOver = false;
-  updateFirebase();
+  // pri resetu ne spreminjaj players
+  gameRef.update({
+    board: board,
+    currentPlayer: currentPlayer,
+    gameOver: gameOver
+  });
 });
+
+createBoard();
 </script>
 </body>
 </html>
