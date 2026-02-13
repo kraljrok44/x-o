@@ -29,8 +29,8 @@ body {
     font-size: 2.5rem;
     cursor: pointer;
 }
-.cell:hover {
-    background-color: #e0e0e0;
+.cell.my-turn:hover {
+    background-color: #d0ffd0;
 }
 #status {
     margin-top: 20px;
@@ -79,6 +79,7 @@ let board = Array(9).fill(null);
 let currentPlayer = 'X';
 let gameOver = false;
 let mySymbol = null;
+let clientId = Math.random().toString(36).substring(2, 9);
 
 const gameBoard = document.getElementById('game');
 const statusDiv = document.getElementById('status');
@@ -95,6 +96,9 @@ function createBoard() {
   board.forEach((cell, index) => {
     const cellDiv = document.createElement('div');
     cellDiv.classList.add('cell');
+    if(!gameOver && mySymbol === currentPlayer && !cell) {
+        cellDiv.classList.add('my-turn');
+    }
     cellDiv.dataset.index = index;
     cellDiv.innerText = cell || '';
     cellDiv.addEventListener('click', () => handleMove(index));
@@ -103,7 +107,10 @@ function createBoard() {
 }
 
 function handleMove(index) {
-  if(gameOver || mySymbol !== currentPlayer || board[index]) return;
+  if(gameOver) return;
+  if(mySymbol !== currentPlayer) return;
+  if(board[index]) return;
+
   board[index] = mySymbol;
   if(checkWin(mySymbol)) {
     gameOver = true;
@@ -120,53 +127,41 @@ function checkWin(player) {
 }
 
 function updateFirebase() {
-  gameRef.set({
+  gameRef.update({
     board: board,
     currentPlayer: currentPlayer,
-    gameOver: gameOver,
-    players: { X: playerX, O: playerO }
+    gameOver: gameOver
   });
 }
 
-// Initialize game session
-let playerX = null;
-let playerO = null;
-const clientId = Math.random().toString(36).substring(2, 9);
+// Initialize game session and assign players
+gameRef.once('value').then(snapshot => {
+  const data = snapshot.val() || {};
+  let players = data.players || {};
 
-// Listen for game updates
-gameRef.on('value', snapshot => {
-  const data = snapshot.val();
-  if(!data) {
-    // Create initial game state
-    playerX = clientId;
-    mySymbol = 'X';
-    playerO = null;
-    board = Array(9).fill(null);
-    currentPlayer = 'X';
-    gameOver = false;
-    updateFirebase();
-    return;
-  }
+  if(!players.X) { players.X = clientId; mySymbol = 'X'; }
+  else if(!players.O && clientId !== players.X) { players.O = clientId; mySymbol = 'O'; }
+  else if(clientId === players.X) mySymbol = 'X';
+  else if(clientId === players.O) mySymbol = 'O';
 
-  board = data.board || Array(9).fill(null);
-  currentPlayer = data.currentPlayer || 'X';
-  gameOver = data.gameOver || false;
-  playerX = data.players?.X || null;
-  playerO = data.players?.O || null;
+  gameRef.update({ players: players });
 
-  // Assign this client a symbol if not yet assigned
-  if(!mySymbol) {
-    if(!playerX) { mySymbol = 'X'; playerX = clientId; }
-    else if(!playerO) { mySymbol = 'O'; playerO = clientId; }
-    updateFirebase();
-  }
+  // Now start listening
+  gameRef.on('value', snap => {
+    const d = snap.val();
+    if(!d) return;
 
-  createBoard();
+    board = d.board || Array(9).fill(null);
+    currentPlayer = d.currentPlayer || 'X';
+    gameOver = d.gameOver || false;
 
-  if(checkWin('X')) statusDiv.innerText = 'Zmagal je: X!';
-  else if(checkWin('O')) statusDiv.innerText = 'Zmagal je: O!';
-  else if(board.every(c => c)) statusDiv.innerText = 'Neodločeno!';
-  else statusDiv.innerText = `Na potezi je: ${currentPlayer}` + (mySymbol ? ` (Ti si ${mySymbol})` : '');
+    createBoard();
+
+    if(checkWin('X')) statusDiv.innerText = 'Zmagal je: X!';
+    else if(checkWin('O')) statusDiv.innerText = 'Zmagal je: O!';
+    else if(board.every(c => c)) statusDiv.innerText = 'Neodločeno!';
+    else statusDiv.innerText = `Na potezi je: ${currentPlayer}` + (mySymbol ? ` (Ti si ${mySymbol})` : '');
+  });
 });
 
 resetBtn.addEventListener('click', () => {
@@ -175,8 +170,6 @@ resetBtn.addEventListener('click', () => {
   gameOver = false;
   updateFirebase();
 });
-
-createBoard();
 </script>
 </body>
 </html>
