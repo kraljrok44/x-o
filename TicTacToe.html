@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<title>ILIRIKA Tic Tac Toe</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+
+<style>
+
+:root{
+    --primary:#2E3F8F;
+    --primary-light:#3F57B3;
+    --bg:#F4F6FB;
+    --text:#1F2937;
+}
+
+body{
+    margin:0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background:var(--bg);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
+
+.card{
+    background:white;
+    padding:40px;
+    border-radius:20px;
+    box-shadow:0 15px 40px rgba(0,0,0,0.08);
+    text-align:center;
+    width:420px;
+}
+
+.logo{
+    height:60px;
+    margin-bottom:10px;
+}
+
+h1{
+    color:var(--primary);
+    margin:10px 0 5px 0;
+}
+
+.subtitle{
+    color:#6B7280;
+    font-size:14px;
+    margin-bottom:20px;
+}
+
+#board{
+    display:grid;
+    grid-template-columns:repeat(3,100px);
+    gap:12px;
+    justify-content:center;
+    margin-top:20px;
+}
+
+.cell{
+    width:100px;
+    height:100px;
+    font-size:40px;
+    font-weight:bold;
+    border:none;
+    border-radius:16px;
+    background:#E8EDFF;
+    color:var(--primary);
+    cursor:pointer;
+    transition:0.2s;
+}
+
+.cell:hover{
+    background:var(--primary-light);
+    color:white;
+}
+
+#status{
+    margin-top:20px;
+    font-weight:600;
+    color:var(--text);
+}
+
+.room{
+    margin-top:10px;
+    font-size:13px;
+    color:#6B7280;
+}
+
+button.reset{
+    margin-top:20px;
+    padding:10px 18px;
+    border:none;
+    border-radius:10px;
+    background:var(--primary);
+    color:white;
+    cursor:pointer;
+    font-weight:600;
+}
+
+button.reset:hover{
+    background:var(--primary-light);
+}
+
+</style>
+</head>
+<body>
+
+<div class="card">
+
+    <img src="logo.png" class="logo">
+    <h1>Tic Tac Toe</h1>
+    <div class="subtitle">ILIRIKA Teams Multiplayer</div>
+
+    <div id="board"></div>
+    <div id="status"></div>
+    <div class="room" id="room"></div>
+
+    <button class="reset" onclick="resetGame()">Nova igra</button>
+
+</div>
+
+<script>
+
+// 🔥 VSTAVI SVOJ FIREBASE CONFIG
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDiedKLK3ERNaMT_u5cLQcplTh9ub67G0c",
+  authDomain: "x--o-f01ff.firebaseapp.com",
+  databaseURL: "https://x--o-f01ff-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "x--o-f01ff",
+  storageBucket: "x--o-f01ff.firebasestorage.app",
+  messagingSenderId: "1086881785971",
+  appId: "1:1086881785971:web:d527d04ae13a14a413e206",
+  measurementId: "G-ELM6P84NJL"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const urlParams = new URLSearchParams(window.location.search);
+let roomId = urlParams.get("room");
+
+if(!roomId){
+    roomId = Math.random().toString(36).substring(2,8);
+    window.location.search = "?room=" + roomId;
+}
+
+document.getElementById("room").innerText = "Room: " + roomId;
+
+const roomRef = db.ref("rooms/" + roomId);
+
+let player = Math.random() < 0.5 ? "X" : "O";
+let board = Array(9).fill("");
+let currentPlayer = "X";
+
+const boardDiv = document.getElementById("board");
+const statusDiv = document.getElementById("status");
+
+const winConditions = [
+[0,1,2],[3,4,5],[6,7,8],
+[0,3,6],[1,4,7],[2,5,8],
+[0,4,8],[2,4,6]
+];
+
+function drawBoard(){
+    boardDiv.innerHTML="";
+    board.forEach((cell,i)=>{
+        const btn=document.createElement("button");
+        btn.className="cell";
+        btn.innerText=cell;
+        btn.onclick=()=>makeMove(i);
+        boardDiv.appendChild(btn);
+    });
+}
+
+function checkWinner(){
+    return winConditions.some(c=>{
+        const [a,b,c2]=c;
+        return board[a] && board[a]===board[b] && board[a]===board[c2];
+    });
+}
+
+function makeMove(i){
+    if(board[i]!=="" || currentPlayer!==player) return;
+
+    board[i]=player;
+
+    if(checkWinner()){
+        roomRef.set({board,currentPlayer:"END",winner:player});
+        return;
+    }
+
+    if(!board.includes("")){
+        roomRef.set({board,currentPlayer:"END",winner:"DRAW"});
+        return;
+    }
+
+    currentPlayer=player==="X"?"O":"X";
+    roomRef.set({board,currentPlayer});
+}
+
+roomRef.on("value",(snapshot)=>{
+    const data=snapshot.val();
+    if(!data) return;
+
+    board=data.board || board;
+    currentPlayer=data.currentPlayer || currentPlayer;
+
+    drawBoard();
+
+    if(data.winner==="DRAW"){
+        statusDiv.innerText="Neodločeno 🤝";
+    }
+    else if(data.winner){
+        statusDiv.innerText="Zmagal je "+data.winner+" 🎉";
+    }
+    else{
+        statusDiv.innerText="Ti si: "+player+" | Na potezi: "+currentPlayer;
+    }
+});
+
+function resetGame(){
+    board=Array(9).fill("");
+    currentPlayer="X";
+    roomRef.set({board,currentPlayer});
+}
+
+drawBoard();
+
+</script>
+
+</body>
+</html>
