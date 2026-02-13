@@ -5,43 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tic Tac Toe Multiplayer Firebase</title>
 <style>
-body {
-    font-family: Arial, sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    background-color: #f0f0f0;
-}
-#game {
-    display: grid;
-    grid-template-columns: repeat(3, 100px);
-    grid-template-rows: repeat(3, 100px);
-    gap: 5px;
-}
-.cell {
-    background-color: #fff;
-    border: 2px solid #333;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 2.5rem;
-    cursor: pointer;
-}
-.cell.my-turn:hover {
-    background-color: #d0ffd0;
-}
-#status {
-    margin-top: 20px;
-    font-size: 1.2rem;
-}
-#resetBtn {
-    margin-top: 10px;
-    padding: 10px 20px;
-    font-size: 1rem;
-    cursor: pointer;
-}
+body { font-family: Arial; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f0f0f0; }
+#game { display: grid; grid-template-columns: repeat(3,100px); grid-template-rows: repeat(3,100px); gap:5px; }
+.cell { background:#fff; border:2px solid #333; display:flex; justify-content:center; align-items:center; font-size:2.5rem; cursor:pointer; }
+.cell.my-turn:hover { background-color: #d0ffd0; }
+#status { margin-top: 20px; font-size:1.2rem; }
+#resetBtn { margin-top:10px; padding:10px 20px; font-size:1rem; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -51,10 +20,8 @@ body {
 <div id="status">Povezovanje...</div>
 <button id="resetBtn">Ponastavi igro</button>
 
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
 <script>
 // Firebase config
 const firebaseConfig = {
@@ -70,7 +37,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Get game ID from URL or default
+// Game ID from URL
 const urlParams = new URLSearchParams(window.location.search);
 const gameId = urlParams.get('game') || 'default';
 const gameRef = db.ref('games/' + gameId);
@@ -85,96 +52,82 @@ const gameBoard = document.getElementById('game');
 const statusDiv = document.getElementById('status');
 const resetBtn = document.getElementById('resetBtn');
 
-const winCombos = [
-  [0,1,2],[3,4,5],[6,7,8],
-  [0,3,6],[1,4,7],[2,5,8],
-  [0,4,8],[2,4,6]
-];
+const winCombos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
 
 function createBoard() {
-  gameBoard.innerHTML = '';
-  board.forEach((cell, index) => {
-    const cellDiv = document.createElement('div');
-    cellDiv.classList.add('cell');
-    if(!gameOver && mySymbol === currentPlayer && !cell) {
-        cellDiv.classList.add('my-turn');
+    gameBoard.innerHTML = '';
+    board.forEach((cell, idx) => {
+        const div = document.createElement('div');
+        div.className = 'cell';
+        if(!gameOver && mySymbol===currentPlayer && !cell) div.classList.add('my-turn');
+        div.innerText = cell || '';
+        div.addEventListener('click', ()=>handleMove(idx));
+        gameBoard.appendChild(div);
+    });
+}
+
+function checkWin(player){ return winCombos.some(c=>c.every(i=>board[i]===player)); }
+
+function handleMove(idx){
+    if(gameOver || mySymbol!==currentPlayer || board[idx]) return;
+    board[idx] = mySymbol;
+    if(checkWin(mySymbol)) gameOver = true;
+    else if(board.every(c=>c)) gameOver = true;
+    else currentPlayer = (currentPlayer==='X')?'O':'X';
+    updateBoard();
+}
+
+function updateBoard(){
+    // posodobi le board, currentPlayer in gameOver
+    gameRef.update({ board, currentPlayer, gameOver });
+}
+
+// Inicializacija igre in igralcev
+gameRef.once('value').then(snapshot=>{
+    let data = snapshot.val();
+    if(!data){
+        // ustvari začetno igro, če še ne obstaja
+        gameRef.set({
+            board: Array(9).fill(null),
+            currentPlayer: 'X',
+            gameOver: false,
+            players: {}
+        });
+        data = {board:Array(9).fill(null), currentPlayer:'X', gameOver:false, players:{}};
     }
-    cellDiv.dataset.index = index;
-    cellDiv.innerText = cell || '';
-    cellDiv.addEventListener('click', () => handleMove(index));
-    gameBoard.appendChild(cellDiv);
-  });
-}
 
-function handleMove(index) {
-  if(gameOver || mySymbol !== currentPlayer || board[index]) return;
+    let players = data.players || {};
+    if(!players.X){ players.X = clientId; mySymbol='X'; }
+    else if(!players.O && clientId!==players.X){ players.O = clientId; mySymbol='O'; }
+    else if(clientId===players.X) mySymbol='X';
+    else if(clientId===players.O) mySymbol='O';
+    gameRef.update({players});
 
-  board[index] = mySymbol;
+    createBoard();
+});
 
-  // preveri zmago ali neodločeno
-  if(checkWin(mySymbol)) {
-    gameOver = true;
-  } else if(board.every(c => c)) {
-    gameOver = true;
-  } else {
-    currentPlayer = (currentPlayer === 'X') ? 'O' : 'X';
-  }
-
-  // posodobi le potezo in stanje, ne prepiši players
-  gameRef.update({
-    board: board,
-    currentPlayer: currentPlayer,
-    gameOver: gameOver
-  });
-}
-
-function checkWin(player) {
-  return winCombos.some(combo => combo.every(i => board[i] === player));
-}
-
-// Inicializacija igralcev
-gameRef.once('value').then(snapshot => {
-  const data = snapshot.val() || {};
-  let players = data.players || {};
-
-  if(!players.X) { players.X = clientId; mySymbol = 'X'; }
-  else if(!players.O && clientId !== players.X) { players.O = clientId; mySymbol = 'O'; }
-  else if(clientId === players.X) mySymbol = 'X';
-  else if(clientId === players.O) mySymbol = 'O';
-
-  gameRef.update({ players: players });
-
-  // Listener za posodabljanje igre
-  gameRef.on('value', snap => {
+// Listener za posodobitve
+gameRef.on('value', snap=>{
     const d = snap.val();
     if(!d) return;
-
     board = d.board || Array(9).fill(null);
     currentPlayer = d.currentPlayer || 'X';
     gameOver = d.gameOver || false;
-
     createBoard();
 
-    if(checkWin('X')) statusDiv.innerText = 'Zmagal je: X!';
-    else if(checkWin('O')) statusDiv.innerText = 'Zmagal je: O!';
-    else if(board.every(c => c)) statusDiv.innerText = 'Neodločeno!';
-    else statusDiv.innerText = `Na potezi je: ${currentPlayer}` + (mySymbol ? ` (Ti si ${mySymbol})` : '');
-  });
+    if(checkWin('X')) statusDiv.innerText='Zmagal je: X!';
+    else if(checkWin('O')) statusDiv.innerText='Zmagal je: O!';
+    else if(board.every(c=>c)) statusDiv.innerText='Neodločeno!';
+    else statusDiv.innerText=`Na potezi je: ${currentPlayer}` + (mySymbol?` (Ti si ${mySymbol})`:'');
 });
 
-resetBtn.addEventListener('click', () => {
-  board = Array(9).fill(null);
-  currentPlayer = 'X';
-  gameOver = false;
-  // pri resetu ne spreminjaj players
-  gameRef.update({
-    board: board,
-    currentPlayer: currentPlayer,
-    gameOver: gameOver
-  });
+// Reset gumb
+resetBtn.addEventListener('click', ()=>{
+    board = Array(9).fill(null);
+    currentPlayer='X';
+    gameOver=false;
+    gameRef.update({board, currentPlayer, gameOver});
 });
-
-createBoard();
 </script>
 </body>
 </html>
