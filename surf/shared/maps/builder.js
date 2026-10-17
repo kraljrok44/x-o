@@ -14,6 +14,7 @@ export class MapBuilder {
     this.rings = [];
     this.ramps = [];        // ridge paths, kept for the renderer, decor placement and the test bot
     this.zones = [];        // visual zone markers
+    this.pads = [];         // jump pads (used by the renderer and the validation bot)
     this.curStage = 0;
   }
 
@@ -51,6 +52,7 @@ export class MapBuilder {
       rings: this.rings,
       ramps: this.ramps,
       zones: this.zones,
+      pads: this.pads,
       killZ: minZ - 3000,
     };
   }
@@ -116,7 +118,30 @@ export function buildStage(b, k, spec, isLast, nextSpawnRef) {
       b.rings.push({ c, yaw: h, r: 270, stage: k });
       b.trigger('boost', c, [70, 270, 270], h, { ring: ringIndex % 30 });
     }
-    if (ri < spec.ramps.length - 1) {
+    if (r.jump && ri < spec.ramps.length - 1) {
+      // Jump section: a long flat runway, then a wide gap to the next ramp. Friction drains your
+      // speed on the runway unless you bunny-hop (hold SPACE: a jump on the landing tick skips
+      // friction), and only with that speed can you clear the gap. Where you land on the
+      // runway does not matter, so the section is fair at any speed.
+      const J = r.jump;
+      const padLen = J.len ?? (J.pads ?? 2) * 850, hw = J.w ?? 600;
+      const riderOff = (r.sides === 'right' ? -1 : 1) * (r.w ?? 420) * 0.4; // riders surf this far off the ridge
+      const d0 = J.first ?? 260;
+      const top = q.z - (J.drop ?? 380);
+      const lx = q.x + Ln.x * riderOff, ly = q.y + Ln.y * riderOff;
+      const cx = lx + Dn.x * (d0 + padLen / 2), cy = ly + Dn.y * (d0 + padLen / 2);
+      b.obox(cx, cy, h, padLen / 2, hw, top - 64, top, 'pad');
+      b.pads.push({ stage: k, c: [cx, cy, top], yaw: h, hl: padLen / 2, hw });
+      grow(cx + 1500, cy + 1500); grow(cx - 1500, cy - 1500);
+      minZ = Math.min(minZ, top - 64);
+      const nx = spec.ramps[ri + 1];
+      const nw = nx.w ?? 420, nd = nx.d ?? 600;
+      // next ridge beside the rider's line so they land on a slope, not on the apex
+      const off = (nx.sides === 'right' ? 1 : -1) * nw * 0.4;
+      const exit = J.exit ?? 600;
+      const dist = d0 + padLen + exit;
+      p = { x: lx + Dn.x * dist + Ln.x * off, y: ly + Dn.y * dist + Ln.y * off, z: top - 150 }; // whole slope below the flight path
+    } else if (ri < spec.ramps.length - 1) {
       const shift = r.shift || 0;
       p = { x: q.x + Dn.x * gap + Ln.x * shift, y: q.y + Dn.y * gap + Ln.y * shift, z: q.z - (r.drop ?? Math.round(140 + 0.4 * gap)) };
     }

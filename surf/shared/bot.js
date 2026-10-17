@@ -27,9 +27,23 @@ export function nearestRampInfo(map, ps) {
   return best;
 }
 
+function padUnder(map, ps) {
+  for (const pd of map.pads || []) {
+    if (pd.stage !== ps.stage) continue;
+    const dx = ps.pos.x - pd.c[0], dy = ps.pos.y - pd.c[1];
+    const c = Math.cos(-pd.yaw), s = Math.sin(-pd.yaw);
+    const lx = c * dx - s * dy, ly = s * dx + c * dy;
+    // the section includes the gaps around the pads
+    if (Math.abs(lx) < pd.hl + 120 && Math.abs(ly) < pd.hw && ps.pos.z > pd.c[2] - 200 && ps.pos.z < pd.c[2] + 600) return pd;
+  }
+  return null;
+}
+
 export function botCommand(map, ps) {
   const info = nearestRampInfo(map, ps);
   const spawn = map.stages[ps.stage].spawn;
+  const pad = padUnder(map, ps);
+  if (pad) return { fwd: 0, side: 0, buttons: BTN.JUMP, yaw: pad.yaw, pitch: 0 }; // bunny hop over the jump section
   if (ps.onGround) {
     const first = map.ramps.find((r) => r.stage === ps.stage);
     const sideSign = first && first.sides === 'right' ? -1 : 1;

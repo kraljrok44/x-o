@@ -87,3 +87,32 @@ test('map change after a vote reloads every player on the new map', async () => 
   assert.equal(room.map.id, target);
   assert.equal(a.last('map').map, target);
 });
+
+test('leaderboard: all-time, weekly and points boards; CrazyGames forwarding only for CG accounts', async () => {
+  const { submitTime, queryBoard, POINTS_BOARD, mapPoints } = await import('../shared/leaderboard.js');
+  const { createCrazyLeaderboard } = await import('../server/cg-leaderboard.js');
+  const store = memStore();
+  const now = Date.UTC(2026, 9, 14, 12);
+  submitTime(store, { key: 'g:a', name: 'A', mapId: 'surf_aurora_dawn', ticks: 4000, now });
+  submitTime(store, { key: 'cg:42', name: 'B', mapId: 'surf_aurora_dawn', ticks: 3500, now });
+  const r = submitTime(store, { key: 'g:a', name: 'A', mapId: 'surf_aurora_dawn', ticks: 4500, now }); // slower: no change
+  assert.equal(r.allTime.improved, false);
+  const all = queryBoard(store, 'surf_aurora_dawn', 'all', 'g:a', 50, now);
+  assert.deepEqual(all.list.map((x) => x.name), ['B', 'A']);
+  assert.equal(all.me.rank, 2);
+  assert.equal(all.list[0].cg, true);
+  // next week the weekly board is empty but all-time stays
+  const nextWeek = now + 7 * 24 * 3600 * 1000;
+  assert.equal(queryBoard(store, 'surf_aurora_dawn', 'week', 'g:a', 50, nextWeek).list.length, 0);
+  assert.equal(queryBoard(store, 'surf_aurora_dawn', 'all', 'g:a', 50, nextWeek).list.length, 2);
+  const pts = queryBoard(store, POINTS_BOARD, 'all', 'cg:42', 50, now);
+  assert.equal(pts.list[0].value, mapPoints('surf_aurora_dawn', 3500));
+  // forwarding
+  const sent = [];
+  const cg = createCrazyLeaderboard({ apiKey: 'k', log: () => {}, fetchImpl: async (url, o) => { sent.push(JSON.parse(o.body)); return { ok: true, json: async () => ({ successCount: 1 }) }; } });
+  cg.submit('g:a', 1000);
+  cg.submit('cg:42', 1234);
+  await cg.flush();
+  assert.equal(sent.length, 1);
+  assert.deepEqual(sent[0].scores.map((s) => [s.userId, s.score]), [['42', 1234]]);
+});

@@ -5,6 +5,7 @@ import { Game } from './game.js';
 import { Hud } from './ui/hud.js';
 import { Vault } from './ui/vault.js';
 import { Inventory } from './ui/inventory.js';
+import { Leaderboard } from './ui/leaderboard.js';
 import { $, $$, esc, html, show } from './ui/dom.js';
 import { t, lang } from './i18n.js';
 import { sdk } from './sdk.js';
@@ -45,7 +46,20 @@ class Account {
       const w = this.waiters.get(m.key);
       if (w) { this.waiters.delete(m.key); w(m); }
       if (m.status === 'SUCCESS') this.send({ t: 'inventory' });
+    } else if (m.t === 'leaderboard') {
+      const w = this.waiters.get('lb:' + m.req);
+      if (w) { this.waiters.delete('lb:' + m.req); w(m); }
     }
+  }
+
+  async leaderboard(board, period) {
+    if (!(await this.ensure())) return null;
+    const req = Math.random().toString(36).slice(2);
+    return new Promise((resolve) => {
+      const to = setTimeout(() => { this.waiters.delete('lb:' + req); resolve(null); }, 6000);
+      this.waiters.set('lb:' + req, (m) => { clearTimeout(to); resolve(m); });
+      this.send({ t: 'leaderboard', board, period, req });
+    });
   }
 
   _setInv(inv) {
@@ -109,6 +123,7 @@ const account = new Account();
 game.on('inventory', (inv) => account._setInv(inv));
 game.on('welcome', (m) => account._setInv(m.inventory));
 game.on('crate', (m) => account._handle(m));
+game.on('leaderboard', (m) => account._handle(m));
 
 const vault = new Vault({
   getInventory: () => account.inventory,
@@ -124,6 +139,11 @@ const inventory = new Inventory({
   equip: (id) => account.equip(id),
   close: () => closePanels(),
 });
+const leaderboard = new Leaderboard({
+  query: (board, period) => account.leaderboard(board, period),
+  close: () => closePanels(),
+});
+
 window.addEventListener('gz-inventory', () => {
   if (!$('#vault').classList.contains('hidden') && vault.state !== 'opening') vault._renderPanel();
   renderMenu();
@@ -142,6 +162,7 @@ function openPanel(which) {
   if (which === 'vault') vault.open();
   if (which === 'inventory') inventory.open();
   if (which === 'settings') renderSettings();
+  if (which === 'leaderboard') leaderboard.open(app.state === 'game' && game.map ? game.map.id : undefined);
   if (which === 'maps') renderMaps();
   app.panel = which;
   game.input.unlock();
@@ -150,6 +171,7 @@ function openPanel(which) {
 function closePanels() {
   vault.close();
   inventory.close();
+  leaderboard.close();
   show('#settings', false);
   show('#maps', false);
   show('#panels', false);
@@ -179,7 +201,10 @@ function renderMenu() {
             <button class="btn" id="m-vault">🔓 ${t('vault')}</button>
             <button class="btn" id="m-inv">${t('inventory')} <span class="dim">${account.inventory.owned.length}/${CATALOG_TOTAL}</span></button>
           </div>
-          <button class="btn ghost" id="m-settings">⚙ ${t('settings')}</button>
+          <div class="row">
+            <button class="btn" id="m-lb">🏆 ${t('leaderboard')}</button>
+            <button class="btn ghost" id="m-settings">⚙ ${t('settings')}</button>
+          </div>
         </div>
         <div class="menu-col info">
           <label class="field">${t('name')}
@@ -188,6 +213,7 @@ function renderMenu() {
           ${sdk.available && !cgName ? `<button class="btn ghost small" id="m-login">${t('login')}</button>` : ''}
           <div class="status">${status}</div>
           <p class="howto">${t('howTo')}</p>
+          <p class="howto">${t('jumpHint')}</p>
           <p class="keys-line">${t('controls')}</p>
           ${isTouchOnly() ? `<p class="warn">${t('desktopOnly')}</p>` : ''}
         </div>
@@ -200,6 +226,7 @@ function renderMenu() {
   bind('m-vault', () => openPanel('vault'));
   bind('m-inv', () => openPanel('inventory'));
   bind('m-settings', () => openPanel('settings'));
+  bind('m-lb', () => openPanel('leaderboard'));
   bind('m-login', async () => { await sdk.showAuthPrompt(); account.closeMenuConn(); account.refresh(); renderMenu(); });
   const nameEl = $('#m-name');
   if (nameEl) nameEl.onchange = () => saveSettings({ name: nameEl.value.trim().slice(0, GAME.maxNameLength) });
@@ -332,7 +359,7 @@ function showPause(on) {
       <button class="btn" id="p-spec">${game.spectator ? t('joinSurf') : t('spectateMode')}</button>
       ${game.voting !== false ? `<button class="btn" id="p-rtv" ${v && v.state !== 'playing' ? 'disabled' : ''}>${t('rtv')} ${v && v.rtv ? `(${v.rtv}/${v.needed})` : ''}</button>` : ''}`}
     <div class="row"><button class="btn" id="p-vault">🔓 ${t('vault')}</button><button class="btn" id="p-inv">${t('inventory')}</button></div>
-    <button class="btn ghost" id="p-settings">⚙ ${t('settings')}</button>
+    <div class="row"><button class="btn" id="p-lb">🏆 ${t('leaderboard')}</button><button class="btn ghost" id="p-settings">⚙ ${t('settings')}</button></div>
     <button class="btn ghost" id="p-leave">${t('leave')}</button>
   </div>`);
   const bind = (id, f) => { const b = $('#' + id); if (b) b.onclick = () => { audio.play('click'); f(); }; };
@@ -343,6 +370,7 @@ function showPause(on) {
   bind('p-vault', () => openPanel('vault'));
   bind('p-inv', () => openPanel('inventory'));
   bind('p-settings', () => openPanel('settings'));
+  bind('p-lb', () => openPanel('leaderboard'));
   bind('p-leave', () => leaveGame());
 }
 

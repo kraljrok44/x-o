@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAP_LIST, getMap } from '../shared/maps/index.js';
 import { CollisionWorld } from '../shared/collision.js';
-import { createPlayerState, stepPlayer, inTrigger, EV } from '../shared/sim.js';
+import { createPlayerState, stepPlayer, inTrigger, EV, respawn, BTN } from '../shared/sim.js';
 import { botCommand } from '../shared/bot.js';
 import { MODE } from '../shared/movement.js';
 
@@ -64,3 +64,26 @@ for (const meta of MAP_LIST) {
     assert.equal(fails, 0);
   });
 }
+
+test('jump sections cannot be passed without jumping', () => {
+  for (const meta of MAP_LIST) {
+    const map = getMap(meta.id);
+    const world = new CollisionWorld(map.brushes);
+    const stages = [...new Set(map.pads.map((p) => p.stage))];
+    assert.ok(stages.length >= 1, `${meta.id} has no jump section`);
+    for (const st of stages) {
+      const ps = createPlayerState(map);
+      ps.stage = st;
+      respawn(ps, map, st);
+      let passed = false;
+      for (let t = 0; t < 6000 && !passed; t++) {
+        const c = botCommand(map, ps);
+        c.buttons &= ~BTN.JUMP;
+        const ev = [];
+        stepPlayer(ps, c, { world, map }, ev);
+        if (ps.stage > st || ev.some((e) => e.type === EV.FINISH)) passed = true;
+      }
+      assert.equal(passed, false, `${meta.id} stage ${st + 1} passable without jumping`);
+    }
+  }
+});

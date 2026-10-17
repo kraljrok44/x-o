@@ -12,7 +12,9 @@ v projektu ni nobenih sredstev iz Counter-Strike ali drugih iger.
 | Področje | Izvedba |
 |---|---|
 | Fizika | Source-slog gibanja: fiksni korak 100 Hz, trenje, pospeševanje na tleh, air-accelerate (150) z omejitvijo 30, sweep-and-slide trki kvadra s konveksnimi brushi + robni »bevel« ravnini (brez ramp bugov). Deterministična – ista koda teče na strežniku in v brskalniku. |
-| Mape | 6 izvirnih map (začetniška → težka), 3–5 etap, ukrivljene rampe, enostranske rampe, teleporti, checkpointi, start/cilj cone. Vsako mapo samodejni bot prevozi v testih. |
+| Mape | 6 izvirnih map (začetniška → težka), 3–5 etap, zavite rampe na vsaki etapi, enostranske rampe, **skakalni odseki** (vsaj eden na mapo), teleporti, checkpointi, start/cilj cone. Vsako mapo samodejni bot prevozi v testih; test tudi preveri, da skakalnih odsekov ni mogoče preiti brez skakanja. |
+| Skakalni odseki | Svetleča ravna steza in nato širok prepad do naslednje rampe. Trenje na stezi pobere hitrost, razen če igralec drži PRESLEDNICO (zaporedni skoki brez trenja) – samo s to hitrostjo preskoči prepad. |
+| Lestvica | Skupna lestvica točk (1000 točk na mapo pri par času, več ob hitrejšem času) + najboljši časi za vsako mapo, »vseh časov« in »ta teden« (sezona se ponastavi v ponedeljek ob 9:00 UTC, kot pri CrazyGames). Rekorde shranjuje strežnik, igralci s CrazyGames računom so označeni (CG). |
 | Večigralski način | Avtoritativni Node.js strežnik (WebSocket), napovedovanje na klientu + usklajevanje, interpolacija drugih igralcev, zaščita pred speed-hackom (proračun ukazov). |
 | Glasovanje | Po 10 minutah na mapi glasovanje (4 mape + »podaljšaj +5 min«), predčasno, ko ≥ 50 % trenutnih igralcev pritisne **V** (rock-the-vote). Prazen strežnik zamenja mapo brez glasovanja. |
 | Opazovalni način | Prva oseba (vidiš igralčev nož in hitrost/čas), kamera za igralcem, prosta kamera. **J** vklop/izklop, **LMB/DMB** menjava igralca, **SPACE** način kamere. |
@@ -52,6 +54,8 @@ npm test           # 47 testov: fizika, mape (bot prevozi vse), krejti, glasovan
 
 Brez strežnika (npr. ob odprtju `dist/index.html` ali če strežnik ni dosegljiv) igra preklopi v
 **offline način**: ista avtoritativna soba teče v brskalniku, inventar se shrani lokalno.
+
+**CrazyGames lestvica:** CrazyGames dovoli eno lestvico na igro, funkcija je na voljo samo povabljenim igram. Ko dobiš API ključ, ga nastavi v `CG_LEADERBOARD_API_KEY`: strežnik bo skupne točke igralcev, prijavljenih s CrazyGames računom, sproti (v paketih do 100) pošiljal na strežniški API CrazyGames. Naslov endpointa lahko po potrebi spremeniš s `CG_LEADERBOARD_URL`. Lestvica v igri deluje tudi brez ključa.
 
 Spremenljivke strežnika: `PORT` (8080), `DATA_DIR` (./data – profili in rekordi), `ALLOWED_ORIGINS`
 (npr. `crazygames.com,crazygames.si` – omeji WebSocket povezave), `START_MAP`, `ROOM_NAME`.

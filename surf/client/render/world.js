@@ -84,7 +84,8 @@ function buildSurfaces(map, theme) {
         if (n.z < -0.2) col.multiplyScalar(0.35); // underside
         else if (n.z < 0.2) col.multiplyScalar(0.6); // caps / walls
       } else {
-        col.set(theme[b.mat] || theme.platform);
+        if (b.mat === 'pad') col.set(theme.accent).multiplyScalar(0.6);
+        else col.set(theme[b.mat] || theme.platform);
         col.offsetHSL(0, 0, n.z > 0.7 ? 0.1 : 0.05);
       }
       for (let i = 1; i < vs.length - 1; i++) {

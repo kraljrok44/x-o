@@ -306,6 +306,9 @@ export class Game extends Emitter {
       case 'crate':
         this.emit('crate', m);
         break;
+      case 'leaderboard':
+        this.emit('leaderboard', m);
+        break;
       case 'pong':
         this.rtt = performance.now() - m.t0;
         break;

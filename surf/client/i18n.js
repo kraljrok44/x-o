@@ -29,6 +29,10 @@ const STR = {
     howTo: 'How to surf: drop onto a ramp, hold the strafe key towards the ramp (A or D) and steer with the mouse. Never press W on a ramp.',
     difficulty: ['', 'Beginner', 'Easy', 'Medium', 'Hard'], stages: 'stages', choose: 'Choose a map',
     login: 'Log in to keep your knives on every device',
+    leaderboard: 'Leaderboard', overall: 'Overall', points: 'Points', time: 'Time', allTime: 'All time', thisWeek: 'This week',
+    seasonEnds: 'season resets in', mapsDone: 'maps', lbEmpty: 'No times yet - be the first!', lbOffline: 'Leaderboard unavailable right now.',
+    pointsHelp: '1000 points per map at par time, more when faster. Sum of your best runs.',
+    jumpHint: 'Glowing runways: hold SPACE to bunny-hop - without jumping you lose your speed and miss the next ramp.',
   },
   sl: {
     tagline: 'Večigralski surf. Drži rampo, lovi tok.',
@@ -56,6 +60,10 @@ const STR = {
     howTo: 'Kako surfati: spusti se na rampo, drži stransko tipko proti rampi (A ali D) in usmerjaj z miško. Na rampi nikoli ne pritiskaj W.',
     difficulty: ['', 'Začetniška', 'Lahka', 'Srednja', 'Težka'], stages: 'etap', choose: 'Izberi mapo',
     login: 'Prijavi se in ohrani nože na vseh napravah',
+    leaderboard: 'Lestvica', overall: 'Skupno', points: 'Točke', time: 'Čas', allTime: 'Vseh časov', thisWeek: 'Ta teden',
+    seasonEnds: 'sezona se ponastavi čez', mapsDone: 'map', lbEmpty: 'Še ni časov - bodi prvi!', lbOffline: 'Lestvica trenutno ni na voljo.',
+    pointsHelp: '1000 točk na mapo pri par času, več ob hitrejšem času. Seštevek tvojih najboljših voženj.',
+    jumpHint: 'Svetleče steze: drži PRESLEDNICO za zaporedne skoke - brez skakanja izgubiš hitrost in ne dosežeš naslednje rampe.',
   },
 };
 

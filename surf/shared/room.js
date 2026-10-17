@@ -8,6 +8,8 @@ import { createPlayerState, stepPlayer, restartRun, copyState, EV, formatTime } 
 import { MapVote, EXTEND } from './vote.js';
 import { openCrate, equipKnife, emptyProfile, CRATE_STATUS } from './crate.js';
 import { CATALOG_TOTAL, getCollectible } from './catalog.js';
+import { submitTime, queryBoard, POINTS_BOARD } from './leaderboard.js';
+import { isMapId as isMap } from './maps/index.js';
 
 const RUN_STATE = { idle: 0, ready: 1, running: 2, finished: 3 };
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -36,6 +38,7 @@ export class Room {
     this.log = o.log || (() => {});
     this.mapIds = o.mapIds || MAP_LIST.map((m) => m.id);
     this.voting = o.voting !== false;
+    this.onPoints = o.onPoints || (() => {}); // e.g. forward to the CrazyGames leaderboard
     this.maxPlayers = o.maxPlayers || NET.maxPlayersPerRoom;
     this.name = o.name || 'GLIDEZONE #1';
     this.clients = new Map();
@@ -135,6 +138,11 @@ export class Room {
       case 'inventory':
         c.profile = this.store.load(c.key) || emptyProfile();
         return this.send(c, { t: 'inventory', owned: c.profile.owned, equipped: c.profile.equipped, total: CATALOG_TOTAL });
+      case 'leaderboard': {
+        const board = msg.board === POINTS_BOARD ? POINTS_BOARD : isMap(msg.board) ? msg.board : this.map.id;
+        const period = msg.period === 'week' ? 'week' : 'all';
+        return this.send(c, { t: 'leaderboard', req: msg.req, ...queryBoard(this.store, board, period, c.key) });
+      }
       case 'records':
         return this.send(c, { t: 'records', map: this.map.id, list: this.records.slice(0, 10).map((r) => ({ name: r.name, ticks: r.ticks })) });
       default:
@@ -282,24 +290,19 @@ export class Room {
 
   _onFinish(c, ev) {
     const ticks = ev.ticks;
-    // other rooms (practice) may have written newer records for this map
-    if (this.store.loadRecords) this.records = this.store.loadRecords(this.map.id) || this.records;
-    const prev = this.records.find((r) => r.key === c.key);
     const time = formatTime(ticks);
-    if (!prev || ticks < prev.ticks) {
-      const entry = { key: c.key, name: c.name, ticks, date: Date.now(), map: this.map.id, mapVersion: this.map.version, physics: PHYSICS_VERSION };
-      this.records = this.records.filter((r) => r.key !== c.key);
-      this.records.push(entry);
-      this.records.sort((a, b) => a.ticks - b.ticks);
-      this.records = this.records.slice(0, 200);
-      if (this.store.saveRecords) this.store.saveRecords(this.map.id, this.records);
-      const rank = this.records.indexOf(entry) + 1;
+    const prevAll = (this.store.loadRecords(this.map.id) || []).find((r) => r.key === c.key);
+    const res = submitTime(this.store, { key: c.key, name: c.name, mapId: this.map.id, ticks, mapVersion: this.map.version, now: Date.now() });
+    this.records = res.list;
+    if (res.allTime.improved) {
+      const rank = res.allTime.rank;
       this.feed(`${c.name} finished in ${time} - new personal best! (#${rank})`, rank === 1 ? 'record' : 'pb');
       this.broadcast({ t: 'pinfo', p: this.rosterEntry(c) });
       this.broadcast({ t: 'records', map: this.map.id, list: this.records.slice(0, 10).map((r) => ({ name: r.name, ticks: r.ticks })) });
     } else {
-      this.feed(`${c.name} finished in ${time} (+${formatTime(ticks - prev.ticks)})`, 'finish');
+      this.feed(`${c.name} finished in ${time} (+${formatTime(ticks - prevAll.ticks)})${res.weekly.improved ? ' - weekly best!' : ''}`, 'finish');
     }
+    if (res.points !== null) this.onPoints(c.key, res.points, c.name);
   }
 
   // ---------------------------------------------------------------- simulation

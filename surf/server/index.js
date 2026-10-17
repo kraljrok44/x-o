@@ -11,6 +11,7 @@ import { NET } from '../shared/config.js';
 import { MAP_LIST, isMapId } from '../shared/maps/index.js';
 import { FileStore } from './store-file.js';
 import { authenticate } from './auth.js';
+import { createCrazyLeaderboard } from './cg-leaderboard.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -21,6 +22,8 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) =
 
 const store = new FileStore(DATA);
 const log = (...a) => console.log(new Date().toISOString(), ...a);
+const crazyBoard = createCrazyLeaderboard({ log });
+const onPoints = (key, points) => crazyBoard.submit(key, points);
 
 // Public rooms (map voting, up to NET.maxPlayersPerRoom each; a new one opens when all are full)
 // and private practice rooms (one player, free map choice, no voting).
@@ -28,7 +31,7 @@ const publicRooms = [];
 const practiceRooms = new Set();
 function newPublicRoom() {
   const r = new Room({
-    store, auth: authenticate, log,
+    store, auth: authenticate, log, onPoints,
     name: `${process.env.ROOM_NAME || 'GLIDEZONE'} #${publicRooms.length + 1}`,
     startMap: process.env.START_MAP || MAP_LIST[0].id,
   });
@@ -92,7 +95,7 @@ wss.on('connection', (ws) => {
     if (!target) {
       if (!msg || msg.t !== 'hello') return;
       if (msg.mode === 'practice') {
-        target = new Room({ store, auth: authenticate, log, voting: false, maxPlayers: 1, name: 'Practice', startMap: isMapId(msg.map) ? msg.map : MAP_LIST[0].id });
+        target = new Room({ store, auth: authenticate, log, onPoints, voting: false, maxPlayers: 1, name: 'Practice', startMap: isMapId(msg.map) ? msg.map : MAP_LIST[0].id });
         practiceRooms.add(target);
       } else {
         target = publicRoomWithSpace();
@@ -118,4 +121,5 @@ setInterval(() => {
 
 server.listen(PORT, () => {
   console.log(`GLIDEZONE server on http://localhost:${PORT}  (ws path /ws, data ${DATA})`);
+  console.log(`CrazyGames leaderboard forwarding: ${crazyBoard.enabled ? 'on' : 'off (set CG_LEADERBOARD_API_KEY)'}`);
 });
