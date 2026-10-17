@@ -9,6 +9,14 @@ import { EXTEND } from '../../shared/vote.js';
 import { getCollectible } from '../../shared/catalog.js';
 import { settings } from '../settings.js';
 
+// DOM writes are expensive at high frame rates: only touch an element when its value changes.
+const cache = new Map();
+function setText(sel, v) { if (cache.get(sel) === v) return; cache.set(sel, v); $(sel).textContent = v; }
+function setHtml(sel, v) { if (cache.get(sel + '#h') === v) return; cache.set(sel + '#h', v); html(sel, v); }
+function setShow(sel, on) { if (cache.get(sel + '#s') === on) return; cache.set(sel + '#s', on); show(sel, on); }
+function setStyleWidth(pct) { const v = Math.round(pct); if (cache.get('bar') === v) return; cache.set('bar', v); $('#hud-speed-bar').style.width = v + '%'; }
+function setClass(sel, cls, on) { const k = sel + '#c' + cls; if (cache.get(k) === on) return; cache.set(k, on); $(sel).classList.toggle(cls, on); }
+
 const mapName = (id) => (MAP_LIST.find((m) => m.id === id) || { display_name: id }).display_name;
 
 export class Hud {
@@ -43,13 +51,13 @@ export class Hud {
     const g = this.game;
     // speed
     const sp = Math.round(h.speed || 0);
-    $('#hud-speed-num').textContent = sp;
+    setText('#hud-speed-num', String(sp));
     const pct = Math.min(100, (sp / 3000) * 100);
-    $('#hud-speed-bar').style.width = pct + '%';
+    setStyleWidth(pct);
     const delta = sp - this.lastSpeed;
     this.lastSpeed = sp;
-    $('#hud-speed').classList.toggle('gain', delta > 1);
-    $('#hud-speed').classList.toggle('loss', delta < -3);
+    setClass('#hud-speed', 'gain', delta > 1);
+    setClass('#hud-speed', 'loss', delta < -3);
 
     // timer
     const total = g.map ? g.map.stages.length : 1;
@@ -58,32 +66,32 @@ export class Hud {
     else if (h.runState === 'ready') state = t('ready');
     else if (h.runState === 'finished') state = t('finished');
     else state = t('startZone');
-    $('#hud-time').textContent = h.runState === 'finished' && h.finishTicks ? formatTime(h.finishTicks) : formatTime(Math.floor(h.runTicks || 0));
-    $('#hud-time').classList.toggle('done', h.runState === 'finished');
-    $('#hud-state').textContent = state;
-    $('#hud-stage').textContent = `${t('stage')} ${Math.min(total, (h.stage || 0) + 1)}/${total}`;
+    setText('#hud-time', String(h.runState === 'finished' && h.finishTicks ? formatTime(h.finishTicks) : formatTime(Math.floor(h.runTicks || 0))));
+    setClass('#hud-time', 'done', h.runState === 'finished');
+    setText('#hud-state', String(state));
+    setText('#hud-stage', String(`${t('stage')} ${Math.min(total, (h.stage || 0) + 1)}/${total}`));
 
     // spectator banner
     if (h.spec) {
-      show('#hud-spec', true);
+      setShow('#hud-spec', true);
       const modeName = h.spec.mode === 'first' ? t('firstPerson') : h.spec.mode === 'chase' ? t('chase') : t('freeCam');
-      html('#hud-spec', `<div class="spec-title">${t('spectating')} ${h.name ? '<b>' + esc(h.name) + '</b>' : ''} <span class="pill">${modeName}</span></div><div class="spec-hint">${h.spec.hasTarget || h.spec.mode === 'free' ? t('specHint') : t('noPlayers') + ' · ' + t('specHint')}</div>`);
-      show('#hud-speed', !!h.name && h.spec.mode !== 'free');
-      show('#hud-timer', !!h.name && h.spec.mode !== 'free');
+      setHtml('#hud-spec', `<div class="spec-title">${t('spectating')} ${h.name ? '<b>' + esc(h.name) + '</b>' : ''} <span class="pill">${modeName}</span></div><div class="spec-hint">${h.spec.hasTarget || h.spec.mode === 'free' ? t('specHint') : t('noPlayers') + ' · ' + t('specHint')}</div>`);
+      setShow('#hud-speed', !!h.name && h.spec.mode !== 'free');
+      setShow('#hud-timer', !!h.name && h.spec.mode !== 'free');
     } else {
-      show('#hud-spec', false);
-      show('#hud-speed', true);
-      show('#hud-timer', true);
+      setShow('#hud-spec', false);
+      setShow('#hud-speed', true);
+      setShow('#hud-timer', true);
     }
-    show('#crosshair', !h.spec || h.spec.mode === 'first');
+    setShow('#crosshair', !h.spec || h.spec.mode === 'first');
 
     // debug
     if (h.debug) {
       const d = h.debug;
-      show('#hud-debug', true);
+      setShow('#hud-debug', true);
       const f = (v) => v ? `${v.x.toFixed(1)} ${v.y.toFixed(1)} ${v.z.toFixed(1)}` : '-';
-      html('#hud-debug', `<b>PHYSICS DEBUG</b><br>mode ${d.mode} · ground ${d.onGround}<br>pos ${f(d.pos)}<br>vel ${f(d.vel)} (${Math.hypot(d.vel.x, d.vel.y, d.vel.z).toFixed(0)})<br>normal ${f(d.normal)}<br>traces/frame ${d.traces} · pending ${d.pending}<br>rtt ${d.rtt.toFixed(0)} ms · cmd ${d.tick}<br><span style="color:#00ff88">■</span> velocity <span style="color:#ff3366">■</span> surface normal <span style="color:#33aaff">■</span> wish dir`);
-    } else show('#hud-debug', false);
+      setHtml('#hud-debug', `<b>PHYSICS DEBUG</b><br>mode ${d.mode} · ground ${d.onGround}<br>pos ${f(d.pos)}<br>vel ${f(d.vel)} (${Math.hypot(d.vel.x, d.vel.y, d.vel.z).toFixed(0)})<br>normal ${f(d.normal)}<br>traces/frame ${d.traces} · pending ${d.pending}<br>rtt ${d.rtt.toFixed(0)} ms · cmd ${d.tick}<br><span style="color:#00ff88">■</span> velocity <span style="color:#ff3366">■</span> surface normal <span style="color:#33aaff">■</span> wish dir`);
+    } else setShow('#hud-debug', false);
   }
 
   tickSlow() {

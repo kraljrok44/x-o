@@ -6,6 +6,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { PHYS, NET } from '../shared/config.js';
 import { getMap, MAP_LIST } from '../shared/maps/index.js';
 import { CollisionWorld } from '../shared/collision.js';
@@ -41,12 +42,21 @@ export class Game extends Emitter {
     r.toneMappingExposure = 1.05;
     r.outputColorSpace = THREE.SRGBColorSpace;
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(settings.fov, 1, 2, 220000);
+    this.camera = new THREE.PerspectiveCamera(settings.fov, 1, 4, 120000);
     this.camera.up.set(0, 0, 1);
     this.camera.rotation.order = 'ZYX';
     this.composer = new EffectComposer(r);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.55, 0.45, 0.82);
+    // Guard: a single NaN/Inf pixel would be blown up by the bloom blur into large black blocks.
+    this.composer.addPass(new ShaderPass({
+      uniforms: { tDiffuse: { value: null } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
+        void main(){ vec4 c = texture2D(tDiffuse, vUv);
+          if (any(isnan(c)) || any(isinf(c))) c = vec4(0.0, 0.0, 0.0, 1.0);
+          gl_FragColor = clamp(c, 0.0, 32.0); }`,
+    }));
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.4, 0.85);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
 
@@ -57,6 +67,11 @@ export class Game extends Emitter {
     this.world = null;
     this.mapId = null;
     this.clock = new THREE.Clock();
+    // automatic resolution scaling keeps the frame rate up on weaker GPUs
+    this.dynScale = 1;
+    this.frameMs = 16;
+    this.perfCheckAt = performance.now() + 3000;
+    this.autoBloomOff = false;
     this.acc = 0;
     this.time = 0;
     this.debug = false;
@@ -72,19 +87,21 @@ export class Game extends Emitter {
   applySettings() {
     this.camera.fov = settings.fov;
     this.camera.updateProjectionMatrix();
-    this.bloom.enabled = settings.bloom;
+    this.autoBloomOff = false;
+    this.dynScale = 1;
     audio.setVolumes({ master: settings.master, sfx: settings.sfx, ui: settings.ui });
     this.resize();
   }
 
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
-    const pr = Math.min(window.devicePixelRatio || 1, settings.quality === 'low' ? 1 : 1.5);
+    const base = Math.min(window.devicePixelRatio || 1, settings.quality === 'low' ? 0.75 : 1.25);
+    const pr = Math.max(0.5, base * this.dynScale);
     this.renderer.setPixelRatio(pr);
     this.renderer.setSize(w, h, false);
     this.composer.setPixelRatio(pr);
     this.composer.setSize(w, h);
-    this.bloom.resolution.set(w * pr * 0.5, h * pr * 0.5);
+    this.bloom.resolution.set(w * pr * 0.35, h * pr * 0.35);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.viewmodel.resize(w, h);
@@ -415,9 +432,28 @@ export class Game extends Emitter {
   }
 
   // ------------------------------------------------------------------ main loop
+  bloomActive() { return settings.bloom && settings.quality !== 'low' && !this.autoBloomOff; }
+
+  _adaptQuality(rawDt) {
+    if (document.hidden || rawDt > 0.25) return; // tab switches are not slow frames
+    this.frameMs += (rawDt * 1000 - this.frameMs) * 0.05;
+    const now = performance.now();
+    if (now < this.perfCheckAt) return;
+    this.perfCheckAt = now + 1500;
+    if (this.frameMs > 21) {
+      if (this.dynScale > 0.55) { this.dynScale = Math.max(0.5, this.dynScale - 0.12); this.resize(); }
+      else if (!this.autoBloomOff && settings.bloom) this.autoBloomOff = true;
+    } else if (this.frameMs < 13 && this.dynScale < 1) {
+      this.dynScale = Math.min(1, this.dynScale + 0.06);
+      this.resize();
+    }
+  }
+
   loop() {
     requestAnimationFrame(this.loop);
-    const dt = Math.min(0.1, this.clock.getDelta());
+    const rawDt = this.clock.getDelta();
+    this._adaptQuality(rawDt);
+    const dt = Math.min(0.1, rawDt);
     this.time += dt;
     this.acc += dt;
     let steps = 0;
@@ -649,7 +685,7 @@ export class Game extends Emitter {
   _render() {
     const r = this.renderer;
     r.autoClear = true;
-    if (settings.bloom) this.composer.render();
+    if (this.bloomActive()) this.composer.render();
     else r.render(this.scene, this.camera);
     if (this.viewmodel.visible) this.viewmodel.render(r);
   }

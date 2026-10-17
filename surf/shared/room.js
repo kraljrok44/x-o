@@ -314,9 +314,16 @@ export class Room {
     for (const c of this.clients.values()) {
       if (!c.ready || c.spectator) continue;
       c.budget = Math.min(NET.maxCmdBudget, c.budget + 1);
+      c.alive = (c.alive || 0) + 1;
+      c.processed = c.processed || 0;
+      // Drain a growing backlog (client clock slightly fast / bursty network) instead of letting
+      // latency grow until commands get dropped (= rubber banding). The total is still capped
+      // by wall time, so a speed hack gains at most ~0.3 s.
+      if (c.cmdQueue.length > 6 && c.processed < c.alive + 30) c.budget += 1;
       while (c.budget >= 1 && c.cmdQueue.length) {
         const cmd = c.cmdQueue.shift();
         c.budget -= 1;
+        c.processed++;
         events.length = 0;
         stepPlayer(c.ps, cmd, ctx, events);
         c.ack = cmd.seq;

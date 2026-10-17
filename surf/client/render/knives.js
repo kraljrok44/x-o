@@ -5,6 +5,37 @@
 
 import * as THREE from 'three';
 
+
+/**
+ * Remove zero-area triangles (blade tips collapse to a point) and make sure no vertex normal
+ * is zero/NaN. A NaN normal turns pixels NaN, which the bloom pass smears into black blocks.
+ */
+export function cleanGeometry(g) {
+  if (!g.index) {
+    const pos = g.attributes.position.array, uv = g.attributes.uv ? g.attributes.uv.array : null;
+    const P = [], U = [];
+    for (let i = 0; i < pos.length; i += 9) {
+      const ax = pos[i + 3] - pos[i], ay = pos[i + 4] - pos[i + 1], az = pos[i + 5] - pos[i + 2];
+      const bx = pos[i + 6] - pos[i], by = pos[i + 7] - pos[i + 1], bz = pos[i + 8] - pos[i + 2];
+      const cx = ay * bz - az * by, cy = az * bx - ax * bz, cz = ax * by - ay * bx;
+      if (cx * cx + cy * cy + cz * cz < 1e-10) continue;
+      for (let k = 0; k < 9; k++) P.push(pos[i + k]);
+      if (uv) { const j = (i / 3) * 2; for (let k = 0; k < 6; k++) U.push(uv[j + k]); }
+    }
+    g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+    if (uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2));
+  }
+  g.computeVertexNormals();
+  const n = g.attributes.normal;
+  for (let i = 0; i < n.count; i++) {
+    const x = n.getX(i), y = n.getY(i), z = n.getZ(i);
+    const l = Math.hypot(x, y, z);
+    if (!(l > 0.5)) n.setXYZ(i, 0, 0, 1);
+  }
+  n.needsUpdate = true;
+  return g;
+}
+
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const smooth = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 
@@ -69,8 +100,7 @@ export function bladeGeometry(o) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  g.computeVertexNormals();
-  return g;
+  return cleanGeometry(g);
 }
 
 // Double edged (dagger) blade: symmetric bevels from a centre ridge.
@@ -99,8 +129,7 @@ export function daggerGeometry(o) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  g.computeVertexNormals();
-  return g;
+  return cleanGeometry(g);
 }
 
 /** Handle from a side outline (points in XY), extruded along Z with rounded edges. */
@@ -118,8 +147,7 @@ export function profileGeometry(points, depth, bevel = 0.35, holes = []) {
   for (let i = 0; i < uvA.count; i++) {
     uvA.setXY(i, (pA.getX(i) - bb.min.x) / (bb.max.x - bb.min.x || 1), (pA.getY(i) - bb.min.y) / (bb.max.y - bb.min.y || 1));
   }
-  g.computeVertexNormals();
-  return g;
+  return cleanGeometry(g);
 }
 
 function gripOutline(len, h0, h1, grooves = 0, butt = 0.6, startX = -0.2) {

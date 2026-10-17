@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import { rng32, hashString } from '../../shared/vec.js';
+import { skyDome } from './skybox.js';
 
 const ZONE_COLORS = { start: '#2bff88', checkpoint: '#3ab7ff', end: '#b06bff', finish: '#ffcc33' };
 
@@ -107,45 +108,6 @@ function buildSurfaces(map, theme) {
     out[k] = g;
   }
   return out;
-}
-
-function skyMesh(theme) {
-  const [top, mid, bot] = theme.sky.map((c) => new THREE.Color(c));
-  const sun = new THREE.Vector3(...theme.sun).normalize();
-  const mat = new THREE.ShaderMaterial({
-    side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { top: { value: top }, mid: { value: mid }, bot: { value: bot }, sunDir: { value: sun }, sunCol: { value: new THREE.Color(theme.sunColor) } },
-    vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * p; gl_Position.z = gl_Position.w; }`,
-    fragmentShader: `uniform vec3 top, mid, bot, sunCol; uniform vec3 sunDir; varying vec3 vDir;
-      void main(){
-        float h = vDir.z;
-        vec3 c = h > 0.0 ? mix(mid, top, pow(clamp(h,0.0,1.0), 0.55)) : mix(mid, bot, pow(clamp(-h,0.0,1.0), 0.45));
-        float s = max(dot(normalize(vDir), normalize(sunDir)), 0.0);
-        c += sunCol * (pow(s, 900.0) * 3.0 + pow(s, 40.0) * 0.35 + pow(s, 6.0) * 0.12);
-        gl_FragColor = vec4(c, 1.0);
-        #include <colorspace_fragment>
-      }`,
-  });
-  const m = new THREE.Mesh(new THREE.SphereGeometry(100000, 48, 24), mat);
-  m.frustumCulled = false;
-  m.renderOrder = -10;
-  return m;
-}
-
-function starField(seed) {
-  const rnd = rng32(seed);
-  const n = 2500;
-  const pos = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) {
-    const z = rnd() * 1.6 - 0.6, a = rnd() * Math.PI * 2, r = Math.sqrt(1 - z * z);
-    pos[i * 3] = Math.cos(a) * r * 90000; pos[i * 3 + 1] = Math.sin(a) * r * 90000; pos[i * 3 + 2] = z * 90000;
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const m = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.85, depthWrite: false }));
-  m.frustumCulled = false;
-  m.renderOrder = -9;
-  return m;
 }
 
 function zoneMesh(z) {
@@ -365,8 +327,8 @@ export function buildWorld(map, opts = {}) {
   const decor = buildDecor(map, theme, group);
   group.traverse((o) => { if (o.userData.animated) animated.push(o.userData.animated); });
 
-  const sky = skyMesh(theme);
-  const stars = theme.stars ? starField(hashString(map.id)) : null;
+  const sky = skyDome(map); // painted panorama in the map's theme (stars are part of the painting)
+  const stars = null;
 
   const lights = new THREE.Group();
   const hemi = new THREE.HemisphereLight(new THREE.Color(theme.sky[1]).lerp(new THREE.Color(0xffffff), 0.35), new THREE.Color(theme.platform).lerp(new THREE.Color(0xffffff), 0.2), 2.0);
@@ -398,7 +360,7 @@ export function buildWorld(map, opts = {}) {
       });
       albedo.dispose();
       if (emiss) emiss.dispose();
-      sky.geometry.dispose(); sky.material.dispose();
+      sky.geometry.dispose(); sky.material.dispose(); // panorama texture stays cached per map
       if (stars) { stars.geometry.dispose(); stars.material.dispose(); }
     },
   };
