@@ -207,7 +207,7 @@ select option { background: var(--panel-solid); }
 .map-meta { font-size: 13px; color: var(--dim); margin: 0 14px 6px; }
 .map-desc { font-size: 13px; color: #c3c9d8; margin: 0 14px; line-height: 1.45; }
 .diff { font-weight: 800; }
-.diff.d1 { color: #7dffb0; } .diff.d2 { color: #9fdcff; } .diff.d3 { color: #ffd166; } .diff.d4 { color: #ff6b8b; }
+.diff.d1 { color: #7dffb0; } .diff.d2 { color: #9fdcff; } .diff.d3 { color: #ffd166; } .diff.d4 { color: #ff6b8b; } .diff.d5 { color: #ff9d2e; }
 
 /* settings */
 .set-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; overflow-y: auto; }
@@ -254,3 +254,19 @@ select option { background: var(--panel-solid); }
 .lb-empty { display: flex; align-items: center; justify-content: center; height: 200px; }
 .cg-badge { font: 800 9px var(--mono); background: #6842ff; color: #fff; padding: 2px 4px; border-radius: 4px; vertical-align: 2px; }
 @media (max-width: 900px) { .lb-layout { grid-template-columns: 1fr; } .lb-boards { flex-direction: row; flex-wrap: wrap; } }
+
+/* chat: small and out of the way while surfing */
+.chat { position: fixed; left: 18px; bottom: 40px; width: min(400px, 60vw); z-index: 6; pointer-events: none; font-size: calc(13px * var(--hud-scale)); }
+.chat.open { pointer-events: auto; }
+.chat-log { display: flex; flex-direction: column; gap: 2px; max-height: 30vh; overflow: hidden; justify-content: flex-end; }
+.chat.open .chat-log { overflow-y: auto; background: rgba(6,8,14,.55); border-radius: 10px; padding: 6px 8px; }
+.chat-line { padding: 1px 6px; color: #e8ecf5; text-shadow: 0 1px 2px #000, 0 0 4px rgba(0,0,0,.8); line-height: 1.35; word-wrap: break-word; transition: opacity .6s; opacity: .92; }
+.chat-line.faded { opacity: 0; }
+.chat-line.gone { display: none; }
+.chat-line .chat-name { color: #8fe3ff; font-weight: 700; }
+.chat-line.spec .chat-name { color: #b9a7ff; }
+.chat-line.system { color: #ffd479; }
+.chat-line.knife { color: #ff8fd0; font-weight: 600; }
+.chat-row { display: flex; gap: 6px; margin-top: 6px; }
+.chat-row input { flex: 1; padding: 7px 10px; font-size: 14px; background: rgba(6,8,14,.75); }
+.chat-off { color: var(--dim); font-size: 11px; opacity: .6; padding: 2px 6px; }

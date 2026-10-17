@@ -9,6 +9,7 @@ import { MapVote, EXTEND } from './vote.js';
 import { openCrate, equipKnife, emptyProfile, CRATE_STATUS } from './crate.js';
 import { CATALOG_TOTAL, getCollectible } from './catalog.js';
 import { submitTime, queryBoard, POINTS_BOARD } from './leaderboard.js';
+import { filterChat, badName } from './chatfilter.js';
 import { isMapId as isMap } from './maps/index.js';
 
 const RUN_STATE = { idle: 0, ready: 1, running: 2, finished: 3 };
@@ -17,7 +18,7 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 
 export function sanitizeName(name) {
   let n = String(name || '').replace(/[^\p{L}\p{N} _\-.]/gu, '').trim().slice(0, GAME.maxNameLength);
-  if (n.length < 2) n = 'Surfer' + Math.floor(Math.random() * 9000 + 1000);
+  if (n.length < 2 || badName(n)) n = 'Surfer' + Math.floor(Math.random() * 9000 + 1000);
   return n;
 }
 
@@ -39,6 +40,8 @@ export class Room {
     this.mapIds = o.mapIds || MAP_LIST.map((m) => m.id);
     this.voting = o.voting !== false;
     this.onPoints = o.onPoints || (() => {}); // e.g. forward to the CrazyGames leaderboard
+    // server-wide announcements (knife unlocks); default: only this room's chat
+    this.onAnnounce = o.onAnnounce || ((text, kind) => this.chatSystem(text, kind));
     this.maxPlayers = o.maxPlayers || NET.maxPlayersPerRoom;
     this.name = o.name || 'GLIDEZONE #1';
     this.clients = new Map();
@@ -135,6 +138,7 @@ export class Room {
         return;
       }
       case 'crate': return this._crate(c, msg);
+      case 'chat': return this._chat(c, msg);
       case 'inventory':
         c.profile = this.store.load(c.key) || emptyProfile();
         return this.send(c, { t: 'inventory', owned: c.profile.owned, equipped: c.profile.equipped, total: CATALOG_TOTAL });
@@ -235,13 +239,38 @@ export class Room {
     this._applyVoteActions(out);
   }
 
+  /** System line in the chat (knife unlocks, server notices). */
+  chatSystem(text, kind = 'system') {
+    this.broadcast({ t: 'chat', kind, text: String(text).slice(0, 160) });
+  }
+
+  _chat(c, msg) {
+    const now = this.clock();
+    if (c.mutedUntil && now < c.mutedUntil) {
+      return this.send(c, { t: 'chat', kind: 'system', text: `Chat paused for ${Math.ceil((c.mutedUntil - now) / 1000)} s (too many messages).` });
+    }
+    // rate limit: at most 1 message per 1.2 s and 5 per 10 s, repeating the same text is ignored
+    c.chatTimes = (c.chatTimes || []).filter((t) => now - t < 10000);
+    if (c.chatTimes.length && now - c.chatTimes[c.chatTimes.length - 1] < 1200) return;
+    if (c.chatTimes.length >= 5) { c.mutedUntil = now + 30000; return this._chat(c, msg); }
+    const raw = String(msg.text || '');
+    const cmd = raw.trim().toLowerCase();
+    if (cmd === 'rtv' || cmd === '!rtv' || cmd === '/rtv') return this._rtv(c);
+    const { text, empty } = filterChat(raw);
+    if (empty) return;
+    if (text === c.lastChat) return;
+    c.lastChat = text;
+    c.chatTimes.push(now);
+    this.broadcast({ t: 'chat', kind: c.spectator ? 'spec' : 'player', id: c.id, name: c.name, text });
+  }
+
   _crate(c, msg) {
     const res = openCrate(this.store, c.key, String(msg.key || ''), { now: this.clock() });
     c.profile = this.store.load(c.key) || emptyProfile();
     this.send(c, { t: 'crate', key: msg.key, ...res });
     if (res.status === CRATE_STATUS.SUCCESS && !res.replay) {
       const col = getCollectible(res.collectible_id);
-      this.feed(`${c.name} unlocked ${col ? col.display_name : 'a knife'}`, 'knife');
+      this.onAnnounce(`${c.name} opened the Glide Vault and unlocked ${col ? col.display_name : 'a knife'}!`, 'knife');
     }
   }
 

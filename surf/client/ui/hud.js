@@ -29,7 +29,7 @@ export class Hud {
     game.on('hud', (h) => this.update(h));
     game.on('feed', (m) => this.feed(m.text, m.kind));
     game.on('vote', (v) => this.renderVote(v));
-    game.on('checkpoint', (e) => this.toast(`${t('stage')} ${e.stage + 1} · ${formatTime(e.ticks)}`, 'cp'));
+    game.on('checkpoint', (e) => this.toast(`${game.map && game.map.layout === 'linear' ? t('checkpoint') : t('stage')} ${e.stage + 1} · ${formatTime(e.ticks)}`, 'cp'));
     game.on('finish', (e) => this.toast(`${t('finished')} · ${formatTime(e.ticks)}`, 'finish'));
     game.on('boost', () => this.flash());
     game.on('roster', () => this.renderScoreboard());
@@ -69,7 +69,8 @@ export class Hud {
     setText('#hud-time', String(h.runState === 'finished' && h.finishTicks ? formatTime(h.finishTicks) : formatTime(Math.floor(h.runTicks || 0))));
     setClass('#hud-time', 'done', h.runState === 'finished');
     setText('#hud-state', String(state));
-    setText('#hud-stage', String(`${t('stage')} ${Math.min(total, (h.stage || 0) + 1)}/${total}`));
+    const secName = g.map && g.map.layout === 'linear' ? t('checkpoint') : t('stage');
+    setText('#hud-stage', String(`${secName} ${Math.min(total, (h.stage || 0) + 1)}/${total}`));
 
     // spectator banner
     if (h.spec) {

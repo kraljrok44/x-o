@@ -116,3 +116,23 @@ test('leaderboard: all-time, weekly and points boards; CrazyGames forwarding onl
   assert.equal(sent.length, 1);
   assert.deepEqual(sent[0].scores.map((s) => [s.userId, s.score]), [['42', 1234]]);
 });
+
+test('chat is filtered, rate limited, and knife unlocks are announced in chat', async () => {
+  const { room, mk, adv } = setup();
+  const a = mk('Alice'), b = mk('Bob');
+  await flush();
+  room.handleMessage(a.c, { t: 'chat', text: 'gg fuck this ramp www.spam.com' });
+  const m = b.last('chat');
+  assert.equal(m.name, 'Alice');
+  assert.ok(!/fuck|spam\.com/.test(m.text), m.text);
+  room.handleMessage(a.c, { t: 'chat', text: 'second message too fast' });
+  assert.equal(b.last('chat').text, m.text); // rate limited
+  adv(1500);
+  room.handleMessage(a.c, { t: 'chat', text: 'nice' });
+  assert.equal(b.last('chat').text, 'nice');
+  adv(1500);
+  room.handleMessage(b.c, { t: 'crate', key: 'idem-key-chat1' });
+  const k = a.last('chat');
+  assert.equal(k.kind, 'knife');
+  assert.ok(k.text.startsWith('Bob opened the Glide Vault'));
+});

@@ -31,14 +31,27 @@ v projektu ni nobenih sredstev iz Counter-Strike ali drugih iger.
 - Izvirne družine nožev (Ranger, Lancer, Warden, Crescent, Moth, Flicker, Hook, Tracker, Scimitar, Cleaver, Twin Fangs, Switch, Needle, Raptor, Grizzly) in izvirni skini (Abyss Flow faze, Bloodstone, Jade Flow, Sunset Melt, Candy Marble, Heat Temper, Folded Damascus, Gilded Relic …).
 
 ### Mape
-| Mapa | Težavnost | Posebnost |
-|---|---|---|
-| Aurora Dawn | začetniška | široke rampe, sončni vzhod |
-| Frostbyte | lahka | ledene ukrivljene rampe |
-| Jade Sanctum | lahka | dolgi loki, lebdeči vrt |
-| Neon Drift | srednja | synthwave, flow rings, zamaknjeni prehodi |
-| Ember Core | srednja | enostranske rampe nad lavo |
-| Void Garden | težka | ozke rampe, dolgi skoki, vesolje |
+Vsaka mapa traja vsaj minuto od starta do cilja (povprečno okoli 1:30, najdaljša okoli 3 minute). Mape so dveh vrst:
+- **po etapah** – etape so ločena območja, med njimi teleport;
+- **linearne** – ena neprekinjena proga, konec vsakega odseka se nadaljuje na ploščad naslednjega (checkpoint).
+
+| Mapa | Vrsta | Težavnost | Čas bota* | Posebnost |
+|---|---|---|---|---|
+| Aurora Dawn | po etapah (5) | začetniška | 1:19 | široke rampe, sončni vzhod |
+| Neon Drift | po etapah (6) | srednja | 1:24 | synthwave, flow rings, zamaknjeni prehodi |
+| Jade Sanctum | linearna (5) | lahka | 1:36 | dolgi loki, lebdeči vrt |
+| Frostbyte | linearna (6) | lahka | 1:39 | ledene zavite rampe |
+| Ember Core | linearna (6) | srednja | 1:40 | enostranske rampe nad lavo |
+| Void Garden | po etapah (7) | težka | 1:44 | ozke rampe, dolgi skoki, vesolje |
+| Skyforge Gauntlet | linearna (12) | ekspertna | 3:18 | menjava strani rampe, ostri zavoji, veliko skakalnih stez |
+
+\* Validacijski bot vozi enakomerno in ne pospešuje s strafanjem; dober igralec je okoli 15 % hitrejši.
+
+### Klepet
+- **ENTER** ali **T** odpre klepet, ENTER pošlje, ESC zapre. Klepet je majhen v spodnjem levem kotu, sporočila po nekaj sekundah zbledijo.
+- Izklop: gumb »Turn chat off« v vrstici klepeta, ukaz `/hide` ali v nastavitvah. `/mute ime` utiša igralca.
+- Moderacija na strežniku (odjemalec je ne more obiti): kletvice in žaljivke (angleščina + slovenščina, tudi zakrite: f.u.c.k, fuuuck, sh1t), povezave, e-pošta, telefonske številke in vabila na druge platforme se odstranijo; omejitev hitrosti pisanja in samodejni 30 s premor ob spamu; neprimerna imena igralcev se zamenjajo.
+- Ko kdorkoli odpre krejt (tudi iz menija), se v klepetu vseh strežnikov izpiše, kateri nož je dobil. `rtv` v klepetu zahteva glasovanje za mapo.
 
 ## Zagon
 
@@ -49,7 +62,7 @@ cd surf
 npm install
 npm run build      # zgradi klienta v dist/
 npm start          # strežnik + statične datoteke na http://localhost:8080
-npm test           # 47 testov: fizika, mape (bot prevozi vse), krejti, glasovanje, soba
+npm test           # 57 testov: fizika, mape (bot prevozi vse), krejti, glasovanje, soba
 ```
 
 Brez strežnika (npr. ob odprtju `dist/index.html` ali če strežnik ni dosegljiv) igra preklopi v

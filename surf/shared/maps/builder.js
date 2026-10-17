@@ -66,20 +66,23 @@ const leftOf = (h) => ({ x: -Math.sin(h), y: Math.cos(h) });
  * The landing teleports to the next stage, or finishes the map on the last stage.
  * spec: { origin:[x,y,z], heading:deg, ramps:[{len,turn,pitch,w,d,sides,gap,drop,shift,ring}], endDrop }
  */
-export function buildStage(b, k, spec, isLast, nextSpawnRef) {
+export function buildStage(b, k, spec, isLast, nextSpawnRef, continuous = false) {
   b.curStage = k;
   const [ox, oy, oz] = spec.origin;
   let h = spec.heading * DEG;
   const D = dirOf(h), L = leftOf(h);
-  const PL = 320, PW = 300;
+  // In a linear (continuous) map every section after the first starts on a big platform that
+  // also catches riders flying in from the previous section - no teleports.
+  const flowIn = continuous && k > 0;
+  const PL = flowIn ? 1300 : 320, PW = flowIn ? 1100 : 300;
 
   // start platform + rails
-  b.obox(ox, oy, h, PL, PW, oz - 64, oz, 'platform');
-  b.obox(ox - D.x * (PL + 16), oy - D.y * (PL + 16), h, 16, PW + 32, oz - 64, oz + 192, 'wall');
+  b.obox(ox, oy, h, PL, PW, oz - 64, oz, flowIn ? 'landing' : 'platform');
+  if (!flowIn) b.obox(ox - D.x * (PL + 16), oy - D.y * (PL + 16), h, 16, PW + 32, oz - 64, oz + 192, 'wall');
   for (const s of [1, -1]) {
-    b.obox(ox + L.x * s * (PW + 16), oy + L.y * s * (PW + 16), h, PL, 16, oz - 64, oz + 96, 'wall');
+    b.obox(ox + L.x * s * (PW + 16), oy + L.y * s * (PW + 16), h, PL, 16, oz - 64, oz + (flowIn ? 220 : 96), 'wall');
   }
-  const spawn = { pos: [ox - D.x * 200, oy - D.y * 200, oz + 1], yaw: h };
+  const spawn = { pos: flowIn ? [ox + D.x * (PL - 520), oy + D.y * (PL - 520), oz + 1] : [ox - D.x * 200, oy - D.y * 200, oz + 1], yaw: h };
   b.stages[k] = { spawn, name: spec.name || `Stage ${k + 1}` };
   const zoneType = k === 0 ? 'start' : 'checkpoint';
   b.trigger(zoneType, [ox, oy, oz + 80], [PL, PW, 80], h, k === 0 ? {} : { stage: k });
@@ -142,14 +145,32 @@ export function buildStage(b, k, spec, isLast, nextSpawnRef) {
       const dist = d0 + padLen + exit;
       p = { x: lx + Dn.x * dist + Ln.x * off, y: ly + Dn.y * dist + Ln.y * off, z: top - 150 }; // whole slope below the flight path
     } else if (ri < spec.ramps.length - 1) {
-      const shift = r.shift || 0;
+      let shift = r.shift || 0;
+      // switching between a left-only and a right-only ramp: move the next ridge so the rider
+      // (surfing 40% down this slope) arrives 40% down the opposite slope
+      const nx = spec.ramps[ri + 1];
+      const a = r.sides || 'both', bS = nx.sides || 'both';
+      if (a !== bS && a !== 'both' && bS !== 'both') shift = (a === 'left' ? 1 : -1) * 0.4 * ((r.w ?? 420) + (nx.w ?? 420));
       p = { x: q.x + Dn.x * gap + Ln.x * shift, y: q.y + Dn.y * gap + Ln.y * shift, z: q.z - (r.drop ?? Math.round(140 + 0.4 * gap)) };
     }
   });
 
-  // landing platform
   const Dn = dirOf(h), Ln = leftOf(h);
   const endGap = spec.endGap ?? 250;
+  if (continuous && !isLast) {
+    // the next section's platform sits right where this chain ends
+    const NPL = 1300;
+    const fz = minZ - 900;
+    b.trigger('fail', [(bounds.minx + bounds.maxx) / 2, (bounds.miny + bounds.maxy) / 2, fz],
+      [(bounds.maxx - bounds.minx) / 2 + 4000, (bounds.maxy - bounds.miny) / 2 + 4000, 400], 0);
+    b.stages[k].bounds = bounds;
+    b.stages[k].minZ = minZ;
+    return {
+      origin: [lastEnd.x + Dn.x * (endGap + NPL), lastEnd.y + Dn.y * (endGap + NPL), lastEnd.z - (spec.endDrop ?? 750)],
+      heading: h / DEG,
+    };
+  }
+  // landing platform
   const LL = 1500, LW = 1400;
   const topZ = lastEnd.z - (spec.endDrop ?? 750);
   const cx = lastEnd.x + Dn.x * (endGap + LL), cy = lastEnd.y + Dn.y * (endGap + LL);
@@ -174,13 +195,19 @@ export function buildStage(b, k, spec, isLast, nextSpawnRef) {
   return trig;
 }
 
-/** Build a whole linear map from stage specs. */
-export function buildLinearMap(meta, stageSpecs) {
+/**
+ * Build a whole map from stage specs. With continuous=true the map is one linear route:
+ * each section flows into the next (sections act as checkpoints), otherwise sections are
+ * separate areas joined by teleports.
+ */
+export function buildLinearMap(meta, stageSpecs, continuous = false) {
   const b = new MapBuilder(meta);
   const pending = [];
+  let next = null;
   stageSpecs.forEach((spec, k) => {
     const destRef = { pos: [0, 0, 0], yaw: 0 };
-    buildStage(b, k, spec, k === stageSpecs.length - 1, destRef);
+    const sp = continuous && next ? { ...spec, origin: next.origin, heading: next.heading } : spec;
+    next = buildStage(b, k, sp, k === stageSpecs.length - 1, destRef, continuous);
     pending.push(destRef);
   });
   // resolve teleport destinations to the next stage spawn

@@ -45,9 +45,15 @@ export function botCommand(map, ps) {
   const pad = padUnder(map, ps);
   if (pad) return { fwd: 0, side: 0, buttons: BTN.JUMP, yaw: pad.yaw, pitch: 0 }; // bunny hop over the jump section
   if (ps.onGround) {
+    // walk towards a point a little down the preferred slope at the start of this section's first ramp
     const first = map.ramps.find((r) => r.stage === ps.stage);
-    const sideSign = first && first.sides === 'right' ? -1 : 1;
-    return { fwd: 1, side: 0, buttons: 0, yaw: spawn.yaw + sideSign * 0.35, pitch: 0 };
+    if (!first) return { fwd: 1, side: 0, buttons: 0, yaw: spawn.yaw, pitch: 0 };
+    const [a, b] = first.points;
+    const hx = b[0] - a[0], hy = b[1] - a[1], hl = Math.hypot(hx, hy);
+    const sideSign = first.sides === 'right' ? -1 : 1;
+    const off = first.w * 0.3 * sideSign;
+    const tx = a[0] + (-hy / hl) * off + (hx / hl) * 250, ty = a[1] + (hx / hl) * off + (hy / hl) * 250;
+    return { fwd: 1, side: 0, buttons: 0, yaw: Math.atan2(ty - ps.pos.y, tx - ps.pos.x), pitch: 0 };
   }
   if (!info) return { fwd: 0, side: 0, buttons: 0, yaw: ps.yaw, pitch: 0 };
   // u > 0 means we are on the left slope, the ridge is to our right.

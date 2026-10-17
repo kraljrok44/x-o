@@ -14,6 +14,7 @@ export const DEFAULTS = {
   reduceMotion: false,  // disables camera tilt, crate shake, flashes
   hudScale: 1,
   showKeys: true,
+  chat: true,          // players can switch the chat off (also from inside the chat)
   showSpeedVector: false,
   quality: 'high',      // 'low' | 'high'
   lang: '',

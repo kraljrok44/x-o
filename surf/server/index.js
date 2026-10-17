@@ -24,6 +24,8 @@ const store = new FileStore(DATA);
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const crazyBoard = createCrazyLeaderboard({ log });
 const onPoints = (key, points) => crazyBoard.submit(key, points);
+// a knife unlock is announced in the chat of every public room (wherever the crate was opened)
+const onAnnounce = (text, kind) => { for (const r of publicRooms) r.chatSystem(text, kind); };
 
 // Public rooms (map voting, up to NET.maxPlayersPerRoom each; a new one opens when all are full)
 // and private practice rooms (one player, free map choice, no voting).
@@ -31,7 +33,7 @@ const publicRooms = [];
 const practiceRooms = new Set();
 function newPublicRoom() {
   const r = new Room({
-    store, auth: authenticate, log, onPoints,
+    store, auth: authenticate, log, onPoints, onAnnounce,
     name: `${process.env.ROOM_NAME || 'GLIDEZONE'} #${publicRooms.length + 1}`,
     startMap: process.env.START_MAP || MAP_LIST[0].id,
   });
@@ -95,7 +97,7 @@ wss.on('connection', (ws) => {
     if (!target) {
       if (!msg || msg.t !== 'hello') return;
       if (msg.mode === 'practice') {
-        target = new Room({ store, auth: authenticate, log, onPoints, voting: false, maxPlayers: 1, name: 'Practice', startMap: isMapId(msg.map) ? msg.map : MAP_LIST[0].id });
+        target = new Room({ store, auth: authenticate, log, onPoints, onAnnounce, voting: false, maxPlayers: 1, name: 'Practice', startMap: isMapId(msg.map) ? msg.map : MAP_LIST[0].id });
         practiceRooms.add(target);
       } else {
         target = publicRoomWithSpace();

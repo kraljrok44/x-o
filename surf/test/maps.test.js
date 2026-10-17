@@ -33,7 +33,9 @@ for (const meta of MAP_LIST) {
       for (const t of map.triggers) if (['fail', 'teleport', 'finish'].includes(t.type)) assert.ok(!inTrigger(ps, t), `spawn in ${t.type}`);
     });
     const tele = map.triggers.filter((t) => t.type === 'teleport');
-    assert.equal(tele.length, map.stages.length - 1);
+    // staged maps join sections with teleports, linear maps flow into checkpoint platforms
+    assert.equal(tele.length, map.layout === 'linear' ? 0 : map.stages.length - 1);
+    assert.equal(map.triggers.filter((t) => t.type === 'checkpoint').length, map.stages.length - 1);
     for (const t of tele) assert.ok(!world.boxSolid({ x: t.dest.pos[0], y: t.dest.pos[1], z: t.dest.pos[2] }));
     assert.equal(map.triggers.filter((t) => t.type === 'finish').length, 1);
     assert.equal(map.triggers.filter((t) => t.type === 'start').length, 1);

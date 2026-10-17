@@ -6,6 +6,7 @@ import { Hud } from './ui/hud.js';
 import { Vault } from './ui/vault.js';
 import { Inventory } from './ui/inventory.js';
 import { Leaderboard } from './ui/leaderboard.js';
+import { Chat } from './ui/chat.js';
 import { $, $$, esc, html, show } from './ui/dom.js';
 import { t, lang } from './i18n.js';
 import { sdk } from './sdk.js';
@@ -119,6 +120,7 @@ class Account {
 const canvas = $('#game-canvas');
 const game = new Game(canvas);
 const hud = new Hud(game);
+const chat = new Chat(game);
 const account = new Account();
 game.on('inventory', (inv) => account._setInv(inv));
 game.on('welcome', (m) => account._setInv(m.inventory));
@@ -229,7 +231,7 @@ function renderMenu() {
   bind('m-lb', () => openPanel('leaderboard'));
   bind('m-login', async () => { await sdk.showAuthPrompt(); account.closeMenuConn(); account.refresh(); renderMenu(); });
   const nameEl = $('#m-name');
-  if (nameEl) nameEl.onchange = () => saveSettings({ name: nameEl.value.trim().slice(0, GAME.maxNameLength) });
+  if (nameEl) nameEl.onchange = () => { saveSettings({ name: nameEl.value.trim().slice(0, GAME.maxNameLength) }); account.closeMenuConn(); }; // reconnect with the new name
 }
 
 function renderMaps() {
@@ -240,7 +242,7 @@ function renderMaps() {
       <button class="map-card" data-id="${m.id}" style="--a:${m.theme.sky[0]};--b:${m.theme.sky[1]};--c:${m.theme.sky[2]};--e:${m.theme.edge}">
         <div class="map-art"><div class="map-ramp"></div><div class="map-ramp r2"></div></div>
         <div class="map-name">${esc(m.display_name)}</div>
-        <div class="map-meta"><span class="diff d${m.difficulty}">${t('difficulty')[m.difficulty]}</span> · ${m.stages} ${t('stages')}</div>
+        <div class="map-meta"><span class="diff d${m.difficulty}">${t('difficulty')[m.difficulty]}</span> · ${t(m.layout)} · ${m.stages} ${m.layout === 'linear' ? t('checkpoints') : t('stages')} · ~${Math.floor(m.par / 60)}:${String(Math.round(m.par % 60)).padStart(2, '0')}</div>
         <div class="map-desc">${esc(m.description)}</div>
       </button>`).join('')}</div>`);
   $('#maps-close').onclick = () => { audio.play('click'); closePanels(); };
@@ -271,6 +273,7 @@ function renderSettings() {
         ${slider('fov', t('fov'), 80, 120, 1)}
         ${slider('hudScale', t('hudScale'), 0.7, 1.4, 0.05)}
         ${toggle('showKeys', t('showKeys'))}
+        ${toggle('chat', t('chatSetting'))}
       </div>
       <div>
         ${slider('master', t('master'), 0, 1, 0.05)}
@@ -280,7 +283,7 @@ function renderSettings() {
         ${toggle('viewBob', t('viewBob'))}
         ${toggle('reduceMotion', t('reduceMotion'))}
         <label class="set-row"><span>${t('quality')}</span><select data-k="quality"><option value="high" ${s.quality === 'high' ? 'selected' : ''}>High</option><option value="low" ${s.quality === 'low' ? 'selected' : ''}>Low</option></select></label>
-        <label class="set-row"><span>${t('language')}</span><select data-k="lang"><option value="">Auto (${lang()})</option><option value="en" ${s.lang === 'en' ? 'selected' : ''}>English</option><option value="sl" ${s.lang === 'sl' ? 'selected' : ''}>Slovenščina</option></select></label>
+        <label class="set-row"><span>${t('language')}</span><select data-k="lang"><option value="">English (default)</option><option value="sl" ${s.lang === 'sl' ? 'selected' : ''}>Slovenščina</option></select></label>
       </div>
     </div>
     <div class="row"><button class="btn ghost" id="set-reset">Reset</button><span class="dim small">${t('debug')}</span></div>`);
@@ -324,6 +327,7 @@ async function startGame(mode, spectate, mapId) {
   show('#loading', false);
   show('#menu', false);
   hud.setVisible(true);
+  chat.setVisible(true);
   hud.renderScoreboard();
   showPause(false);
   show('#click-to-play', true);
@@ -335,6 +339,7 @@ function leaveGame() {
   app.state = 'menu';
   sdk.gameplayStop();
   hud.setVisible(false);
+  chat.setVisible(false);
   showPause(false);
   show('#click-to-play', false);
   show('#scoreboard', false);

@@ -41,11 +41,16 @@
     <div id="hud-keys" class="hud-keys">
       <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> move ·
       <span class="key">SPACE</span> jump · <span class="key">R</span> restart · <span class="key">F</span> inspect ·
-      <span class="key">TAB</span> scores · <span class="key">V</span> vote · <span class="key">J</span> spectate · <span class="key">F3</span> debug
+      <span class="key">TAB</span> scores · <span class="key">V</span> vote · <span class="key">J</span> spectate · <span class="key">ENTER</span> chat · <span class="key">F3</span> debug
     </div>
     <div id="hud-debug" class="hud-debug hidden"></div>
   </div>
 
+  <div id="chat" class="chat hidden">
+    <div id="chat-log" class="chat-log"></div>
+    <div id="chat-off" class="chat-off hidden">💬 chat off · ENTER</div>
+    <div id="chat-row" class="chat-row hidden"><input id="chat-input" maxlength="120" autocomplete="off" spellcheck="false"><button id="chat-toggle" class="btn ghost small"></button></div>
+  </div>
   <div id="scoreboard" class="scoreboard hidden"></div>
   <div id="menu" class="menu hidden"></div>
   <div id="pause" class="overlay hidden"></div>
