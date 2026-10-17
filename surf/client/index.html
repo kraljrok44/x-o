@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>GLIDEZONE - Multiplayer Surf</title>
+  <meta name="description" content="GLIDEZONE: multiplayer surf game. Hold the ramp, chase the flow, unlock knives from the Glide Vault.">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    // Multiplayer server address. Empty = same origin (/ws). Override with ?server=wss://host/ws
+    window.GLIDEZONE_SERVER = window.GLIDEZONE_SERVER || '';
+  </script>
+  <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+
+  <div id="hud" class="hidden">
+    <div id="crosshair"></div>
+    <div id="hud-flash"></div>
+    <div class="hud-tl">
+      <div id="hud-map" class="hud-map"></div>
+      <div id="hud-timeleft"></div>
+      <div id="hud-net" class="dim"></div>
+    </div>
+    <div class="hud-top" id="hud-timer">
+      <div id="hud-stage" class="hud-stage"></div>
+      <div id="hud-time" class="hud-time">0:00.00</div>
+      <div id="hud-state" class="hud-state"></div>
+      <div class="hud-recs"><span id="hud-pb"></span><span id="hud-best"></span></div>
+    </div>
+    <div id="hud-feed" class="hud-feed"></div>
+    <div id="hud-vote" class="hud-vote hidden"></div>
+    <div id="hud-spec" class="hud-spec hidden"></div>
+    <div id="hud-speed" class="hud-speed">
+      <div id="hud-speed-num" class="num">0</div>
+      <div class="unit">u/s</div>
+      <div class="bar"><div id="hud-speed-bar"></div></div>
+    </div>
+    <div id="hud-toast" class="toast"></div>
+    <div id="hud-keys" class="hud-keys">
+      <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> move ·
+      <span class="key">SPACE</span> jump · <span class="key">R</span> restart · <span class="key">F</span> inspect ·
+      <span class="key">TAB</span> scores · <span class="key">V</span> vote · <span class="key">J</span> spectate · <span class="key">F3</span> debug
+    </div>
+    <div id="hud-debug" class="hud-debug hidden"></div>
+  </div>
+
+  <div id="scoreboard" class="scoreboard hidden"></div>
+  <div id="menu" class="menu hidden"></div>
+  <div id="pause" class="overlay hidden"></div>
+  <div id="click-to-play" class="overlay ctp hidden"></div>
+
+  <div id="panels" class="panels hidden">
+    <div id="vault" class="panel vault hidden">
+      <div id="vault-stage" class="vault-stage"></div>
+      <div id="vault-panel" class="vault-panel"></div>
+      <button class="btn ghost vault-close" onclick="document.dispatchEvent(new CustomEvent('gz-close-panels'))">✕</button>
+    </div>
+    <div id="inventory" class="panel inventory hidden"></div>
+    <div id="settings" class="panel settings hidden"></div>
+    <div id="maps" class="panel maps hidden"></div>
+    <div id="viewer" class="viewer hidden"></div>
+  </div>
+
+  <div id="loading" class="loading"><div class="spinner"></div><div>GLIDEZONE</div></div>
+  <script src="game.js"></script>
+</body>
+</html>

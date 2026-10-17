@@ -29,6 +29,7 @@ export class MapBuilder {
 
   ramp(points, opt) {
     const { brushes, sections } = surfRampBrushes(points, opt, opt.mat || 'ramp');
+    for (const b of brushes) b.rampIndex = this.ramps.length;
     this._add(brushes);
     this.ramps.push({ points, sections, w: opt.w, d: opt.d, sides: opt.sides || 'both', stage: this.curStage });
   }

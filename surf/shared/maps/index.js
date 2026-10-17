@@ -80,8 +80,8 @@ const DEFS = [
     description: 'One-sided basalt walls above a molten core. Pick your side and commit.',
     theme: {
       sky: ['#1a0500', '#6a040f', '#f48c06'], sun: [0.2, 0.7, 0.3], sunColor: '#ffba08',
-      fog: '#7a1c04', fogDensity: 0.00004, ramp: ['#3d1308', '#5c1a0b', '#9d0208'], edge: '#ffba08',
-      platform: '#1b0f0b', wall: '#140a07', landing: '#2b1a12', decor: 'rocks', stars: false, accent: '#ff5400', lava: true,
+      fog: '#7a1c04', fogDensity: 0.00004, ramp: ['#8a3a22', '#a8442a', '#c0532b'], edge: '#ffba08',
+      platform: '#3a2419', wall: '#2a1a12', landing: '#4a2c1c', decor: 'rocks', stars: false, accent: '#ff5400', lava: true,
     },
     stages: [
       { heading: 0, ramps: [R(2800, { w: 460, d: 640, sides: 'left' }), R(2800, { w: 460, d: 640, sides: 'left' }), R(2800, { w: 460, d: 640, sides: 'left' })] },

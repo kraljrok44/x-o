@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { Room } from '../shared/room.js';
 import { NET } from '../shared/config.js';
-import { MAP_LIST } from '../shared/maps/index.js';
+import { MAP_LIST, isMapId } from '../shared/maps/index.js';
 import { FileStore } from './store-file.js';
 import { authenticate } from './auth.js';
 
@@ -20,13 +20,26 @@ const DATA = process.env.DATA_DIR || path.join(ROOT, 'data');
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
 
 const store = new FileStore(DATA);
-const room = new Room({
-  store,
-  auth: authenticate,
-  name: process.env.ROOM_NAME || 'GLIDEZONE #1',
-  startMap: process.env.START_MAP || MAP_LIST[0].id,
-  log: (...a) => console.log(new Date().toISOString(), ...a),
-});
+const log = (...a) => console.log(new Date().toISOString(), ...a);
+
+// Public rooms (map voting, up to NET.maxPlayersPerRoom each; a new one opens when all are full)
+// and private practice rooms (one player, free map choice, no voting).
+const publicRooms = [];
+const practiceRooms = new Set();
+function newPublicRoom() {
+  const r = new Room({
+    store, auth: authenticate, log,
+    name: `${process.env.ROOM_NAME || 'GLIDEZONE'} #${publicRooms.length + 1}`,
+    startMap: process.env.START_MAP || MAP_LIST[0].id,
+  });
+  publicRooms.push(r);
+  return r;
+}
+newPublicRoom();
+function publicRoomWithSpace() {
+  return publicRooms.find((r) => r.playerCount() < r.maxPlayers) || newPublicRoom();
+}
+const room = publicRooms[0];
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -37,7 +50,10 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/health') {
     res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*' });
-    res.end(JSON.stringify({ ok: true, players: room.playerCount(), map: room.map.id }));
+    res.end(JSON.stringify({
+      ok: true, players: publicRooms.reduce((n, r) => n + r.playerCount(), 0), map: room.map.id,
+      rooms: publicRooms.map((r) => ({ name: r.name, players: r.playerCount(), map: r.map.id })), practice: practiceRooms.size,
+    }));
     return;
   }
   let p = decodeURIComponent(url.pathname);
@@ -63,18 +79,42 @@ wss.on('connection', (ws) => {
     send: (m) => { if (ws.readyState === 1) ws.send(JSON.stringify(m)); },
     close: () => ws.close(),
   };
-  const client = room.addClient(conn);
+  let target = null, client = null;
+  const leave = () => {
+    if (!target) return;
+    target.removeClient(client);
+    if (practiceRooms.has(target)) practiceRooms.delete(target);
+    target = null;
+  };
   ws.on('message', (data) => {
     let msg;
     try { msg = JSON.parse(data.toString()); } catch (e) { return; }
-    room.handleMessage(client, msg);
+    if (!target) {
+      if (!msg || msg.t !== 'hello') return;
+      if (msg.mode === 'practice') {
+        target = new Room({ store, auth: authenticate, log, voting: false, maxPlayers: 1, name: 'Practice', startMap: isMapId(msg.map) ? msg.map : MAP_LIST[0].id });
+        practiceRooms.add(target);
+      } else {
+        target = publicRoomWithSpace();
+      }
+      client = target.addClient(conn);
+    }
+    if (msg.t === 'practice_map') {
+      if (practiceRooms.has(target) && isMapId(msg.id)) target.forceMap(msg.id);
+      return;
+    }
+    target.handleMessage(client, msg);
   });
-  ws.on('close', () => room.removeClient(client));
-  ws.on('error', () => room.removeClient(client));
+  ws.on('close', leave);
+  ws.on('error', leave);
 });
 
-// Fixed-step loop: run every 4 ms and let the room catch up in 10 ms ticks.
-setInterval(() => room.advance(performance.now()), 4);
+// Fixed-step loop: run every 4 ms and let every room catch up in 10 ms ticks.
+setInterval(() => {
+  const now = performance.now();
+  for (const r of publicRooms) r.advance(now);
+  for (const r of practiceRooms) r.advance(now);
+}, 4);
 
 server.listen(PORT, () => {
   console.log(`GLIDEZONE server on http://localhost:${PORT}  (ws path /ws, data ${DATA})`);

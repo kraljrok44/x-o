@@ -282,6 +282,8 @@ export class Room {
 
   _onFinish(c, ev) {
     const ticks = ev.ticks;
+    // other rooms (practice) may have written newer records for this map
+    if (this.store.loadRecords) this.records = this.store.loadRecords(this.map.id) || this.records;
     const prev = this.records.find((r) => r.key === c.key);
     const time = formatTime(ticks);
     if (!prev || ticks < prev.ticks) {

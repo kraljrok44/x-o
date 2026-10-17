@@ -1,0 +1,117 @@
+# GLIDEZONE – večigralski surf za CrazyGames
+
+Izvirna spletna igra, navdihnjena s Counter-Strike surfom: drsenje po nagnjenih rampah, zračno
+krmiljenje (air-strafe), časovne proge po etapah, večigralski strežnik z glasovanjem za mape,
+opazovalni način in trezor nožev (case opening), ki se odpre z ogledom video oglasa.
+
+Vsa geometrija, modeli nožev, skini, zvoki in imena so **izvirni in proceduralno generirani** –
+v projektu ni nobenih sredstev iz Counter-Strike ali drugih iger.
+
+## Kaj je v igri
+
+| Področje | Izvedba |
+|---|---|
+| Fizika | Source-slog gibanja: fiksni korak 100 Hz, trenje, pospeševanje na tleh, air-accelerate (150) z omejitvijo 30, sweep-and-slide trki kvadra s konveksnimi brushi + robni »bevel« ravnini (brez ramp bugov). Deterministična – ista koda teče na strežniku in v brskalniku. |
+| Mape | 6 izvirnih map (začetniška → težka), 3–5 etap, ukrivljene rampe, enostranske rampe, teleporti, checkpointi, start/cilj cone. Vsako mapo samodejni bot prevozi v testih. |
+| Večigralski način | Avtoritativni Node.js strežnik (WebSocket), napovedovanje na klientu + usklajevanje, interpolacija drugih igralcev, zaščita pred speed-hackom (proračun ukazov). |
+| Glasovanje | Po 10 minutah na mapi glasovanje (4 mape + »podaljšaj +5 min«), predčasno, ko ≥ 50 % trenutnih igralcev pritisne **V** (rock-the-vote). Prazen strežnik zamenja mapo brez glasovanja. |
+| Opazovalni način | Prva oseba (vidiš igralčev nož in hitrost/čas), kamera za igralcem, prosta kamera. **J** vklop/izklop, **LMB/DMB** menjava igralca, **SPACE** način kamere. |
+| Trezor nožev | 15 izvirnih modelov × 33 skinov = **428 zbirateljskih predmetov** (izračunano iz matrike združljivosti). Vsak krejt: video oglas → strežnik izbere in **shrani** predmet, ki ga igralec še nima → šele nato animacija odpiranja (preskočljiva). Brez podvajanj, idempotentne zahteve, zaščita pred dvojnim klikom. |
+| Nož med igro | Opremljen nož je viden v prvi osebi (animacije: izvlek, nihanje, pregled **F**, zamah **LMB**) in v rokah avatarja za druge igralce. |
+| Merek | Samo ena pikica na sredini zaslona. |
+| HUD | Hitrost, čas proge, etapa, osebni rekord, rekord strežnika, preostali čas mape, glasovanje, dogodki, lestvica (**TAB**), fizikalni debug (**F3**). |
+| Nastavitve | Občutljivost miške, FOV, glasnosti (glavna/učinki/vmesnik), bloom, nihanje noža, manj gibanja/bliskov, velikost HUD, kakovost, jezik (EN/SL). |
+
+### Malenkost drugačno od originala
+- **Flow rings** – svetleči obroči med rampami, ki enkrat na vožnjo dodajo hitrost.
+- Samodejni skok (auto-hop) ob držanju preslednice.
+- Trezor brez naključnih »skoraj zadetkov« – animacija samo predstavi že shranjen rezultat, vsak predmet dobiš največ enkrat.
+- Izvirne družine nožev (Ranger, Lancer, Warden, Crescent, Moth, Flicker, Hook, Tracker, Scimitar, Cleaver, Twin Fangs, Switch, Needle, Raptor, Grizzly) in izvirni skini (Abyss Flow faze, Bloodstone, Jade Flow, Sunset Melt, Candy Marble, Heat Temper, Folded Damascus, Gilded Relic …).
+
+### Mape
+| Mapa | Težavnost | Posebnost |
+|---|---|---|
+| Aurora Dawn | začetniška | široke rampe, sončni vzhod |
+| Frostbyte | lahka | ledene ukrivljene rampe |
+| Jade Sanctum | lahka | dolgi loki, lebdeči vrt |
+| Neon Drift | srednja | synthwave, flow rings, zamaknjeni prehodi |
+| Ember Core | srednja | enostranske rampe nad lavo |
+| Void Garden | težka | ozke rampe, dolgi skoki, vesolje |
+
+## Zagon
+
+Potrebuješ Node.js 20+.
+
+```bash
+cd surf
+npm install
+npm run build      # zgradi klienta v dist/
+npm start          # strežnik + statične datoteke na http://localhost:8080
+npm test           # 47 testov: fizika, mape (bot prevozi vse), krejti, glasovanje, soba
+```
+
+Brez strežnika (npr. ob odprtju `dist/index.html` ali če strežnik ni dosegljiv) igra preklopi v
+**offline način**: ista avtoritativna soba teče v brskalniku, inventar se shrani lokalno.
+
+Spremenljivke strežnika: `PORT` (8080), `DATA_DIR` (./data – profili in rekordi), `ALLOWED_ORIGINS`
+(npr. `crazygames.com,crazygames.si` – omeji WebSocket povezave), `START_MAP`, `ROOM_NAME`.
+
+## Objava na CrazyGames
+
+1. **Strežnik** postavi na gostovanje z WebSocket podporo (Fly.io, Render, Railway, VPS …):
+   `npm install --omit=dev && npm start`, z obstojnim diskom za `DATA_DIR`. Nastavi `ALLOWED_ORIGINS`.
+2. V `client/index.html` nastavi `window.GLIDEZONE_SERVER = 'wss://tvoj-streznik.example/ws'`.
+3. `npm run build` in zapakiraj vsebino mape `dist/` (index.html, game.js, style.css) v ZIP ter ga
+   naloži kot HTML5 igro.
+4. CrazyGames SDK v3 je že vključen (`index.html`). Uporablja se:
+   - `ad.requestAd('rewarded')` – vsak krejt (če oglas ne uspe, se krejt ne odpre);
+   - `ad.requestAd('midgame')` – samo ob naravnem premoru menjave mape, največ 1× na 3 minute;
+   - `game.loadingStart/Stop`, `game.gameplayStart/Stop`, `game.happytime` (ob odprtju krejta);
+   - `user.getUser / getUserToken / showAuthPrompt` – prijavljenim igralcem se inventar veže na
+     CrazyGames račun (strežnik preveri RS256 žeton z javnim ključem CrazyGames), gostom pa na
+     naključni žeton v brskalniku.
+
+## Arhitektura
+
+```
+surf/
+  shared/            koda, ki teče na strežniku IN v brskalniku
+    config.js        vse fizikalne in igralne konstante (en sam vir)
+    brush.js         konveksni brushi, bevel ravnine, gradnja ramp
+    collision.js     sweep kvadra skozi svet (trace), prostorska mreža
+    movement.js      fizika gibanja igralca
+    sim.js           korak simulacije + sprožilniki (start, checkpoint, teleport, ring, cilj, padec) + časomer
+    maps/            graditelj map in katalog 6 map
+    catalog.js       modeli, skini, matrika združljivosti, zbirateljski ID-ji
+    crate.js         odpiranje brez podvajanj (transakcija, idempotenca, cooldown)
+    vote.js          glasovanje / rock-the-vote / podaljšanje
+    room.js          avtoritativna soba (ukazi, posnetki stanja, glasovanje, krejti, rekordi)
+    bot.js           bot za validacijo map in ozadje menija
+  server/            Node strežnik (HTTP + WebSocket), datotečna shramba, preverjanje CrazyGames žetona
+  client/            Three.js klient: igra, napovedovanje, upodabljanje map, noži, skini, viewmodel,
+                     avatarji, zvok (WebAudio sinteza), HUD, meniji, trezor, inventar
+  test/              node:test testi
+  tools/build.mjs    esbuild → dist/
+```
+
+Ključne odločitve:
+- **Fizika je ena koda** (`shared/`), zato napovedovanje na klientu natančno sovpada s strežnikom.
+- **Vizualna in kolizijska geometrija izhajata iz istih podatkov** (brushi), zato ni nevidnih ovir.
+- **Rezultat krejta se zapiše pred animacijo**; animacija je čista funkcija časa, preskok ne more spremeniti predmeta.
+
+## Kontrole
+`WASD` gibanje · `SPACE` skok · `R` ponovni začetek · `F` ogled noža · `LMB` zamah ·
+`TAB` lestvica · `V` glas za menjavo mape · `1–5` glasovanje · `J` opazovalni način ·
+`F3` fizikalni debug · `ESC` meni.
+
+Surfanje: spusti se na rampo, drži stransko tipko proti rampi (A ali D) in usmerjaj z miško. Na rampi ne pritiskaj W.
+
+## Opombe in naslednji koraki
+- Oglasov strežnik ne more preveriti (CrazyGames ne ponuja strežniške potrditve), zato strežnik
+  omeji odpiranje na 1 krejt / 20 s. Predmeti niso naprodaj in jih ni mogoče menjati – gre za
+  kozmetiko brez denarne vrednosti; pred objavo vseeno preveri trenutna pravila CrazyGames glede
+  »loot box« mehanik.
+- Shramba je JSON na disku (primerna za en strežnik). Za več strežnikov zamenjaj `server/store-file.js`
+  z bazo (npr. Postgres z `UNIQUE(player_id, collectible_id)`).
+- Počep ni implementiran (surf ga ne potrebuje); igra je namenjena tipkovnici in miški (mobilne naprave
+  dobijo obvestilo).
