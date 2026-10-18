@@ -1,6 +1,6 @@
 # FPS Surf: končna objava
 
-V `GLIDEZONE-objava.zip` so štiri stvari:
+V `FPS-Surf-objava.zip` so štiri stvari:
 
 | Datoteka | Za kaj |
 |---|---|
