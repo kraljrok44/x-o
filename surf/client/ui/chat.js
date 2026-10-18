@@ -58,7 +58,7 @@ export class Chat {
     if (this.game.mode !== 'play' || this.root.classList.contains('hidden')) return;
     if (this.open) return;
     if (document.activeElement && ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
-    if (!this.game.input.locked) return;
+    if (!this.game.input.active) return;
     if (e.code === 'Enter' || e.code === 'KeyT') {
       e.preventDefault();
       e.stopPropagation();

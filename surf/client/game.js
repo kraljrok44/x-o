@@ -529,7 +529,7 @@ export class Game extends Emitter {
     }
     if (steps >= 25) this.acc = 0;
     const alpha = this.acc / DT;
-    if (this.mode === 'play') this._handleKeys();
+    if (this.mode === 'play') { this.input.keyTurn(dt); this._handleKeys(); }
     if (this.mode === 'play' && this.net && performance.now() - this.lastPing > 2000) {
       this.lastPing = performance.now();
       this.send({ t: 'ping', t0: this.lastPing, rtt: Math.round(this.rtt) });
@@ -540,7 +540,7 @@ export class Game extends Emitter {
 
   _handleKeys() {
     const I = this.input;
-    if (!I.locked) { I.clearPressed(); return; }
+    if (!I.active) { I.clearPressed(); return; }
     if (I.takePressed('KeyR') && !this.spectator) this.restart();
     if (I.takePressed('KeyF') && !this.spectator) this.viewmodel.play('inspect');
     if (I.takePressed('Mouse0')) {

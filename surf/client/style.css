@@ -77,6 +77,12 @@ select option { background: var(--panel-solid); }
 .ctp-box { text-align: center; background: var(--panel); border: 1px solid var(--line); padding: 24px 32px; border-radius: 18px; max-width: 560px; }
 .ctp-title { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
 .tut-box { max-width: 640px; text-align: left; }
+.tutorial { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); width: min(420px, 40vw); pointer-events: none; background: rgba(10,12,24,.82); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; transition: opacity .6s; }
+.tutorial.fade { opacity: 0; }
+.tutorial .ctp-title { font-size: 20px; margin-bottom: 4px; }
+.tutorial .tut-list { margin: 8px 0 6px; gap: 6px 12px; font-size: 13px; }
+.mouse-hint { position: absolute; left: 50%; bottom: 30vh; transform: translateX(-50%); pointer-events: none; padding: 8px 16px; border-radius: 999px; background: rgba(10,12,24,.75); border: 1px solid var(--line); font-weight: 700; animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .55; } }
 .tut-box .ctp-title { text-align: center; }
 .tut-list { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 14px 0 18px; }
 .tut-list .k { font: 800 13px var(--mono); background: rgba(255,255,255,.1); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; white-space: nowrap; align-self: center; }

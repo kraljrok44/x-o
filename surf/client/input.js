@@ -20,7 +20,7 @@ export class Input {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
       if (!this.keys.has(e.code)) this.pressed.add(e.code);
       this.keys.add(e.code);
-      if (this.enabled && ['Space', 'Tab', 'F3', 'KeyF'].includes(e.code)) e.preventDefault();
+      if ((this.enabled || this.active) && ['Space', 'Tab', 'F3', 'KeyF', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
       if (e.code === 'Space' && document.activeElement && document.activeElement.tagName === 'BUTTON') document.activeElement.blur();
     });
     window.addEventListener('keyup', (e) => { this.keys.delete(e.code); });
@@ -73,9 +73,18 @@ export class Input {
 
   clearPressed() { this.pressed.clear(); }
 
+  /** Keyboard play works right away; the mouse needs one click (browsers only lock it on a click). */
+  get active() { return this.locked || !!(this.canPlay && this.canPlay()); }
+
+  /** Q / E turn while the mouse is not captured yet. */
+  keyTurn(dt) {
+    if (this.locked || !this.active) return;
+    this.yaw += ((this.down('KeyQ') ? 1 : 0) - (this.down('KeyE') ? 1 : 0)) * 2.4 * dt;
+  }
+
   /** Movement intent for this tick. */
   moveAxes() {
-    if (!this.locked) return { fwd: 0, side: 0, jump: false };
+    if (!this.active) return { fwd: 0, side: 0, jump: false };
     const fwd = (this.down('KeyW') || this.down('ArrowUp') ? 1 : 0) - (this.down('KeyS') || this.down('ArrowDown') ? 1 : 0);
     const side = (this.down('KeyD') || this.down('ArrowRight') ? 1 : 0) - (this.down('KeyA') || this.down('ArrowLeft') ? 1 : 0);
     return { fwd, side, jump: this.down('Space') };

@@ -26,7 +26,7 @@ const STR = {
     debug: 'Physics debug (F3)',
     controls: 'WASD move · SPACE jump · R restart · H hide players · G ghost · TAB scores · V vote map · J spectate · ENTER chat · ESC menu',
     xpFirst: 'First completion', xpNormal: 'Map completed', xpPb: 'Personal best', xpRecord: 'MAP RECORD', levelUp: 'Level', promoted: 'Promoted to', freeCrateTitle: 'Free crate unlocked!', freeCrateText: 'Every 10th level gives you a crate - no ad needed.', openFreeNow: 'Open it now', later: 'Later', openFreeCrate: 'Open free crate', level: 'Level', xp: 'XP',
-    tutTitle: 'How to surf', tutStart: 'Start surfing',
+    tutTitle: 'How to surf', tutStart: 'Start surfing', mouseHint: 'Click to look around with the mouse · Q / E turn',
     tut: [
       ['A / D', 'Hold the strafe key towards the ramp to stay on it'],
       ['Mouse', 'Steer - look where you want to go'],
@@ -71,7 +71,7 @@ const STR = {
     debug: 'Fizikalni debug (F3)',
     controls: 'WASD gibanje · PRESLEDNICA skok · R ponovno · H skrij igralce · G duh · TAB lestvica · V glas za mapo · J opazuj · ENTER klepet · ESC meni',
     xpFirst: 'Prvi prevoz', xpNormal: 'Mapa prevožena', xpPb: 'Osebni rekord', xpRecord: 'REKORD MAPE', levelUp: 'Nivo', promoted: 'Napredovanje v', freeCrateTitle: 'Brezplačen krejt!', freeCrateText: 'Vsak 10. nivo ti podari krejt - brez oglasa.', openFreeNow: 'Odpri ga zdaj', later: 'Kasneje', openFreeCrate: 'Odpri brezplačen krejt', level: 'Nivo', xp: 'XP',
-    tutTitle: 'Kako surfati', tutStart: 'Začni surfati',
+    tutTitle: 'Kako surfati', tutStart: 'Začni surfati', mouseHint: 'Klikni za pogled z miško · Q / E obračanje',
     tut: [
       ['A / D', 'Drži stransko tipko proti rampi, da ostaneš na njej'],
       ['Miška', 'Usmerjanje - glej, kamor želiš'],

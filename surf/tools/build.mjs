@@ -1,4 +1,5 @@
-// Builds the static client into dist/ (upload this folder / zip to CrazyGames).
+// Builds the static client into dist/. With --single the whole game (script + styles) is inlined
+// into one self-contained index.html (CrazyGames upload; only the CrazyGames SDK stays external).
 import { build } from 'esbuild';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,5 +19,17 @@ await build({
   legalComments: 'none',
   logLevel: 'info',
 });
-for (const f of ['index.html', 'style.css']) fs.copyFileSync(path.join(root, 'client', f), path.join(out, f));
-console.log('built ->', out);
+if (process.argv.includes('--single')) {
+  const js = fs.readFileSync(path.join(out, 'game.js'), 'utf8').replace(/<\/script/gi, '<\\/script');
+  const css = fs.readFileSync(path.join(root, 'client/style.css'), 'utf8');
+  let html = fs.readFileSync(path.join(root, 'client/index.html'), 'utf8');
+  html = html.replace('<link rel="stylesheet" href="style.css">', () => `<style>${css}</style>`);
+  html = html.replace('<script src="game.js"></script>', () => `<script>${js}</script>`);
+  if (html.includes('game.js"') || html.includes('style.css"')) throw new Error('inlining failed');
+  fs.writeFileSync(path.join(out, 'index.html'), html);
+  fs.rmSync(path.join(out, 'game.js'));
+  console.log('built single index.html ->', out, `(${(html.length / 1024).toFixed(0)} KB)`);
+} else {
+  for (const f of ['index.html', 'style.css']) fs.copyFileSync(path.join(root, 'client', f), path.join(out, f));
+  console.log('built ->', out);
+}

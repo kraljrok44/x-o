@@ -337,18 +337,25 @@ async function startGame(mode, spectate, mapId, booting = false) {
   chat.setVisible(true);
   hud.renderScoreboard();
   showPause(false);
-  show('#click-to-play', true);
+  // play starts at once: the keyboard works immediately, the mouse after one click on the game
+  show('#click-to-play', false);
+  try { window.focus(); } catch (e) { /* */ }
+  show('#mouse-hint', !game.input.locked && !spectate);
+  html('#mouse-hint', t('mouseHint'));
   let firstTime = false;
   try { firstTime = !localStorage.getItem('gz.tutorial.v1'); } catch (e) { /* storage blocked */ }
   if (firstTime && !spectate) {
-    // first visit: the basic controls, dismissed by the click that starts playing
-    html('#click-to-play', `<div class="ctp-box tut-box"><div class="ctp-title">${t('tutTitle')}</div>
-      <div class="tut-list">${t('tut').map(([k, d]) => `<span class="k">${esc(k)}</span><span class="d">${esc(d)}</span>`).join('')}</div>
-      <button class="btn primary big">${t('tutStart')}</button></div>`);
+    // first visit: the basic controls in a side card that never blocks play, gone after a while
+    html('#tutorial', `<div class="ctp-title">${t('tutTitle')}</div>
+      <div class="tut-list">${t('tut').map(([k, d]) => `<span class="k">${esc(k)}</span><span class="d">${esc(d)}</span>`).join('')}</div>`);
+    const el = $('#tutorial');
+    el.classList.remove('fade');
+    show(el, true);
+    setTimeout(() => el.classList.add('fade'), 18000);
+    setTimeout(() => show(el, false), 18700);
     try { localStorage.setItem('gz.tutorial.v1', '1'); } catch (e) { /* */ }
-  } else {
-    html('#click-to-play', `<div class="ctp-box"><div class="ctp-title">${t('clickToPlay')}</div><div class="dim">${t('controls')}</div></div>`);
   }
+  if (!spectate) sdk.gameplayStart();
 }
 
 function leaveGame() {
@@ -385,7 +392,7 @@ function showPause(on) {
     <button class="btn ghost" id="p-leave">${t('leave')}</button>
   </div>`);
   const bind = (id, f) => { const b = $('#' + id); if (b) b.onclick = () => { audio.play('click'); f(); }; };
-  bind('p-resume', () => { show('#pause', false); game.input.lock(); });
+  bind('p-resume', () => { show('#pause', false); game.input.lock(); sdk.gameplayStart(); });
   bind('p-spec', () => { game.setSpectate(!game.spectator); show('#pause', false); game.input.lock(); });
   bind('p-rtv', () => { game.requestRtv(); show('#pause', false); game.input.lock(); });
   bind('p-maps', () => openPanel('maps'));
@@ -398,7 +405,7 @@ function showPause(on) {
 
 game.input.onLockChange = (locked) => {
   if (app.state !== 'game') return;
-  if (locked) { show('#pause', false); show('#click-to-play', false); sdk.gameplayStart(); }
+  if (locked) { show('#pause', false); show('#click-to-play', false); show('#mouse-hint', false); sdk.gameplayStart(); }
   else { sdk.gameplayStop(); show('#scoreboard', false); showPause(true); }
 };
 
@@ -408,6 +415,11 @@ canvas.addEventListener('click', () => { if (app.state === 'game' && !game.input
 window.addEventListener('keydown', (e) => {
   if (app.state !== 'game') return;
   if (e.code === 'Tab') { e.preventDefault(); show('#scoreboard', true); }
+  // ESC opens the menu also while only the keyboard is in use (no captured mouse yet)
+  if (e.code === 'Escape' && !game.input.locked && !app.panel && !chat.open) {
+    const open = $('#pause').classList.contains('hidden');
+    if (open) { sdk.gameplayStop(); showPause(true); } else { show('#pause', false); sdk.gameplayStart(); }
+  }
 });
 window.addEventListener('keyup', (e) => { if (e.code === 'Tab') show('#scoreboard', false); });
 
@@ -446,6 +458,9 @@ game.on('mapchange', () => {
     sdk.requestAd('midgame');
   }
 });
+
+// keyboard play is live whenever nothing else (menu, panel, chat input) has the keys
+game.input.canPlay = () => app.state === 'game' && !app.panel && $('#pause').classList.contains('hidden') && !chat.open;
 
 // ------------------------------------------------------------------ boot
 async function boot() {
