@@ -46,12 +46,14 @@ export class Audio {
 
   applyVolumes() {
     if (!this.ctx) return;
-    this.master.gain.value = this.muted ? 0 : this.vol.master;
+    this.master.gain.value = this.muted || this.platformMuted ? 0 : this.vol.master;
     this.sfx.gain.value = this.vol.sfx;
     this.ui.gain.value = this.vol.ui;
   }
 
   mute(on) { this.muted = on; this.applyVolumes(); }
+  // portal-level mute (CrazyGames settings), independent of the ad mute
+  setPlatformMute(on) { this.platformMuted = !!on; this.applyVolumes(); }
 
   /** Continuous sounds follow the player's speed and surf contact. */
   setMotion(speed, surfing, active) {

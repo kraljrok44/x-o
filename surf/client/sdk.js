@@ -23,6 +23,10 @@ class SDKWrapper {
       this.env = SDK.environment; // 'crazygames' | 'local' | 'disabled'
       if (this.env === 'disabled') { this.cg = null; return; }
       try { this.user = await SDK.user.getUser(); } catch (e) { this.user = null; }
+      try {
+        audio.setPlatformMute(SDK.game.settings && SDK.game.settings.muteAudio);
+        SDK.game.addSettingsChangeListener((st) => audio.setPlatformMute(st && st.muteAudio));
+      } catch (e) { /* older sdk */ }
       try { SDK.user.addAuthListener((u) => { this.user = u; window.dispatchEvent(new CustomEvent('gz-auth', { detail: u })); }); } catch (e) { /* older sdk */ }
     } catch (e) {
       console.warn('CrazyGames SDK init failed', e);
