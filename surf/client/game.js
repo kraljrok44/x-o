@@ -8,7 +8,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { PHYS, NET } from '../shared/config.js';
-import { getMap, MAP_LIST } from '../shared/maps/index.js';
+import { getMap, MAP_LIST, isMapId } from '../shared/maps/index.js';
 import { CollisionWorld } from '../shared/collision.js';
 import { createPlayerState, stepPlayer, copyState, BTN, EV, inTrigger } from '../shared/sim.js';
 import { MODE } from '../shared/movement.js';
@@ -252,7 +252,8 @@ export class Game extends Emitter {
   }
 
   disconnect() {
-    if (this.net) { try { this.net.close(); } catch (e) { /* */ } }
+    // detach first: the old socket's close event arrives later and must not end the next session
+    if (this.net) { this.net.onclose = () => {}; this.net.onmessage = () => {}; try { this.net.close(); } catch (e) { /* */ } }
     this.net = null;
     if (this.mode === 'play') this.clearAvatars();
     this.ghost.set(null);
@@ -269,6 +270,7 @@ export class Game extends Emitter {
   _onMessage(m) {
     switch (m.t) {
       case 'welcome':
+        if (!isMapId(m.map)) { this._mapMismatch(m); return; } // a map this client does not have
         this.loadMap(m.map);
         if (this._mapMismatch(m)) return;
         this.myId = m.id;
@@ -285,7 +287,9 @@ export class Game extends Emitter {
         this.inventory = m.inventory;
         this.viewmodel.setKnife(m.inventory.equipped);
         this.viewmodel.visible = !this.spectator;
-        this.vote = m.vote;
+        // the server sends relative times (endsIn / in); the HUD counts down to absolute ones
+        this.vote = m.vote && m.vote.state === 'voting' ? { ...m.vote, endsAt: performance.now() + (m.vote.endsIn || 0), mine: -1 }
+          : m.vote && m.vote.state === 'changing' ? { ...m.vote, at: performance.now() + (m.vote.in || 0) } : m.vote;
         this.room = m.room;
         this.roomCode = m.code || null;
         this.voting = m.voting;
@@ -320,6 +324,7 @@ export class Game extends Emitter {
         this.emit('roster', this.roster);
         break;
       case 'map':
+        if (!isMapId(m.map)) { this._mapMismatch(m); return; }
         this.loadMap(m.map);
         if (this._mapMismatch(m)) return;
         this.ps = m.me;
@@ -396,8 +401,8 @@ export class Game extends Emitter {
   // A server with different map geometry would keep pulling the player through ramps that it
   // does not have (old server build): stop using it, main.js falls back to offline play.
   _mapMismatch(m) {
-    if (m.mh === this.map.hash) return false;
-    console.warn('[FPS Surf] server map differs', m.map, m.mh, 'client', this.map.hash);
+    if (this.map && isMapId(m.map) && m.mh === this.map.hash) return false;
+    console.warn('[FPS Surf] server map differs', m.map, m.mh, 'client', this.map && this.map.hash);
     const net = this.net;
     this.net = null;
     this.mode = 'none';
@@ -619,9 +624,17 @@ export class Game extends Emitter {
       if (av) av.update(s, dt, false);
       const hs = Math.hypot(b.vel.x, b.vel.y);
       const heading = hs > 50 ? Math.atan2(b.vel.y, b.vel.x) : b.yaw;
-      const orbit = 0.55 + Math.sin(this.time * 0.15) * 0.35; // three-quarter view from the side
-      const back = b.onGround ? 260 : 420;
-      const target = new THREE.Vector3(s.x - Math.cos(heading + orbit) * back, s.y - Math.sin(heading + orbit) * back, s.z + (b.onGround ? 260 : 190));
+      // chase camera on the open side of the ramp (along its surface normal), never inside it
+      const n = b.surfNormal;
+      if (n && b.mode === MODE.SURFING) {
+        const l = Math.hypot(n.x, n.y) || 1;
+        this.demoSide = { x: n.x / l, y: n.y / l };
+      } else if (b.onGround) this.demoSide = null;
+      const fx = Math.cos(heading), fy = Math.sin(heading);
+      const sway = Math.sin(this.time * 0.15) * 60;
+      const side = this.demoSide || { x: -fy, y: fx };
+      const back = b.onGround ? 320 : 560, out = b.onGround ? 120 : 330 + sway, up = b.onGround ? 210 : 240;
+      const target = new THREE.Vector3(s.x - fx * back + side.x * out, s.y - fy * back + side.y * out, s.z + up);
       if (!this.demoCam) this.demoCam = target.clone();
       this.demoCam.lerp(target, Math.min(1, dt * 2.5));
       cam.position.copy(this.demoCam);

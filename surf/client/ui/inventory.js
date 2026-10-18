@@ -141,7 +141,6 @@ export class Inventory {
       <div class="viewer-side">
         <div class="reveal-model">${esc(model.name)}</div>
         <div class="reveal-skin">${esc(skin.name)}</div>
-        <div class="dim small">ID ${esc(col.collectible_id)}</div>
         <p class="dim">${esc(model.desc)}</p>
         <div class="${have ? 'ok' : 'warn'}">${have ? '✔ ' + t('owned') : '🔒 ' + t('locked')}</div>
         <div class="sub">${t('light')}</div>

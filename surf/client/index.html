@@ -16,6 +16,8 @@
 </head>
 <body>
   <canvas id="game-canvas"></canvas>
+  <div id="free-crate" class="free-crate hidden"></div>
+  <button class="touch-ui-btn hidden" id="touch-menu">☰</button>
 
   <div id="hud" class="hidden">
     <div id="crosshair"></div>
@@ -27,12 +29,10 @@
       <div id="hud-xp" class="hud-xp"><div class="xp-row"><span id="hud-rank" class="rank-badge">REC</span><b id="hud-lvl">Lv 1</b><span id="hud-xpnum" class="dim"></span></div><div class="xp-bar"><div id="hud-xpbar"></div></div></div>
     </div>
     <div id="xp-pop" class="xp-pop"></div>
-    <div id="free-crate" class="free-crate hidden"></div>
     <div id="tutorial" class="tutorial hidden"></div>
     <div id="mouse-hint" class="mouse-hint hidden"></div>
     <div id="touch-ui" class="touch-ui hidden">
       <div class="tz tz-look"></div>
-      <button class="touch-ui-btn" id="touch-menu">☰</button>
       <div id="touch-stick" class="touch-stick"><div class="stick-knob"></div></div>
       <button class="touch-ui-btn touch-act" id="touch-a" aria-label="Strafe left">A</button>
       <button class="touch-ui-btn touch-act" id="touch-d" aria-label="Strafe right">D</button>

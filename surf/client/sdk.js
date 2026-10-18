@@ -25,6 +25,7 @@ class SDKWrapper {
     this.adPlaying = false;
     this.gameplay = false;
     this.adsDisabled = false; // set once the SDK reports a Basic launch
+    this.chatDisabled = false; // CrazyGames setting: no chat for this player
   }
 
   async init() {
@@ -37,8 +38,15 @@ class SDKWrapper {
       if (this.env === 'disabled') { this.cg = null; return; }
       try { this.user = await SDK.user.getUser(); } catch (e) { this.user = null; }
       try {
-        audio.setPlatformMute(SDK.game.settings && SDK.game.settings.muteAudio);
-        SDK.game.addSettingsChangeListener((st) => audio.setPlatformMute(st && st.muteAudio));
+        const st = SDK.game.settings || {};
+        audio.setPlatformMute(st.muteAudio);
+        this.chatDisabled = !!st.disableChat;
+        SDK.game.addSettingsChangeListener((n) => {
+          audio.setPlatformMute(n && n.muteAudio);
+          // CrazyGames can switch chat off for a player (e.g. younger users): respect it at once
+          const off = !!(n && n.disableChat);
+          if (off !== this.chatDisabled) { this.chatDisabled = off; window.dispatchEvent(new Event('gz-chat-policy')); }
+        });
       } catch (e) { /* older sdk */ }
       try { SDK.user.addAuthListener((u) => { this.user = u; window.dispatchEvent(new CustomEvent('gz-auth', { detail: u })); }); } catch (e) { /* older sdk */ }
     } catch (e) {

@@ -43,7 +43,9 @@ function upsertTime(list, entry) {
   next.push(entry);
   next.sort((a, b) => a.ticks - b.ticks || a.date - b.date);
   const trimmed = next.slice(0, KEEP);
-  return { list: trimmed, improved: true, rank: trimmed.indexOf(entry) + 1 };
+  const rank = trimmed.indexOf(entry) + 1;
+  if (!rank) return { list, improved: false, rank: 0 }; // still outside the kept top list
+  return { list: trimmed, improved: true, rank };
 }
 
 /**
@@ -62,7 +64,8 @@ export function submitTime(store, { key, name, mapId, ticks, mapVersion = '1.0',
   const profile = store.load(key) || emptyProfile();
   const best = { ...(profile[BEST] || {}) };
   let points = null;
-  if (!best[mapId] || ticks < best[mapId]) {
+  const personalBest = !best[mapId] || ticks < best[mapId];
+  if (personalBest) {
     best[mapId] = ticks;
     store.save(key, { ...profile, [BEST]: best });
     const total = Object.entries(best).reduce((s, [m, t]) => s + mapPoints(m, t), 0);
@@ -72,7 +75,7 @@ export function submitTime(store, { key, name, mapId, ticks, mapVersion = '1.0',
     store.saveRecords(recKey(POINTS_BOARD), board.slice(0, KEEP));
     points = total;
   }
-  return { allTime: all, weekly: week, points, list: all.list };
+  return { allTime: all, weekly: week, points, personalBest, list: all.list };
 }
 
 /** Leaderboard rows for the UI. board = map id or POINTS_BOARD; period = 'all' | 'week'. */

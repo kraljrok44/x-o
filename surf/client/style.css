@@ -93,7 +93,7 @@ select option { background: var(--panel-solid); }
 .touch-ui { position: absolute; inset: 0; pointer-events: none; }
 .touch-ui .tz { position: absolute; bottom: 0; height: 46%; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6vh; font: 900 34px var(--font); color: rgba(255,255,255,.28); }
 .touch-ui .tz-look { left: 0; right: 0; width: auto; border-left: 0 !important; justify-content: center; padding-left: 0; font-size: 13px; letter-spacing: .5px; color: rgba(255,255,255,.3); border-left: 1px dashed rgba(255,255,255,.08); }
-.touch-ui-btn { position: absolute; right: 12px; top: 12px; pointer-events: auto; width: 46px; height: 46px; border-radius: 12px; border: 1px solid var(--line); background: rgba(10,12,24,.7); color: #fff; font-size: 22px; }
+.touch-ui-btn { position: absolute; z-index: 7; right: 12px; top: 12px; pointer-events: auto; width: 46px; height: 46px; border-radius: 12px; border: 1px solid var(--line); background: rgba(10,12,24,.7); color: #fff; font-size: 22px; }
 .rotate-hint { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; background: rgba(5,6,14,.92); font: 800 20px var(--font); }
 body.touch .hud-keys, body.touch #hud-net { display: none; }
 body.touch .tutorial { width: 46vw; left: 50%; right: auto; top: 84px; bottom: auto; transform: translateX(-50%); padding: 8px 12px; z-index: 6; background: rgba(10,12,24,.92); }
@@ -135,7 +135,7 @@ body.touch .hud-feed { top: 66px !important; }
 .xp-pop .gain { font: 900 calc(34px * var(--hud-scale)) var(--font); color: #8dffcf; }
 .xp-pop .why { font-weight: 700; color: #fff; }
 .xp-pop .lvl { margin-top: 6px; font: 900 calc(26px * var(--hud-scale)) var(--font); color: #ffd23f; }
-.free-crate { position: absolute; right: 24px; bottom: 24vh; pointer-events: auto; background: var(--panel-solid); border: 1px solid #ffd23f; border-radius: 16px; padding: 14px 18px; max-width: 280px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+.free-crate { position: fixed; z-index: 25; right: 24px; bottom: 24vh; pointer-events: auto; background: var(--panel-solid); border: 1px solid #ffd23f; border-radius: 16px; padding: 14px 18px; max-width: 280px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
 .free-crate b { color: #ffd23f; }
 .free-crate .btn { margin-top: 10px; width: 100%; }
 .chat-rank { font: 800 10px var(--mono); padding: 1px 5px; border-radius: 4px; background: rgba(255,210,63,.85); color: #1a1205; margin-right: 4px; }
@@ -253,10 +253,12 @@ body.touch .hud-feed { top: 66px !important; }
 .viewer-side { width: 320px; padding: 22px; border-left: 1px solid var(--line); overflow-y: auto; }
 
 /* maps */
-.map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; overflow-y: auto; }
+.map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); grid-auto-rows: max-content; gap: 14px; overflow-y: auto; flex: 1; min-height: 0; padding-bottom: 4px; }
 .map-card { text-align: left; font-family: var(--font); color: var(--text); background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: 16px; padding: 0 0 14px; overflow: hidden; cursor: pointer; transition: transform .12s, border-color .15s; }
 .map-card:hover { transform: translateY(-3px); border-color: var(--e); }
 .map-art { height: 130px; position: relative; overflow: hidden; background: linear-gradient(180deg, var(--a), var(--b) 60%, var(--c)); }
+.map-sky { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .3s; }
+.map-card.art-ready .map-sky { opacity: 1; }
 .map-ramp { position: absolute; left: 18%; bottom: -30px; width: 0; height: 0; border-left: 70px solid transparent; border-right: 70px solid transparent; border-bottom: 110px solid rgba(0,0,0,.35); transform: skewX(-25deg); filter: drop-shadow(0 0 2px var(--e)); }
 .map-ramp.r2 { left: 52%; bottom: -55px; transform: skewX(-25deg) scale(.8); opacity: .75; }
 .map-name { font-size: 20px; font-weight: 900; margin: 12px 14px 2px; }
@@ -369,3 +371,30 @@ body.touch .hud-feed { top: 66px !important; }
 .privacy-body h4 { margin: 14px 0 4px; font-size: 15px; color: #fff; }
 .privacy-body ul { margin: 4px 0; padding-left: 20px; }
 .privacy-body a { color: var(--a1); }
+.row > .btn, .panel-head .btn { white-space: nowrap; }
+
+/* low windows (small CrazyGames player, phones in landscape): everything fits without cut-offs */
+@media (max-height: 560px) {
+  .menu { padding: 2vh 3vw; }
+  .menu-inner { width: 96vw; max-height: 96vh; }
+  .menu-grid { grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 14px; }
+  .menu-grid > * { min-width: 0; }
+  .logo:not(.small) { font-size: 34px; }
+  .tagline { font-size: 13px; margin: 4px 0 10px; }
+  .menu-col { gap: 7px; }
+  .menu-col.info { padding: 10px 14px; gap: 6px; }
+  .menu-col.info .howto, .menu-col.info .keys-line { display: none; }
+  .pause-box { display: grid; grid-template-columns: 1fr 1fr; width: min(760px, 96vw); align-items: center; column-gap: 10px; }
+  .pause-box .invite-row { grid-row: span 2; }
+  .lb-boards { flex: none; }
+  .lb-board { align-items: center; padding: 7px 10px; line-height: 1.25; }
+  #settings > .row { margin-top: 8px; }
+  body:not(.touch) .tutorial { top: 96px; transform: none; width: min(400px, 46vw); padding: 10px 12px; }
+  body:not(.touch) .tutorial .ctp-title { font-size: 15px; }
+  body:not(.touch) .tutorial .tut-list { font-size: 11px; gap: 4px 8px; margin: 6px 0 2px; }
+  body:not(.touch) .tutorial .tut-list .k { font-size: 10px; padding: 2px 6px; white-space: normal; }
+  .hud-keys { display: none; }
+  .mouse-hint { font-size: 13px; padding: 6px 12px; white-space: nowrap; bottom: 12px; }
+}
+.row > .btn { padding-left: 10px; padding-right: 10px; }
+#touch-menu { position: fixed; }

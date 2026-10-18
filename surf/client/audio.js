@@ -9,7 +9,9 @@ export class Audio {
   }
 
   ensure() {
-    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return true; }
+    if (this.ctx) { if (this.ctx.state === 'suspended' && this.gesture) this.ctx.resume(); return true; }
+    // browsers only allow audio after a user gesture; creating it earlier logs an autoplay warning
+    if (!this.gesture) { this._waitGesture(); return false; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return false;
     const ctx = (this.ctx = new AC());
@@ -42,11 +44,22 @@ export class Audio {
     return true;
   }
 
+  _waitGesture() {
+    if (this._waiting) return;
+    this._waiting = true;
+    const go = () => {
+      this.gesture = true;
+      for (const ev of ['pointerdown', 'keydown', 'touchstart']) window.removeEventListener(ev, go, true);
+      this.ensure();
+    };
+    for (const ev of ['pointerdown', 'keydown', 'touchstart']) window.addEventListener(ev, go, true);
+  }
+
   setVolumes(v) { Object.assign(this.vol, v); this.applyVolumes(); }
 
   applyVolumes() {
     if (!this.ctx) return;
-    this.master.gain.value = this.muted || this.platformMuted ? 0 : this.vol.master;
+    this.master.gain.value = this.muted || this.platformMuted || this.hiddenMuted ? 0 : this.vol.master;
     this.sfx.gain.value = this.vol.sfx;
     this.ui.gain.value = this.vol.ui;
   }
@@ -54,6 +67,8 @@ export class Audio {
   mute(on) { this.muted = on; this.applyVolumes(); }
   // portal-level mute (CrazyGames settings), independent of the ad mute
   setPlatformMute(on) { this.platformMuted = !!on; this.applyVolumes(); }
+  // silent while the tab is in the background
+  setHidden(on) { this.hiddenMuted = !!on; this.applyVolumes(); }
 
   /** Continuous sounds follow the player's speed and surf contact. */
   setMotion(speed, surfing, active) {

@@ -474,7 +474,7 @@ export function buildWorld(map, opts = {}) {
     dispose() {
       group.traverse((o) => {
         if (o.geometry) o.geometry.dispose();
-        if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose());
+        if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.map) m.map.dispose(); m.dispose(); });
       });
       albedo.dispose();
       if (emiss) emiss.dispose();

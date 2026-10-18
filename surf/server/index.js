@@ -35,7 +35,7 @@ const onAnnounce = (text, kind) => { for (const r of [...publicRooms, ...partyRo
 const publicRooms = [];
 const partyRooms = new Map(); // code -> Room, closed when the last player leaves
 const practiceRooms = new Set();
-const CODE_RE = /^[a-z0-9]{3,12}$/;
+const CODE_RE = /^[a-z0-9]{2,12}$/;
 function newPublicRoom() {
   const n = publicRooms.length + 1;
   const r = new Room({
@@ -58,7 +58,7 @@ function newPartyRoom(code) {
 }
 /** Room for an invite code: the room itself while it has space, a fresh party room for an expired party code. */
 function roomForCode(code) {
-  code = String(code || '').toLowerCase();
+  code = typeof code === 'string' ? code.toLowerCase() : '';
   if (!CODE_RE.test(code)) return publicRoomWithSpace();
   const r = publicRooms.find((x) => x.code === code) || partyRooms.get(code);
   if (r) return r.playerCount() < r.maxPlayers ? r : publicRoomWithSpace();
@@ -81,7 +81,8 @@ const server = http.createServer((req, res) => {
     }));
     return;
   }
-  let p = decodeURIComponent(url.pathname);
+  let p;
+  try { p = decodeURIComponent(url.pathname); } catch (e) { res.writeHead(400); res.end(); return; }
   if (p === '/') p = '/index.html';
   const file = path.join(DIST, path.normalize(p));
   if (!file.startsWith(DIST)) { res.writeHead(403); res.end(); return; }
@@ -96,7 +97,12 @@ const wss = new WebSocketServer({
   server,
   path: '/ws',
   maxPayload: 16 * 1024,
-  verifyClient: (info) => !ALLOWED_ORIGINS.length || ALLOWED_ORIGINS.some((o) => (info.origin || '').endsWith(o)),
+  verifyClient: (info) => {
+    if (!ALLOWED_ORIGINS.length) return true;
+    let host = '';
+    try { host = new URL(info.origin || '').hostname; } catch (e) { return false; }
+    return ALLOWED_ORIGINS.some((o) => host === o || host.endsWith('.' + o));
+  },
 });
 
 wss.on('connection', (ws) => {
@@ -115,8 +121,9 @@ wss.on('connection', (ws) => {
   ws.on('message', (data) => {
     let msg;
     try { msg = JSON.parse(data.toString()); } catch (e) { return; }
+    if (!msg || typeof msg !== 'object' || Array.isArray(msg)) return;
     if (!target) {
-      if (!msg || msg.t !== 'hello') return;
+      if (msg.t !== 'hello') return;
       if (msg.mode === 'practice') {
         target = new Room({ store, auth: authenticate, log, onPoints, onAnnounce, voting: false, maxPlayers: 1, name: 'Practice', startMap: isMapId(msg.map) ? msg.map : MAP_LIST[0].id });
         practiceRooms.add(target);
@@ -130,22 +137,28 @@ wss.on('connection', (ws) => {
       client = target.addClient(conn);
     }
     if (msg.t === 'practice_map') {
-      if (practiceRooms.has(target) && isMapId(msg.id)) target.forceMap(msg.id);
+      try { if (practiceRooms.has(target) && isMapId(msg.id)) target.forceMap(msg.id); } catch (e) { log('practice_map error', e.message); }
       return;
     }
-    target.handleMessage(client, msg);
+    Promise.resolve(target.handleMessage(client, msg)).catch((e) => log('message error', e && e.message));
   });
   ws.on('close', leave);
   ws.on('error', leave);
 });
 
 // Fixed-step loop: run every 4 ms and let every room catch up in 10 ms ticks.
+// One failing room (e.g. a disk error while saving) never stops the others.
+const advance = (r, now) => { try { r.advance(now); } catch (e) { log('room tick error', r.name, e && e.stack); } };
 setInterval(() => {
   const now = performance.now();
-  for (const r of publicRooms) r.advance(now);
-  for (const r of partyRooms.values()) r.advance(now);
-  for (const r of practiceRooms) r.advance(now);
+  for (const r of publicRooms) advance(r, now);
+  for (const r of partyRooms.values()) advance(r, now);
+  for (const r of practiceRooms) advance(r, now);
 }, 4);
+
+// last line of defence: log and keep serving instead of dropping every player
+process.on('uncaughtException', (e) => log('uncaught exception', e && e.stack));
+process.on('unhandledRejection', (e) => log('unhandled rejection', e && (e.stack || e)));
 
 server.listen(PORT, HOST, () => {
   console.log(`GLIDEZONE server on http://${HOST}:${PORT}  (ws path /ws, data ${DATA})`);

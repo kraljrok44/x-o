@@ -27,7 +27,9 @@ export class Input {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
       if (!this.keys.has(e.code)) this.pressed.add(e.code);
       this.keys.add(e.code);
-      if ((this.enabled || this.active) && ['Space', 'Tab', 'F3', 'KeyF', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+      // inside the CrazyGames iframe these keys would scroll the portal page: never let them through
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End'].includes(e.code)) e.preventDefault();
+      if ((this.enabled || this.active) && ['Tab', 'F3', 'KeyF'].includes(e.code)) e.preventDefault();
       if (e.code === 'Space' && document.activeElement && document.activeElement.tagName === 'BUTTON') document.activeElement.blur();
     });
     window.addEventListener('keyup', (e) => { this.keys.delete(e.code); });

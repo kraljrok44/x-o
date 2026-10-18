@@ -116,14 +116,23 @@ export class Room {
     return { id: c.id, name: c.name, spec: c.spectator, knife: prof.equipped, best: best ? best.ticks : null, ping: c.ping, lvl, rank: rankFor(lvl).short };
   }
 
+  /** Never throws: a malformed message from one client must not affect the room or the host. */
   async handleMessage(c, msg) {
-    if (!msg || typeof msg !== 'object' || typeof msg.t !== 'string') return;
+    try {
+      await this._dispatch(c, msg);
+    } catch (e) {
+      this.log('message error', msg && msg.t, e && e.message);
+    }
+  }
+
+  async _dispatch(c, msg) {
+    if (!msg || typeof msg !== 'object' || Array.isArray(msg) || typeof msg.t !== 'string') return;
     // crude flood protection
     const now = this.clock();
     if (now - c.msgWindow > 1000) { c.msgWindow = now; c.msgCount = 0; }
     if (++c.msgCount > 400) return;
 
-    if (msg.t === 'hello') return this._hello(c, msg);
+    if (msg.t === 'hello') return await this._hello(c, msg);
     if (!c.ready) return;
     switch (msg.t) {
       case 'cmds': return this._cmds(c, msg);
@@ -149,6 +158,8 @@ export class Room {
         c.profile = this.store.load(c.key) || emptyProfile();
         return this.send(c, { t: 'inventory', owned: c.profile.owned, equipped: c.profile.equipped, total: CATALOG_TOTAL, xp: c.profile.xp || 0, freeCrates: c.profile.freeCrates || 0 });
       case 'leaderboard': {
+        if (now - (c.lastLb || 0) < 150) return; // leaderboard reads hit the disk: max ~7 per second
+        c.lastLb = now;
         const board = msg.board === POINTS_BOARD ? POINTS_BOARD : isMap(msg.board) ? msg.board : this.map.id;
         const period = msg.period === 'week' ? 'week' : 'all';
         return this.send(c, { t: 'leaderboard', req: msg.req, ...queryBoard(this.store, board, period, c.key) });
@@ -346,7 +357,7 @@ export class Room {
       this.broadcast({ t: 'pinfo', p: this.rosterEntry(c) });
       this.broadcast({ t: 'records', map: this.map.id, list: this.records.slice(0, 10).map((r) => ({ name: r.name, ticks: r.ticks })) });
     } else {
-      this.feed(`${c.name} finished in ${time} (+${formatTime(ticks - prevAll.ticks)})${res.weekly.improved ? ' - weekly best!' : ''}`, 'finish');
+      this.feed(`${c.name} finished in ${time}${prevAll ? ` (+${formatTime(Math.max(0, ticks - prevAll.ticks))})` : ''}${res.weekly.improved ? ' - weekly best!' : ''}`, 'finish');
     }
     if (res.points !== null) this.onPoints(c.key, res.points, c.name);
     this._awardXp(c, res);
@@ -358,7 +369,7 @@ export class Room {
     const doneKey = `${this.map.id}@${this.map.version}`;
     const done = prof.completed || {};
     const record = res.allTime.improved && res.allTime.rank === 1;
-    const kind = record ? 'record' : !done[doneKey] ? 'first' : res.allTime.improved ? 'pb' : 'normal';
+    const kind = record ? 'record' : !done[doneKey] ? 'first' : res.personalBest ? 'pb' : 'normal';
     const aw = awardXp({ ...prof, completed: { ...done, [doneKey]: (done[doneKey] || 0) + 1 } }, kind);
     this.store.save(c.key, aw.profile);
     c.profile = aw.profile;
@@ -396,12 +407,16 @@ export class Room {
         stepPlayer(c.ps, cmd, ctx, events);
         // record the run's path for a possible record ghost
         if (events.some((e) => e.type === EV.START)) c.path = [];
-        if (c.ps.runState === 'running' && c.path && c.ps.runTicks % GHOST_EVERY === 0) {
+        if (c.ps.runState === 'running' && c.path && c.path.length < 30000 && c.ps.runTicks % GHOST_EVERY === 0) {
           const p = c.ps.pos;
           c.path.push([Math.round(p.x), Math.round(p.y), Math.round(p.z), Math.round(c.ps.yaw * 100) / 100]);
         }
         c.ack = cmd.seq;
-        for (const e of events) if (e.type === EV.FINISH) this._onFinish(c, e);
+        for (const e of events) {
+          if (e.type !== EV.FINISH) continue;
+          // saving records / XP can fail (disk full...): the run and the room keep going
+          try { this._onFinish(c, e); } catch (err) { this.log('finish error', err && err.message); }
+        }
       }
     }
     if (this.tickNo % NET.snapshotEveryTicks === 0) this._snapshot();
@@ -431,7 +446,7 @@ export class Room {
     if (this.lastAdvance === null) this.lastAdvance = nowMs;
     let n = 0;
     while (nowMs - this.lastAdvance >= step && n < 25) {
-      this.tick();
+      try { this.tick(); } catch (e) { this.log('tick error', e && e.message); }
       this.lastAdvance += step;
       n++;
     }

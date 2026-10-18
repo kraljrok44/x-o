@@ -16,6 +16,7 @@ import { settings, saveSettings, guestToken, DEFAULTS } from './settings.js';
 import { WsTransport, LocalTransport, defaultServerUrl, probeServer } from './net.js';
 import { MAP_LIST } from '../shared/maps/index.js';
 import { PRIVACY } from './privacy.js';
+import { skyTexture } from './render/skybox.js';
 import { CATALOG_TOTAL } from '../shared/catalog.js';
 import { GAME } from '../shared/config.js';
 
@@ -83,6 +84,8 @@ class Account {
         const tr = app.online ? await new WsTransport(app.serverUrl).open() : await new LocalTransport({ voting: false }).open();
         tr.onmessage = (m) => this._handle(m);
         tr.onclose = () => { this.conn = null; };
+        // a game started while this was connecting: the game connection serves the account now
+        if (app.state === 'game' && game.net) { try { tr.close(); } catch (e) { /* */ } return true; }
         tr.send({ t: 'hello', ...(await helloBase()), spectate: true, mode: 'practice' });
         this.conn = tr;
         return true;
@@ -176,6 +179,7 @@ function openPanel(which) {
   if (which === 'privacy') renderPrivacy();
   app.panel = which;
   game.input.unlock();
+  sdk.gameplayStop(); // a panel over the game is a break (resumed from the pause menu)
 }
 
 function closePanels() {
@@ -201,7 +205,7 @@ document.addEventListener('gz-close-panels', () => { audio.play('click'); closeP
 
 // mouse / touch sensitivity right in the main and pause menus
 function sensRow() {
-  return `<label class="sens-row"><span>${t('sens')}</span><input type="range" class="sens-input" min="0.2" max="6" step="0.05" value="${settings.sensitivity}"><b class="sens-val">${(+settings.sensitivity).toFixed(2)}</b></label>`;
+  return `<label class="sens-row"><span>${t(isTouchOnly() ? 'sensTouch' : 'sens')}</span><input type="range" class="sens-input" min="0.2" max="6" step="0.05" value="${settings.sensitivity}"><b class="sens-val">${(+settings.sensitivity).toFixed(2)}</b></label>`;
 }
 function bindSens(root) {
   root.querySelectorAll('.sens-input').forEach((el) => {
@@ -272,12 +276,13 @@ function renderMaps() {
     <div class="panel-head"><div class="panel-title">${t('choose')}</div><button class="btn ghost" id="maps-close">✕ ${t('close')}</button></div>
     <div class="map-grid">${MAP_LIST.map((m) => `
       <button class="map-card" data-id="${m.id}" style="--a:${m.theme.sky[0]};--b:${m.theme.sky[1]};--c:${m.theme.sky[2]};--e:${m.theme.edge}">
-        <div class="map-art"><div class="map-ramp"></div><div class="map-ramp r2"></div></div>
+        <div class="map-art"><canvas class="map-sky"></canvas><div class="map-ramp"></div><div class="map-ramp r2"></div></div>
         <div class="map-name">${esc(m.display_name)}</div>
         <div class="map-meta"><span class="diff d${m.difficulty}">${t('difficulty')[m.difficulty]}</span> · ${t(m.layout)} · ${m.stages} ${m.layout === 'linear' ? t('checkpoints') : t('stages')} · ~${Math.floor(m.par / 60)}:${String(Math.round(m.par % 60)).padStart(2, '0')}</div>
         <div class="map-desc">${esc(m.description)}</div>
       </button>`).join('')}</div>`);
   $('#maps-close').onclick = () => { audio.play('click'); closePanels(); };
+  paintMapArt();
   $$('.map-card').forEach((b) => (b.onclick = () => {
     audio.play('click');
     const id = b.dataset.id;
@@ -291,6 +296,30 @@ function renderMaps() {
   }));
 }
 
+// map cards show a crop of each map's own painted sky (painted once, one card per frame)
+function paintMapArt() {
+  const cards = $$('.map-card');
+  let i = 0;
+  const next = () => {
+    const card = cards[i++];
+    if (!card || !card.isConnected) return;
+    const m = MAP_LIST.find((x) => x.id === card.dataset.id);
+    const cv = card.querySelector('.map-sky');
+    try {
+      const img = skyTexture(m).image;
+      const r = cv.getBoundingClientRect();
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      cv.width = Math.max(1, Math.round(r.width * dpr)); cv.height = Math.max(1, Math.round(r.height * dpr));
+      const sw = img.width * 0.42, sh = sw * cv.height / cv.width;
+      const sx = img.width * 0.5, sy = img.height / 2 - sh * 0.78;
+      cv.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
+      card.classList.add('art-ready');
+    } catch (e) { /* keep the gradient */ }
+    requestAnimationFrame(next);
+  };
+  requestAnimationFrame(next);
+}
+
 function renderSettings() {
   show('#settings', true);
   const s = settings;
@@ -300,7 +329,7 @@ function renderSettings() {
     <div class="panel-head"><div class="panel-title">${t('settings')}</div><div class="row"><button class="btn ghost" id="set-privacy">${t('privacy')}</button><button class="btn ghost" id="set-close">✕ ${t('close')}</button></div></div>
     <div class="set-grid">
       <div>
-        ${slider('sensitivity', t('sens'), 0.2, 6, 0.05)}
+        ${slider('sensitivity', t(isTouchOnly() ? 'sensTouch' : 'sens'), 0.2, 6, 0.05)}
         ${toggle('invertY', t('invertY'))}
         ${slider('fov', t('fov'), 80, 120, 1)}
         ${slider('hudScale', t('hudScale'), 0.7, 1.4, 0.05)}
@@ -335,6 +364,7 @@ function renderSettings() {
 
 // ------------------------------------------------------------------ game flow
 async function startGame(mode, spectate, mapId, booting = false, room = null) {
+  clearTimeout(app.leaveTimer);
   audio.ensure();
   show('#loading', true);
   html('#loading', `<div class="spinner"></div><div>${t('connecting')}</div>`);
@@ -351,22 +381,39 @@ async function startGame(mode, spectate, mapId, booting = false, room = null) {
   app.playMode = mode;
   app.state = 'game';
   const hello = { ...(await helloBase()), spectate, mode, map: mapId, room: room || undefined };
-  const join = (transport) => {
+  const join = (transport, h = hello) => {
+    let timer;
     const done = new Promise((res) => {
-      const offs = [game.on('welcome', () => fin('ok')), game.on('mismatch', () => fin('mismatch'))];
-      function fin(r) { offs.forEach((o) => o()); res(r); }
+      const offs = [
+        game.on('welcome', () => fin('ok')), game.on('mismatch', () => fin('mismatch')), game.on('disconnected', () => fin('closed')),
+        game.on('servermsg', (m) => { if (m.t === 'full' || m.t === 'error') fin(m.t); }),
+      ];
+      function fin(r) { clearTimeout(timer); offs.forEach((o) => o()); res(r); }
+      timer = setTimeout(() => fin('timeout'), 6000);
     });
-    game.connect(transport, hello);
-    return Promise.race([done, new Promise((r) => setTimeout(() => r('timeout'), 6000))]);
+    game.connect(transport, h);
+    return done;
   };
+  const offline = async () => join(await new LocalTransport({ voting: mode !== 'practice', map: mapId }).open());
   app.starting = true;
-  if ((await join(tr)) === 'mismatch') {
+  let res = await join(tr);
+  if (res === 'full' && app.online) {
+    // the invited room filled up in the meantime: join the public server instead
+    try { res = await join(await new WsTransport(app.serverUrl).open(), { ...hello, mode: 'public', room: undefined }); } catch (e) { res = 'closed'; }
+  }
+  if (res === 'mismatch') {
     // the server still runs other map geometry (not updated yet): play the correct maps offline
     app.online = false;
     app.outdated = true;
-    await join(await new LocalTransport({ voting: mode !== 'practice', map: mapId }).open());
+    await offline();
+  } else if (res !== 'ok' && app.state === 'game') {
+    // server unreachable, closed during the join or refused us: never leave a half-joined game
+    if (app.online) hud.feed(t('serverDown'), 'record');
+    app.online = false;
+    await offline();
   }
   app.starting = false;
+  if (app.state !== 'game') return; // left to the menu while connecting
   if (app.outdated) hud.feed(t('serverOutdated'), 'record');
   // every online room can be joined through an invite link (CrazyGames invite button + pause menu)
   app.roomCode = app.online && game.net && game.roomCode && mode !== 'practice' ? game.roomCode : null;
@@ -387,6 +434,7 @@ async function startGame(mode, spectate, mapId, booting = false, room = null) {
   const touch = isTouchOnly();
   show('#mouse-hint', !touch && !game.input.locked && !spectate);
   show('#touch-ui', touch && !spectate);
+  show('#touch-menu', touch); // spectators need the menu button too
   html('#mouse-hint', t('mouseHint'));
   let firstTime = false;
   try { firstTime = !localStorage.getItem('gz.tutorial.v1'); } catch (e) { /* storage blocked */ }
@@ -405,6 +453,9 @@ async function startGame(mode, spectate, mapId, booting = false, room = null) {
 }
 
 function leaveGame() {
+  clearTimeout(app.leaveTimer);
+  show('#touch-menu', false);
+  show('#free-crate', false);
   game.disconnect();
   app.roomCode = null;
   sdk.hideInviteButton();
@@ -470,7 +521,7 @@ async function copyInvite() {
 }
 
 game.input.onLockChange = (locked) => {
-  if (app.state !== 'game') return;
+  if (app.state !== 'game' || app.adBreak) return;
   if (locked) { show('#pause', false); show('#click-to-play', false); show('#mouse-hint', false); sdk.gameplayStart(); }
   else { sdk.gameplayStop(); show('#scoreboard', false); showPause(true); }
 };
@@ -489,10 +540,15 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => { if (e.code === 'Tab') show('#scoreboard', false); });
 
+// one guarded timer for every "back to the menu" case (cleared when a new game starts)
+function leaveSoon(ms) {
+  clearTimeout(app.leaveTimer);
+  app.leaveTimer = setTimeout(() => { if (app.state === 'game' && !app.starting) leaveGame(); }, ms);
+}
 game.on('disconnected', () => {
-  if (app.state !== 'game') return;
-  hud.feed('Connection lost', 'record');
-  setTimeout(() => leaveGame(), 1200);
+  if (app.state !== 'game' || app.starting) return; // startGame handles failures while joining
+  hud.feed(t('connLost'), 'record');
+  leaveSoon(1200);
 });
 game.on('mismatch', () => {
   // map changed mid-session to geometry this client does not have: continue offline
@@ -503,8 +559,10 @@ game.on('mismatch', () => {
 });
 game.on('servermsg', (m) => {
   if (m.t === 'full') hud.feed('Server is full', 'record');
-  if (m.t === 'kicked') { hud.feed(m.text || 'Disconnected', 'record'); setTimeout(() => leaveGame(), 1500); }
+  if (m.t === 'kicked') { hud.feed(m.text || 'Disconnected', 'record'); leaveSoon(1500); }
 });
+// touch controls follow surf <-> spectate switches made from the pause menu
+game.on('roster', () => { if (app.state === 'game' && isTouchOnly()) show('#touch-ui', !game.spectator); });
 game.on('vote', () => { if (!$('#pause').classList.contains('hidden')) showPause(true); });
 // XP for every completion; every 10th level brings a free crate (no ad)
 game.on('xp', (m) => {
@@ -532,14 +590,26 @@ game.on('finish', () => {
     sdk.reportCompletion((MAP_LIST.filter((m) => done.has(m.id)).length / MAP_LIST.length) * 100);
   } catch (e) { /* storage blocked */ }
 });
-game.on('mapchange', () => {
+game.on('mapchange', async () => {
   // natural break between maps: the only place a midgame ad is requested (capped to 1 per 3 min)
-  if (!sdk.adsDisabled && performance.now() - app.lastMidAd > 180000 && sdk.available) {
-    app.lastMidAd = performance.now();
-    game.input.unlock();
-    sdk.requestAd('midgame');
-  }
+  if (sdk.adsDisabled || performance.now() - app.lastMidAd < 180000 || !sdk.available) return;
+  if (app.state !== 'game' || app.panel || !$('#pause').classList.contains('hidden')) return; // not over a menu
+  app.lastMidAd = performance.now();
+  app.adBreak = true; // the mouse is released for the ad without opening the pause menu
+  sdk.gameplayStop();
+  game.input.unlock();
+  await sdk.requestAd('midgame');
+  app.adBreak = false;
+  if (app.state !== 'game') return;
+  sdk.gameplayStart();
+  // keyboard play continues at once; the mouse is captured again with one click
+  if (!isTouchOnly()) { html('#mouse-hint', t('mouseHint')); show('#mouse-hint', true); }
 });
+
+// background tab: no sound; WebGL context loss (GPU reset, low memory on phones): reload cleanly
+document.addEventListener('visibilitychange', () => audio.setHidden(document.hidden));
+canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); show('#loading', true); html('#loading', `<div class="spinner"></div><div>${t('connecting')}</div>`); });
+canvas.addEventListener('webglcontextrestored', () => location.reload());
 
 // phones and tablets: touch zones, a menu button and a landscape hint
 if (isTouchOnly()) {

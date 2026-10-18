@@ -137,3 +137,29 @@ test('chat is filtered, rate limited, and knife unlocks are announced in chat', 
   assert.equal(k.kind, 'knife');
   assert.ok(k.text.startsWith('Bob opened the Surf Vault'));
 });
+
+test('malformed messages never throw or break the room', async () => {
+  const logs = [];
+  const room = new Room({ store: memStore(), auth: (h) => ({ key: 'k:' + h.token, name: String(h.name) }), log: (...a) => logs.push(a) });
+  const inbox = [];
+  const c = room.addClient({ send: (m) => inbox.push(m), close() {} });
+  await room.handleMessage(c, { t: 'hello', name: { toString: 1 }, token: 'x' });
+  await room.handleMessage(c, { t: 'hello', name: 'Alice', token: 'alice' });
+  await flush();
+  const bad = [null, 5, 'x', [], { t: 5 }, { t: 'chat', text: { toString: 1 } }, { t: 'equip', id: { toString: 1 } },
+    { t: 'crate', key: { toString: 1 } }, { t: 'vote', i: { valueOf: 1 } }, { t: 'ping', rtt: { valueOf: 1 } }, { t: 'cmds', c: [{ x: 1 }, null, [{ valueOf: 1 }]] }];
+  for (const m of bad) await assert.doesNotReject(room.handleMessage(c, m));
+  for (let i = 0; i < 20; i++) room.tick();
+  assert.ok(inbox.some((m) => m.t === 's'));
+});
+
+test('a time outside the kept top list is not a personal best on the board', async () => {
+  const { submitTime } = await import('../shared/leaderboard.js');
+  const store = memStore();
+  for (let i = 0; i < 520; i++) submitTime(store, { key: 'k' + i, name: 'p' + i, mapId: 'surf_aurora_dawn', ticks: 5000 + i });
+  const slow = submitTime(store, { key: 'slow', name: 'slow', mapId: 'surf_aurora_dawn', ticks: 9999 });
+  assert.equal(slow.allTime.improved, false);
+  assert.equal(slow.personalBest, true); // still the player's own first time (XP counts it as a PB)
+  const slower = submitTime(store, { key: 'slow', name: 'slow', mapId: 'surf_aurora_dawn', ticks: 10500 });
+  assert.equal(slower.personalBest, false);
+});

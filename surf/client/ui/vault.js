@@ -186,10 +186,13 @@ export class Vault {
   open() {
     this._ensureScene();
     show(this.el, true);
-    this.state = 'idle';
-    this.result = null;
-    this._setKnife(null);
-    this.anim = { t: 0, playing: false, fired: new Set() };
+    // reopened while an ad / crate request is still running: keep that flow, it finishes here
+    if (this.state !== 'ad' && this.state !== 'request') {
+      this.state = 'idle';
+      this.result = null;
+      this._setKnife(null);
+      this.anim = { t: 0, playing: false, fired: new Set() };
+    }
     this._renderPanel();
     stage3d.attach($('#vault-stage'));
     this._bindDrag(stage3d.canvas);
@@ -198,9 +201,10 @@ export class Vault {
   }
 
   close() {
+    // closing mid-animation still completes the unlock (inventory refresh, collection count)
+    if (this.state === 'opening') this.skip();
     show(this.el, false);
     this.running = false;
-    if (this.state === 'opening') this.state = 'idle';
   }
 
   _setKnife(id) {

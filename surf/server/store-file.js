@@ -32,7 +32,10 @@ export class FileStore {
       this.cache.set(key, data);
       return structuredClone(data);
     } catch (e) {
-      return null;
+      // only a missing (or unreadable JSON) profile is "new"; on I/O errors (EMFILE, EACCES...)
+      // throw, so nobody saves an empty profile over a real one
+      if (e.code === 'ENOENT' || e instanceof SyntaxError) return null;
+      throw e;
     }
   }
 

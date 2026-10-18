@@ -6,6 +6,7 @@ import { $, esc, show } from './dom.js';
 import { t } from '../i18n.js';
 import { settings, saveSettings } from '../settings.js';
 import { audio } from '../audio.js';
+import { sdk } from '../sdk.js';
 
 const FADE_MS = 9000;
 const MAX_LINES = 7;
@@ -30,15 +31,22 @@ export class Chat {
       e.stopPropagation();
     });
     this.toggle.onclick = () => { this.setEnabled(!settings.chat); this.input.focus(); };
+    // focus lost (pause menu, click on the game, mouse captured...): close instead of staying half-open
+    this.input.addEventListener('blur', () => setTimeout(() => { if (this.open && document.activeElement !== this.input) this.close(); }, 150));
     setInterval(() => this._fade(), 500);
     window.addEventListener('gz-settings', () => this._applyEnabled());
+    window.addEventListener('gz-chat-policy', () => { if (sdk.chatDisabled) this.close(); this._applyPolicy(); });
     this._applyEnabled();
   }
 
   setVisible(on) {
-    show(this.root, on);
+    this.visible = on;
+    this._applyPolicy();
     if (!on) this.close();
   }
+
+  // the whole chat (log, input, toggle) is gone when CrazyGames disables chat for this player
+  _applyPolicy() { show(this.root, !!this.visible && !sdk.chatDisabled); }
 
   setEnabled(on) {
     saveSettings({ chat: on });
@@ -56,7 +64,7 @@ export class Chat {
 
   _key(e) {
     if (this.game.mode !== 'play' || this.root.classList.contains('hidden')) return;
-    if (this.open) return;
+    if (this.open || sdk.chatDisabled) return;
     if (document.activeElement && ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
     if (!this.game.input.active) return;
     if (e.code === 'Enter' || e.code === 'KeyT') {
@@ -97,11 +105,12 @@ export class Chat {
       this.close();
       return;
     }
-    if (text && settings.chat !== false) this.game.send({ t: 'chat', text: text.slice(0, 120) });
+    if (text && settings.chat !== false && !sdk.chatDisabled) this.game.send({ t: 'chat', text: text.slice(0, 120) });
     this.close();
   }
 
   add(m) {
+    if (sdk.chatDisabled && (m.kind === 'player' || m.kind === 'spec')) return;
     if (settings.chat === false && m.kind !== 'self') return;
     if (m.name && this.muted.has(m.name.toLowerCase())) return;
     const el = document.createElement('div');
