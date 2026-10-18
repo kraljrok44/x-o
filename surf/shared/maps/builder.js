@@ -1,7 +1,7 @@
 // Map construction helpers. Maps are pure data built from code so they can be validated
 // automatically and loaded identically on server and client (spec 12.1, 13).
 
-import { boxBrush, orientedBoxBrush, surfRampBrushes } from '../brush.js';
+import { boxBrush, orientedBoxBrush, surfRampBrushes, prismBrush } from '../brush.js';
 
 const DEG = Math.PI / 180;
 
@@ -15,6 +15,10 @@ export class MapBuilder {
     this.ramps = [];        // ridge paths, kept for the renderer, decor placement and the test bot
     this.zones = [];        // visual zone markers
     this.pads = [];         // jump pads (used by the renderer and the validation bot)
+    this.corners = [];      // 90 degree corners (bot targets, renderer hints)
+    this.signs = [];        // speed check gates
+    this.windows = [];      // window frames (renderer glow)
+    this.hazards = [];      // speed check kill zones (renderer)
     this.curStage = 0;
   }
 
@@ -53,12 +57,41 @@ export class MapBuilder {
       ramps: this.ramps,
       zones: this.zones,
       pads: this.pads,
+      corners: this.corners,
+      signs: this.signs,
+      windows: this.windows,
+      hazards: this.hazards,
       killZ: minZ - 3000,
     };
   }
 }
 
 const dirOf = (h) => ({ x: Math.cos(h), y: Math.sin(h) });
+
+/**
+ * Tight corridor over a one-sided ramp: a glass ceiling close above the ridge line (no room to
+ * fly high - a "headcheck") and a wall closing the outer edge of the slope.
+ */
+function buildCorridor(b, pts, w, d, sides, opt) {
+  const ch = opt.h ?? 170, th = 40, ext = 24;
+  const sgn = sides === 'right' ? -1 : 1;
+  const open = opt.open ?? 500; // the entry stays open (riders may arrive high)
+  let run = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const A = pts[i], B = pts[i + 1];
+    const dx = B[0] - A[0], dy = B[1] - A[1], l = Math.hypot(dx, dy);
+    const ux = dx / l, uy = dy / l, lx = -uy * sgn, ly = ux * sgn;
+    // stretch each piece a little so neighbouring pieces overlap on curves
+    const a = [A[0] - ux * ext, A[1] - uy * ext, A[2] + (B[2] - A[2]) * (-ext / l)];
+    const c = [B[0] + ux * ext, B[1] + uy * ext, B[2] + (B[2] - A[2]) * (ext / l)];
+    const quad = (P, l0, l1, z0, z1) => [[P[0] + lx * l0, P[1] + ly * l0, P[2] + z0], [P[0] + lx * l1, P[1] + ly * l1, P[2] + z0], [P[0] + lx * l1, P[1] + ly * l1, P[2] + z1], [P[0] + lx * l0, P[1] + ly * l0, P[2] + z1]];
+    const wall = prismBrush(quad(a, w, w + th, -d - 60, ch), quad(c, w, w + th, -d - 60, ch), 'wall');
+    b._add([wall]);
+    run += l;
+    if (run > open) b._add([prismBrush(quad(a, -90, w + th, ch, ch + th), quad(c, -90, w + th, ch, ch + th), 'glass')]);
+  }
+}
+
 const leftOf = (h) => ({ x: -Math.sin(h), y: Math.cos(h) });
 
 /**
@@ -97,7 +130,10 @@ export function buildStage(b, k, spec, isLast, nextSpawnRef, continuous = false)
     bounds.minx = Math.min(bounds.minx, x); bounds.maxx = Math.max(bounds.maxx, x);
     bounds.miny = Math.min(bounds.miny, y); bounds.maxy = Math.max(bounds.maxy, y);
   };
+  let forcedSides = null; // a 90 degree corner decides which side the next ramp is ridden on
   spec.ramps.forEach((r, ri) => {
+    const sides = forcedSides || r.sides || 'both';
+    forcedSides = null;
     const turn = (r.turn || 0) * DEG;
     const segs = Math.max(1, Math.ceil(Math.abs(r.turn || 0) / 5));
     const sub = r.len / segs;
@@ -110,25 +146,31 @@ export function buildStage(b, k, spec, isLast, nextSpawnRef, continuous = false)
       pts.push([q.x, q.y, q.z]);
     }
     h += turn;
-    b.ramp(pts, { w: r.w ?? 420, d: r.d ?? 600, sides: r.sides || 'both', mat: r.mat || 'ramp' });
-    for (const pt of pts) { grow(pt[0], pt[1]); minZ = Math.min(minZ, pt[2] - (r.d ?? 600)); }
+    const wA = r.w ?? 420, dA = r.d ?? 600;
+    b.ramp(pts, { w: wA, d: dA, sides, mat: r.mat || 'ramp' });
+    for (const pt of pts) { grow(pt[0], pt[1]); minZ = Math.min(minZ, pt[2] - dA); }
+    if (r.corridor) buildCorridor(b, pts, wA, dA, sides, r.corridor);
     lastEnd = { ...q };
     const Dn = dirOf(h), Ln = leftOf(h);
-    const gap = r.gap ?? 320;
+    const nx = spec.ramps[ri + 1];
+    // riders surf about 40% down the slope: lateral offset of their line from the ridge
+    const riderOff = (sides === 'right' ? -1 : 1) * wA * 0.4;
+    const gap = r.window ? (r.window.gap ?? 760) : (r.gap ?? 320);
     if (r.ring) {
       const ringIndex = b.rings.length;
       const c = [q.x + Dn.x * gap * 0.5, q.y + Dn.y * gap * 0.5, q.z - 230];
       b.rings.push({ c, yaw: h, r: 270, stage: k });
       b.trigger('boost', c, [70, 270, 270], h, { ring: ringIndex % 30 });
     }
-    if (r.jump && ri < spec.ramps.length - 1) {
+    if (!nx) return;
+    const nw = nx.w ?? 420, nd = nx.d ?? 600;
+    if (r.jump) {
       // Jump section: a long flat runway, then a wide gap to the next ramp. Friction drains your
       // speed on the runway unless you bunny-hop (hold SPACE: a jump on the landing tick skips
       // friction), and only with that speed can you clear the gap. Where you land on the
       // runway does not matter, so the section is fair at any speed.
       const J = r.jump;
       const padLen = J.len ?? (J.pads ?? 2) * 850, hw = J.w ?? 600;
-      const riderOff = (r.sides === 'right' ? -1 : 1) * (r.w ?? 420) * 0.4; // riders surf this far off the ridge
       const d0 = J.first ?? 260;
       const top = q.z - (J.drop ?? 380);
       const lx = q.x + Ln.x * riderOff, ly = q.y + Ln.y * riderOff;
@@ -137,21 +179,78 @@ export function buildStage(b, k, spec, isLast, nextSpawnRef, continuous = false)
       b.pads.push({ stage: k, c: [cx, cy, top], yaw: h, hl: padLen / 2, hw });
       grow(cx + 1500, cy + 1500); grow(cx - 1500, cy - 1500);
       minZ = Math.min(minZ, top - 64);
-      const nx = spec.ramps[ri + 1];
-      const nw = nx.w ?? 420, nd = nx.d ?? 600;
       // next ridge beside the rider's line so they land on a slope, not on the apex
       const off = (nx.sides === 'right' ? 1 : -1) * nw * 0.4;
       const exit = J.exit ?? 600;
       const dist = d0 + padLen + exit;
       p = { x: lx + Dn.x * dist + Ln.x * off, y: ly + Dn.y * dist + Ln.y * off, z: top - 150 }; // whole slope below the flight path
-    } else if (ri < spec.ramps.length - 1) {
-      let shift = r.shift || 0;
-      // switching between a left-only and a right-only ramp: move the next ridge so the rider
-      // (surfing 40% down this slope) arrives 40% down the opposite slope
-      const nx = spec.ramps[ri + 1];
-      const a = r.sides || 'both', bS = nx.sides || 'both';
-      if (a !== bS && a !== 'both' && bS !== 'both') shift = (a === 'left' ? 1 : -1) * 0.4 * ((r.w ?? 420) + (nx.w ?? 420));
-      p = { x: q.x + Dn.x * gap + Ln.x * shift, y: q.y + Dn.y * gap + Ln.y * shift, z: q.z - (r.drop ?? Math.round(140 + 0.4 * gap)) };
+      return;
+    }
+    if (r.corner) {
+      // 90 degree corner with a forced side switch: the next ramp runs across your path and only
+      // its slope facing you exists. Air-strafe through the turn (hold the turn key, sweep the
+      // mouse) and land on the new slope - the other strafe key now holds you on the ramp.
+      const C = typeof r.corner === 'object' ? r.corner : { turn: r.corner };
+      const sg = Math.sign(C.turn);
+      const reach = C.reach ?? 950, back = C.back ?? 800;
+      const rx = q.x + Ln.x * riderOff, ry = q.y + Ln.y * riderOff;
+      const Lt = { x: Ln.x * sg, y: Ln.y * sg };
+      p = { x: rx + Dn.x * reach - Lt.x * back, y: ry + Dn.y * reach - Lt.y * back, z: q.z - dA * 0.4 - (C.drop ?? 150) };
+      h += sg * Math.PI / 2;
+      forcedSides = sg > 0 ? 'left' : 'right';
+      b.corners.push({ stage: k, from: [rx, ry, q.z - dA * 0.4], at: [p.x, p.y, p.z], yaw: h, turn: sg });
+      return;
+    }
+    let shift = r.shift || 0;
+    // switching between a left-only and a right-only ramp: move the next ridge so the rider
+    // (surfing 40% down this slope) arrives 40% down the opposite slope
+    const bS = nx.sides || 'both';
+    if (sides !== bS && sides !== 'both' && bS !== 'both') shift = (sides === 'left' ? 1 : -1) * 0.4 * (wA + nw);
+    if (r.speedcheck) {
+      // Speed check: a long gap with nothing below. Leaving the ramp at speed v you fall
+      // tan(pitch)*x + g/2*(x/v)^2 over a distance x; the gap is sized so that below the
+      // required speed you drop under the next ramp before reaching it.
+      const S = r.speedcheck;
+      const v = S.min, dz = S.drop ?? 450;
+      // a rider must still be above the next slope where it begins (40% down, like here)
+      const budget = dz - dA * 0.4 + nd * 0.25; // riders close to the ridge have the least room
+      const A = 400 / (v * v), Bq = slope; // riders leave a ramp at about its pitch
+      const G = Math.round((-Bq + Math.sqrt(Bq * Bq + 4 * A * budget)) / (2 * A));
+      p = { x: q.x + Dn.x * G + Ln.x * shift, y: q.y + Dn.y * G + Ln.y * shift, z: q.z - dz };
+      // below the catch line the gap is a kill zone, so the check is the same wherever you ride
+      const killTop = p.z - nd * 0.7;
+      const kc = [q.x + Dn.x * (G - 40) * 0.5 + Ln.x * shift * 0.5, q.y + Dn.y * (G - 40) * 0.5 + Ln.y * shift * 0.5, killTop - 1500];
+      b.trigger('fail', kc, [(G - 40) * 0.5, 1600, 1500], h);
+      b.hazards.push({ stage: k, c: [kc[0], kc[1], killTop], yaw: h, hl: (G - 40) * 0.5, hw: 1600 });
+      // HUD hint zone over the end of this ramp + a gate marker over the gap
+      const zl = Math.min(r.len * 0.45, 1400);
+      const zm = (G - zl) / 2;
+      const zc = [q.x + Dn.x * zm + Ln.x * riderOff * 0.5, q.y + Dn.y * zm + Ln.y * riderOff * 0.5, q.z - dA * 0.4];
+      b.trigger('speedcheck', zc, [(zl + G) / 2, wA + 300, 900], h, { min: v });
+      b.signs.push({ stage: k, kind: 'speed', text: `${v}`, c: [q.x + Dn.x * G * 0.5 + Ln.x * riderOff, q.y + Dn.y * G * 0.5 + Ln.y * riderOff, q.z - dA * 0.4 + 260], yaw: h, min: v });
+      grow(p.x, p.y);
+      return;
+    }
+    // windows use a long gap: drop enough that slower riders still clear it
+    const drop = r.drop ?? (r.window ? Math.round(0.75 * gap) : Math.round(140 + 0.4 * gap));
+    p = { x: q.x + Dn.x * gap + Ln.x * shift, y: q.y + Dn.y * gap + Ln.y * shift, z: q.z - drop };
+    if (r.window) {
+      // Window: a wall across the gap with one opening on the natural line - aim through it.
+      const W = r.window;
+      // on a two-sided ramp riders may come from either slope: the opening spans both lines
+      const both = sides === 'both';
+      const lat = both ? shift * 0.5 : riderOff + shift * 0.5;
+      const cx = q.x + Dn.x * gap * 0.5 + Ln.x * lat;
+      const cy = q.y + Dn.y * gap * 0.5 + Ln.y * lat;
+      const cz = q.z - dA * 0.4 - (W.lower ?? 120);
+      const ow = (W.w ?? 300) + (both ? wA * 0.4 : 0), oh = W.h ?? 230, th = 30, span = W.span ?? 1700;
+      const wy = Math.atan2(Dn.y, Dn.x);
+      const ob = (lat, z0, z1, hw) => b.obox(cx + Ln.x * lat, cy + Ln.y * lat, wy, th, hw, z0, z1, 'window');
+      ob(0, cz + oh, cz + oh + 700, ow);                 // lintel
+      ob(0, cz - oh - 900, cz - oh, ow);                 // sill
+      ob(ow + (span - ow) / 2, cz - oh - 900, cz + oh + 700, (span - ow) / 2);   // left jamb
+      ob(-ow - (span - ow) / 2, cz - oh - 900, cz + oh + 700, (span - ow) / 2);  // right jamb
+      b.windows.push({ stage: k, c: [cx, cy, cz], yaw: wy, w: ow, h: oh });
     }
   });
 

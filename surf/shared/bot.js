@@ -2,6 +2,7 @@
 // and as a demo ghost. It looks along the nearest ramp ridge and strafes into the ramp.
 
 import { BTN } from './sim.js';
+import { MODE } from './movement.js';
 
 export function nearestRampInfo(map, ps) {
   let best = null;
@@ -20,7 +21,7 @@ export function nearestRampInfo(map, ps) {
         const l = Math.sqrt(l2);
         const hx = dx / l, hy = dy / l;
         const u = (ps.pos.x - px) * -hy + (ps.pos.y - py) * hx;
-        best = { dist, yaw: Math.atan2(hy, hx), u, ramp: r, seg: i, t };
+        best = { dist, yaw: Math.atan2(hy, hx), u, ramp: r, seg: i, t, last: i === P.length - 2 };
       }
     }
   }
@@ -56,6 +57,32 @@ export function botCommand(map, ps) {
     return { fwd: 1, side: 0, buttons: 0, yaw: Math.atan2(ty - ps.pos.y, tx - ps.pos.x), pitch: 0 };
   }
   if (!info) return { fwd: 0, side: 0, buttons: 0, yaw: ps.yaw, pitch: 0 };
+  if (ps.mode === MODE.AIRBORNE && info.last && info.t > 1) {
+    // Past the end of a ramp with the next one at a sharp angle (90° corner): glide on, then
+    // air-strafe through the turn (look along the velocity, hold the strafe key towards the turn)
+    // starting just early enough to come out of it on the next ramp's riding line.
+    const nextRamp = map.ramps[map.ramps.indexOf(info.ramp) + 1];
+    if (nextRamp && nextRamp.stage === ps.stage) {
+      const [a, b2] = nextRamp.points;
+      const want = Math.atan2(b2[1] - a[1], b2[0] - a[0]);
+      const vh = Math.atan2(ps.vel.y, ps.vel.x);
+      let err = want - vh;
+      while (err > Math.PI) err -= 2 * Math.PI;
+      while (err < -Math.PI) err += 2 * Math.PI;
+      if (Math.abs(info.yaw - want) > 0.6) {
+        if (Math.abs(err) < 0.2) return { fwd: 0, side: 0, buttons: 0, yaw: vh, pitch: 0 };
+        // distance to the riding line (40% down the slope that faces us)
+        const dx = b2[0] - a[0], dy = b2[1] - a[1], l = Math.hypot(dx, dy);
+        let nx = -dy / l, ny = dx / l;
+        if ((ps.pos.x - a[0]) * nx + (ps.pos.y - a[1]) * ny < 0) { nx = -nx; ny = -ny; }
+        const dist = (ps.pos.x - a[0]) * nx + (ps.pos.y - a[1]) * ny - nextRamp.w * 0.4;
+        const v = Math.hypot(ps.vel.x, ps.vel.y);
+        const turnDepth = 1.3 * (v * v / 3000) * (1 - Math.cos(err)) + 80;
+        if (dist > turnDepth) return { fwd: 0, side: 0, buttons: 0, yaw: vh, pitch: 0 };
+        return { fwd: 0, side: err > 0 ? -1 : 1, buttons: 0, yaw: vh, pitch: 0 };
+      }
+    }
+  }
   // u > 0 means we are on the left slope, the ridge is to our right.
   let sgn = info.u > 0 ? 1 : -1;
   if (info.ramp.sides === 'left') sgn = 1;

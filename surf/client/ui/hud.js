@@ -58,6 +58,8 @@ export class Hud {
     this.lastSpeed = sp;
     setClass('#hud-speed', 'gain', delta > 1);
     setClass('#hud-speed', 'loss', delta < -3);
+    setShow('#hud-check', !!h.check);
+    if (h.check) { setText('#hud-check', `SPEED CHECK ${h.check.min}`); setClass('#hud-check', 'ok', h.check.ok); }
 
     // timer
     const total = g.map ? g.map.stages.length : 1;

@@ -85,6 +85,8 @@ function buildSurfaces(map, theme) {
         else if (n.z < 0.2) col.multiplyScalar(0.6); // caps / walls
       } else {
         if (b.mat === 'pad') col.set(theme.accent).multiplyScalar(0.6);
+        else if (b.mat === 'glass') col.set(theme.edge);
+        else if (b.mat === 'window') col.set(theme.accent);
         else col.set(theme[b.mat] || theme.platform);
         col.offsetHSL(0, 0, n.z > 0.7 ? 0.1 : 0.05);
       }
@@ -144,6 +146,77 @@ function zoneMesh(z) {
   );
   m.add(line);
   return m;
+}
+
+function signTexture(lines, color, w = 512, h = 192) {
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const g = cv.getContext('2d');
+  g.fillStyle = 'rgba(8,10,22,0.78)';
+  g.beginPath(); g.roundRect(4, 4, w - 8, h - 8, 28); g.fill();
+  g.strokeStyle = color; g.lineWidth = 8;
+  g.beginPath(); g.roundRect(8, 8, w - 16, h - 16, 24); g.stroke();
+  g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = '800 44px Inter, system-ui, sans-serif';
+  g.fillText(lines[0], w / 2, h * 0.32);
+  g.fillStyle = color;
+  g.font = '900 78px Inter, system-ui, sans-serif';
+  g.fillText(lines[1], w / 2, h * 0.68);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function arrowTexture(color, left) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 256;
+  const g = cv.getContext('2d');
+  g.translate(128, 128);
+  if (!left) g.scale(-1, 1);
+  g.strokeStyle = color; g.lineWidth = 26; g.lineCap = 'round'; g.lineJoin = 'round';
+  for (const off of [-40, 30]) { g.beginPath(); g.moveTo(off + 30, -70); g.lineTo(off - 40, 0); g.lineTo(off + 30, 70); g.stroke(); }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+/** Course markers: speed check gates, kill zones under them and 90° corner chevrons. */
+function buildMarkers(map, theme) {
+  const out = [];
+  const plane = (tex, w, h) => new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, toneMapped: false, depthWrite: false }));
+  for (const s of map.signs || []) {
+    const m = plane(signTexture(['SPEED CHECK', `${s.text} u/s`], '#ffd23f'), 640, 240);
+    m.position.set(s.c[0], s.c[1], s.c[2]);
+    m.rotation.order = 'ZXY';
+    m.rotation.set(Math.PI / 2, 0, s.yaw - Math.PI / 2);
+    out.push(m);
+  }
+  for (const hz of map.hazards || []) {
+    const mat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+      uniforms: { time: { value: 0 } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      fragmentShader: `uniform float time; varying vec2 vUv;
+        void main(){ float stripe = step(0.5, fract((vUv.x + vUv.y) * 18.0 - time * 0.4));
+        float edge = smoothstep(0.0, 0.08, vUv.x) * smoothstep(0.0, 0.08, 1.0 - vUv.x);
+        float a = (0.12 + stripe * 0.12) * edge; gl_FragColor = vec4(vec3(1.0, 0.15, 0.2) * a, a); }`,
+    });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(hz.hl * 2, Math.min(hz.hw * 2, 1400)), mat);
+    m.position.set(hz.c[0], hz.c[1], hz.c[2]);
+    m.rotation.z = hz.yaw;
+    m.userData.animated = mat;
+    out.push(m);
+  }
+  for (const c of map.corners || []) {
+    const m = plane(arrowTexture(theme.accent, c.turn > 0), 420, 420);
+    // above the next ramp's start, facing the rider coming out of the previous ramp
+    const dx = c.from[0] - c.at[0], dy = c.from[1] - c.at[1];
+    m.position.set(c.at[0] + dx * 0.15, c.at[1] + dy * 0.15, c.at[2] + 520);
+    m.rotation.order = 'ZXY';
+    m.rotation.set(Math.PI / 2, 0, Math.atan2(dy, dx) + Math.PI / 2);
+    out.push(m);
+  }
+  return out;
 }
 
 function routeSamples(map) {
@@ -288,11 +361,19 @@ export function buildWorld(map, opts = {}) {
   const albedo = gridTexture(theme.neon ? 0.15 : 0.22);
   const emiss = theme.neon ? emissiveGridTexture() : null;
   for (const [name, geo] of Object.entries(surfaces)) {
+    if (name === 'glass') {
+      // corridor ceilings: see-through so the corridor stays bright and readable
+      const glass = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, transparent: true, opacity: 0.16, roughness: 0.1, metalness: 0.3, depthWrite: false, side: THREE.DoubleSide }));
+      glass.renderOrder = 2;
+      group.add(glass);
+      group.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 25), new THREE.LineBasicMaterial({ color: new THREE.Color(theme.edge), transparent: true, opacity: 0.5, toneMapped: false })));
+      continue;
+    }
     const mat = new THREE.MeshStandardMaterial({
       map: albedo, vertexColors: true,
       roughness: name === 'ramp' ? 0.55 : 0.8, metalness: name === 'ramp' ? 0.15 : 0.05,
-      emissive: emiss ? new THREE.Color(theme.edge) : new THREE.Color(0x000000),
-      emissiveMap: emiss, emissiveIntensity: emiss ? 0.35 : 0,
+      emissive: name === 'window' ? new THREE.Color(theme.accent) : emiss ? new THREE.Color(theme.edge) : new THREE.Color(0x000000),
+      emissiveMap: name === 'window' ? null : emiss, emissiveIntensity: name === 'window' ? 0.6 : emiss ? 0.35 : 0,
       side: THREE.FrontSide,
     });
     const mesh = new THREE.Mesh(geo, mat);
@@ -324,6 +405,8 @@ export function buildWorld(map, opts = {}) {
     m.add(inner);
     ringMeshes.push(m);
   }
+
+  for (const o of buildMarkers(map, theme)) { group.add(o); if (o.userData.animated) animated.push(o.userData.animated); }
 
   const decor = buildDecor(map, theme, group);
   group.traverse((o) => { if (o.userData.animated) animated.push(o.userData.animated); });

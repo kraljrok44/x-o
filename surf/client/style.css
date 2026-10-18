@@ -94,6 +94,8 @@ select option { background: var(--panel-solid); }
 .hud-speed { position: absolute; left: 50%; bottom: 13vh; transform: translateX(-50%); text-align: center; text-shadow: 0 2px 8px rgba(0,0,0,.75); }
 .hud-speed .num { font: 900 calc(46px * var(--hud-scale))/1 var(--mono); transition: color .2s; }
 .hud-speed.gain .num { color: #8dffcf; }
+.hud-check { margin-top: 8px; padding: 4px 12px; border-radius: 999px; font: 800 calc(13px * var(--hud-scale)) var(--font); letter-spacing: .5px; background: rgba(255,60,80,.85); color: #fff; }
+.hud-check.ok { background: rgba(40,200,120,.85); }
 .hud-speed.loss .num { color: #ff9eb5; }
 .hud-speed .unit { font-size: 11px; color: var(--dim); letter-spacing: 2px; }
 .hud-speed .bar { width: calc(220px * var(--hud-scale)); height: 4px; background: rgba(255,255,255,.12); border-radius: 4px; margin: 6px auto 0; overflow: hidden; }

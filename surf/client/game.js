@@ -10,7 +10,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { PHYS, NET } from '../shared/config.js';
 import { getMap, MAP_LIST } from '../shared/maps/index.js';
 import { CollisionWorld } from '../shared/collision.js';
-import { createPlayerState, stepPlayer, copyState, BTN, EV } from '../shared/sim.js';
+import { createPlayerState, stepPlayer, copyState, BTN, EV, inTrigger } from '../shared/sim.js';
 import { MODE } from '../shared/movement.js';
 import { botCommand } from '../shared/bot.js';
 import { angleWrap } from '../shared/vec.js';
@@ -564,7 +564,7 @@ export class Game extends Emitter {
         vmSpeed = Math.hypot(b.vel.x, b.vel.y);
         vmGround = b.onGround;
         showViewmodel = true;
-        hud = { self: true, speed: vmSpeed, vel: b.vel, mode: b.mode, runState: b.runState, runTicks: b.runTicks + (b.runState === 'running' ? alpha : 0), stage: b.stage, onGround: b.onGround, pos: b.pos, surfNormal: b.surfNormal, maxSpeed: b.maxSpeed, finishTicks: b.finishTicks };
+        hud = { self: true, check: this._speedCheck(b, vmSpeed), speed: vmSpeed, vel: b.vel, mode: b.mode, runState: b.runState, runTicks: b.runTicks + (b.runState === 'running' ? alpha : 0), stage: b.stage, onGround: b.onGround, pos: b.pos, surfNormal: b.surfNormal, maxSpeed: b.maxSpeed, finishTicks: b.finishTicks };
         audio.setMotion(vmSpeed, b.mode === MODE.SURFING, true);
       } else {
         // spectator
@@ -610,6 +610,15 @@ export class Game extends Emitter {
     if (this.world) this.world.update(this.time, cam.position);
     this._updateDebug(hud);
     if (hud) this.emit('hud', hud);
+  }
+
+  /** Speed check zone the rider is in (HUD shows the required speed, green once you have it). */
+  _speedCheck(ps, speed) {
+    if (!this.map) return null;
+    for (const t of this.map.triggers) {
+      if (t.type === 'speedcheck' && t.stage === ps.stage && inTrigger(ps, t)) return { min: t.min, ok: speed >= t.min };
+    }
+    return null;
   }
 
   _setCamAngles(yaw, pitch, ps) {

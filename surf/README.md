@@ -31,21 +31,27 @@ v projektu ni nobenih sredstev iz Counter-Strike ali drugih iger.
 - Izvirne družine nožev (Ranger, Lancer, Warden, Crescent, Moth, Flicker, Hook, Tracker, Scimitar, Cleaver, Twin Fangs, Switch, Needle, Raptor, Grizzly) in izvirni skini (Abyss Flow faze, Bloodstone, Jade Flow, Sunset Melt, Candy Marble, Heat Temper, Folded Damascus, Gilded Relic …).
 
 ### Mape
-Vsaka mapa traja vsaj minuto od starta do cilja (povprečno okoli 1:30, najdaljša okoli 3 minute). Mape so dveh vrst:
-- **po etapah** – etape so ločena območja, med njimi teleport;
-- **linearne** – ena neprekinjena proga, konec vsakega odseka se nadaljuje na ploščad naslednjega (checkpoint).
+Vsaka mapa traja od 1:20 do 2:20 (validacijski bot), težavnost je največ **Tier 3** in je zapisana v imenu (T1/T2/T3).
+Elementi:
+- **90° obrati z obvezno menjavo strani** – naslednja rampa leži prečno na smer, obstaja samo njena stran, obrnjena proti tebi: v zraku zavij (strafe), pristani in drži drugo tipko. Puščica nad rampo kaže smer.
+- **Enostranske rampe** in menjave strani med rampami.
+- **Speed check** – dolg prepad z rdečo cono smrti spodaj; tabla nad prepadom in HUD (rdeče/zeleno) kažeta zahtevano hitrost.
+- **Okno** – stena čez prepad z eno odprtino na liniji; zadeneš jo s pravo višino in smerjo.
+- **Ozek koridor** – ozka enostranska rampa s stekleno streho (headcheck) in zunanjo steno.
+- **Drop** – globok padec na široko rampo spodaj.
+- Skakalne steze (bunny hop), flow ringi.
 
-| Mapa | Vrsta | Težavnost | Čas bota* | Posebnost |
-|---|---|---|---|---|
-| Aurora Dawn | po etapah (5) | začetniška | 1:19 | široke rampe, sončni vzhod |
-| Neon Drift | po etapah (6) | srednja | 1:24 | synthwave, flow rings, zamaknjeni prehodi |
-| Jade Sanctum | linearna (5) | lahka | 1:36 | dolgi loki, lebdeči vrt |
-| Frostbyte | linearna (6) | lahka | 1:39 | ledene zavite rampe |
-| Ember Core | linearna (6) | srednja | 1:40 | enostranske rampe nad lavo |
-| Void Garden | po etapah (7) | težka | 1:44 | ozke rampe, dolgi skoki, vesolje |
-| Skyforge Gauntlet | linearna (12) | ekspertna | 3:18 | menjava strani rampe, ostri zavoji, veliko skakalnih stez |
+| Mapa | Vrsta | Čas bota* | Posebnosti |
+|---|---|---|---|
+| Aurora Dawn (T1) | po etapah (5) | 1:22 | prvi 90° obrati, veliko okno, nizek speed check (900) |
+| Frostbyte (T1) | linearna (5) | 1:30 | enostranske stene, dvojni obrat, okna |
+| Jade Sanctum (T2) | linearna (5) | 1:37 | stekleni koridor, drop, speed check 1050/1100 |
+| Neon Drift (T2) | po etapah (6) | 1:32 | dvojni obrat, drop, okna, speed checki |
+| Ember Core (T2) | linearna (5) | 1:31 | samo enostranske rampe, koridor, speed check 1150 |
+| Void Garden (T3) | po etapah (6) | 1:36 | ozke rampe, koridorji, majhna okna, strogi speed checki |
+| Skyforge Gauntlet (T3) | linearna (7) | 2:17 | vsi elementi v eni dolgi progi |
 
-\* Validacijski bot vozi enakomerno in ne pospešuje s strafanjem; dober igralec je okoli 15 % hitrejši.
+\* Validacijski bot vozi enakomerno in ne pospešuje s strafanjem; dober igralec je okoli 15 % hitrejši. Testi preverijo, da bot prevozi vse mape brez padca, da speed check pri 72 % zahtevane hitrosti ne prepusti in pri 115 % prepusti.
 
 ### Klepet
 - **ENTER** ali **T** odpre klepet, ENTER pošlje, ESC zapre. Klepet je majhen v spodnjem levem kotu, sporočila po nekaj sekundah zbledijo.
