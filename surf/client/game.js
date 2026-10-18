@@ -7,6 +7,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { PHYS, NET } from '../shared/config.js';
 import { getMap, MAP_LIST } from '../shared/maps/index.js';
 import { CollisionWorld } from '../shared/collision.js';
@@ -24,6 +25,44 @@ import { audio } from './audio.js';
 import { settings } from './settings.js';
 
 const DT = 1 / PHYS.tickRate;
+
+// Final full-screen pass (one cheap pass): FXAA edge smoothing - the post-processing targets have
+// no MSAA - plus light colour grading and a soft vignette.
+const FinalShader = {
+  uniforms: { tDiffuse: { value: null }, res: { value: new THREE.Vector2(1, 1) }, vignette: { value: 0.28 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 res; uniform float vignette; varying vec2 vUv;
+    float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+    void main(){
+      vec2 px = 1.0 / res;
+      vec3 rgbM = texture2D(tDiffuse, vUv).rgb;
+      vec3 rgbNW = texture2D(tDiffuse, vUv + vec2(-1.0, -1.0) * px).rgb;
+      vec3 rgbNE = texture2D(tDiffuse, vUv + vec2(1.0, -1.0) * px).rgb;
+      vec3 rgbSW = texture2D(tDiffuse, vUv + vec2(-1.0, 1.0) * px).rgb;
+      vec3 rgbSE = texture2D(tDiffuse, vUv + vec2(1.0, 1.0) * px).rgb;
+      float lNW = luma(rgbNW), lNE = luma(rgbNE), lSW = luma(rgbSW), lSE = luma(rgbSE), lM = luma(rgbM);
+      float lMin = min(lM, min(min(lNW, lNE), min(lSW, lSE)));
+      float lMax = max(lM, max(max(lNW, lNE), max(lSW, lSE)));
+      vec3 col = rgbM;
+      if (lMax - lMin > max(0.0312, lMax * 0.125)) {
+        vec2 dir = vec2(-((lNW + lNE) - (lSW + lSE)), ((lNW + lSW) - (lNE + lSE)));
+        float red = max((lNW + lNE + lSW + lSE) * 0.03125, 0.0078125);
+        float rcp = 1.0 / (min(abs(dir.x), abs(dir.y)) + red);
+        dir = clamp(dir * rcp, -8.0, 8.0) * px;
+        vec3 a = 0.5 * (texture2D(tDiffuse, vUv + dir * (1.0/3.0 - 0.5)).rgb + texture2D(tDiffuse, vUv + dir * (2.0/3.0 - 0.5)).rgb);
+        vec3 b = a * 0.5 + 0.25 * (texture2D(tDiffuse, vUv + dir * -0.5).rgb + texture2D(tDiffuse, vUv + dir * 0.5).rgb);
+        float lb = luma(b);
+        col = (lb < lMin || lb > lMax) ? a : b;
+      }
+      // grading: a touch more saturation and contrast
+      float l = luma(col);
+      col = mix(vec3(l), col, 1.1);
+      col = (col - 0.5) * 1.05 + 0.5;
+      vec2 d = vUv - 0.5;
+      col *= 1.0 - vignette * smoothstep(0.35, 0.85, length(d * vec2(1.0, 0.85)));
+      gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+    }`,
+};
 const DEV_DEBUG = typeof location !== 'undefined' && /[?&]debug\b/.test(location.search);
 const RUN_STATES = ['idle', 'ready', 'running', 'finished'];
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -61,6 +100,12 @@ export class Game extends Emitter {
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.4, 0.85);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
+    this.finalPass = new ShaderPass(FinalShader);
+    this.composer.addPass(this.finalPass);
+    // soft studio reflections on every surface (one small prefiltered map, no runtime cost)
+    const pm = new THREE.PMREMGenerator(r);
+    this.scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+    pm.dispose();
 
     this.viewmodel = new ViewModel(r);
     this.input = new Input(canvas);
@@ -100,13 +145,14 @@ export class Game extends Emitter {
 
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
-    const base = Math.min(window.devicePixelRatio || 1, settings.quality === 'low' ? 0.75 : 1.25);
+    const base = Math.min(window.devicePixelRatio || 1, settings.quality === 'low' ? 0.75 : settings.quality === 'ultra' ? 2 : 1.25);
     const pr = Math.max(0.5, base * this.dynScale);
     this.renderer.setPixelRatio(pr);
     this.renderer.setSize(w, h, false);
     this.composer.setPixelRatio(pr);
     this.composer.setSize(w, h);
     this.bloom.resolution.set(w * pr * 0.35, h * pr * 0.35);
+    this.finalPass.uniforms.res.value.set(w * pr, h * pr);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.viewmodel.resize(w, h);

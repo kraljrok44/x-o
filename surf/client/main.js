@@ -289,7 +289,7 @@ function renderSettings() {
         ${toggle('bloom', t('bloom'))}
         ${toggle('viewBob', t('viewBob'))}
         ${toggle('reduceMotion', t('reduceMotion'))}
-        <label class="set-row"><span>${t('quality')}</span><select data-k="quality"><option value="high" ${s.quality === 'high' ? 'selected' : ''}>High</option><option value="low" ${s.quality === 'low' ? 'selected' : ''}>Low</option></select></label>
+        <label class="set-row"><span>${t('quality')}</span><select data-k="quality"><option value="ultra" ${s.quality === 'ultra' ? 'selected' : ''}>Ultra</option><option value="high" ${s.quality === 'high' ? 'selected' : ''}>High</option><option value="low" ${s.quality === 'low' ? 'selected' : ''}>Low</option></select></label>
         <label class="set-row"><span>${t('language')}</span><select data-k="lang"><option value="">English (default)</option><option value="sl" ${s.lang === 'sl' ? 'selected' : ''}>Slovenščina</option></select></label>
       </div>
     </div>

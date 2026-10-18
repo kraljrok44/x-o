@@ -16,7 +16,7 @@ export const DEFAULTS = {
   showKeys: true,
   chat: true,          // players can switch the chat off (also from inside the chat)
   showSpeedVector: false,
-  quality: 'high',      // 'low' | 'high'
+  quality: 'high',      // 'low' | 'high' | 'ultra' (sharper: full device pixel ratio)
   lang: '',
   name: '',
 };

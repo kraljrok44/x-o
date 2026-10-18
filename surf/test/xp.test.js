@@ -58,3 +58,24 @@ test('free crates open without cooldown and are used up', () => {
   assert.equal(m.get('p').freeCrates, 0);
   assert.equal(openCrate(store, 'p', 'b'.repeat(12), { now: 1e6 + 2000, free: true }).status, 'BAD_REQUEST');
 });
+
+test('a map record saves and broadcasts the record ghost', async () => {
+  const m = new Map(), r = new Map(), g = new Map();
+  const store = { load: (k) => (m.has(k) ? structuredClone(m.get(k)) : null), save: (k, p) => m.set(k, structuredClone(p)), loadRecords: (id) => r.get(id) || [], saveRecords: (id, l) => r.set(id, l), loadGhost: (k) => g.get(k) || null, saveGhost: (k, v) => g.set(k, v) };
+  const room = new Room({ store, auth: (h) => ({ key: 'k:' + h.token, name: h.name }), clock: () => 1e6 });
+  const inbox = [];
+  const c = room.addClient({ send: (x) => inbox.push(x), close() {} });
+  room.handleMessage(c, { t: 'hello', name: 'Zed', token: 'Zed' });
+  await new Promise((res) => setImmediate(res));
+  c.path = Array.from({ length: 40 }, (_, i) => [i * 10, 0, 0, 0]);
+  room._onFinish(c, { ticks: 8000 });
+  const ghost = inbox.find((x) => x.t === 'ghost');
+  assert.ok(ghost && ghost.frames.length === 40 && ghost.name === 'Zed');
+  assert.equal(g.size, 1);
+  // a later joiner gets it right after the welcome
+  const inbox2 = [];
+  const c2 = room.addClient({ send: (x) => inbox2.push(x), close() {} });
+  room.handleMessage(c2, { t: 'hello', name: 'Amy', token: 'Amy' });
+  await new Promise((res) => setImmediate(res));
+  assert.ok(inbox2.some((x) => x.t === 'ghost' && x.frames.length === 40));
+});

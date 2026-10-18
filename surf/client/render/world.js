@@ -371,7 +371,8 @@ export function buildWorld(map, opts = {}) {
     }
     const mat = new THREE.MeshStandardMaterial({
       map: albedo, vertexColors: true,
-      roughness: name === 'ramp' ? 0.55 : 0.8, metalness: name === 'ramp' ? 0.15 : 0.05,
+      roughness: name === 'ramp' ? 0.42 : 0.8, metalness: name === 'ramp' ? 0.2 : 0.05,
+      envMapIntensity: name === 'ramp' ? 0.45 : 0.2,
       emissive: name === 'window' ? new THREE.Color(theme.accent) : emiss ? new THREE.Color(theme.edge) : new THREE.Color(0x000000),
       emissiveMap: name === 'window' ? null : emiss, emissiveIntensity: name === 'window' ? 0.6 : emiss ? 0.35 : 0,
       side: THREE.FrontSide,
