@@ -62,7 +62,11 @@ curl -s https://glidezone-rok.duckdns.org/health   # JSON mora vsebovati polje "
    - **Save progress:** *Yes, linked to a game account on the game's backend…*
    - ☑ **The game supports mobile devices**. Zdaj podpira telefon: leva četrtina zaslona je
      A, druga četrtina D, desna polovica pogled. Prst na desni sam hodi do rampe in skače.
-   - ☑ **Online multiplayer**
+     **Mobile orientation:** LANDSCAPE.
+   - ☑ **Online multiplayer**, **"Online with Friends" Lobby Size:** Min `2`, Max `24`.
+     Igra podpira vabila: CrazyGames invite gumb in povezavo (`roomId`). Odprta povezava pelje
+     naravnost v sobo prijatelja. Ob `isInstantMultiplayer` igra takoj odpre novo sobo za prijatelje.
+     Povezavo za vabilo najdeš tudi v meniju pavze (ESC), v glavnem meniju pa je gumb »Igraj s prijatelji«.
    - ☑ **Muting audio through SDK**
 4. Naslovnice: `media/cover-landscape-1920x1080.png`, `media/cover-portrait-800x1200.png`,
    `media/cover-square-800x800.png`.
@@ -73,6 +77,7 @@ curl -s https://glidezone-rok.duckdns.org/health   # JSON mora vsebovati polje "
 
 ## Kaj je novo v tej različici
 
+- **Igranje s prijatelji:** sobe s povezavo za vabilo in takojšen vstop (zahteva CrazyGames za multiplayer).
 - **Popravek padanja skozi rampe:** igra se ne poveže več na strežnik z drugačnimi mapami.
 - **Novo ime: FPS Surf.**
 - **Jame** (kot pri mesa-tipu map) v petih mapah: kamnit tunel s stalaktiti in svetlečimi kristali.

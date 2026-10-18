@@ -26,17 +26,21 @@ const store = new FileStore(DATA);
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const crazyBoard = createCrazyLeaderboard({ log });
 const onPoints = (key, points) => crazyBoard.submit(key, points);
-// a knife unlock is announced in the chat of every public room (wherever the crate was opened)
-const onAnnounce = (text, kind) => { for (const r of publicRooms) r.chatSystem(text, kind); };
+// a knife unlock is announced in the chat of every online room (wherever the crate was opened)
+const onAnnounce = (text, kind) => { for (const r of [...publicRooms, ...partyRooms.values()]) r.chatSystem(text, kind); };
 
-// Public rooms (map voting, up to NET.maxPlayersPerRoom each; a new one opens when all are full)
-// and private practice rooms (one player, free map choice, no voting).
+// Public rooms (map voting, up to NET.maxPlayersPerRoom each; a new one opens when all are full),
+// party rooms (friends joining through an invite link, same rules as public rooms) and private
+// practice rooms (one player, free map choice, no voting). Every online room has an invite code.
 const publicRooms = [];
+const partyRooms = new Map(); // code -> Room, closed when the last player leaves
 const practiceRooms = new Set();
+const CODE_RE = /^[a-z0-9]{3,12}$/;
 function newPublicRoom() {
+  const n = publicRooms.length + 1;
   const r = new Room({
-    store, auth: authenticate, log, onPoints, onAnnounce,
-    name: `${process.env.ROOM_NAME || 'FPS Surf'} #${publicRooms.length + 1}`,
+    store, auth: authenticate, log, onPoints, onAnnounce, code: `p${n}`,
+    name: `${process.env.ROOM_NAME || 'FPS Surf'} #${n}`,
     startMap: process.env.START_MAP || MAP_LIST[0].id,
   });
   publicRooms.push(r);
@@ -45,6 +49,20 @@ function newPublicRoom() {
 newPublicRoom();
 function publicRoomWithSpace() {
   return publicRooms.find((r) => r.playerCount() < r.maxPlayers) || newPublicRoom();
+}
+function newPartyRoom(code) {
+  while (!code || partyRooms.has(code) || code.startsWith('p')) code = 'f' + Math.random().toString(36).slice(2, 8);
+  const r = new Room({ store, auth: authenticate, log, onPoints, onAnnounce, code, name: `Party ${code.toUpperCase()}`, startMap: MAP_LIST[0].id });
+  partyRooms.set(code, r);
+  return r;
+}
+/** Room for an invite code: the room itself while it has space, a fresh party room for an expired party code. */
+function roomForCode(code) {
+  code = String(code || '').toLowerCase();
+  if (!CODE_RE.test(code)) return publicRoomWithSpace();
+  const r = publicRooms.find((x) => x.code === code) || partyRooms.get(code);
+  if (r) return r.playerCount() < r.maxPlayers ? r : publicRoomWithSpace();
+  return code.startsWith('p') ? publicRoomWithSpace() : newPartyRoom(code);
 }
 const room = publicRooms[0];
 
@@ -59,7 +77,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*' });
     res.end(JSON.stringify({
       ok: true, players: publicRooms.reduce((n, r) => n + r.playerCount(), 0), map: room.map.id, mh: room.map.hash,
-      rooms: publicRooms.map((r) => ({ name: r.name, players: r.playerCount(), map: r.map.id })), practice: practiceRooms.size,
+      rooms: publicRooms.map((r) => ({ name: r.name, players: r.playerCount(), map: r.map.id })), parties: partyRooms.size, practice: practiceRooms.size,
     }));
     return;
   }
@@ -91,6 +109,7 @@ wss.on('connection', (ws) => {
     if (!target) return;
     target.removeClient(client);
     if (practiceRooms.has(target)) practiceRooms.delete(target);
+    if (target.code && partyRooms.get(target.code) === target && target.clients.size === 0) partyRooms.delete(target.code);
     target = null;
   };
   ws.on('message', (data) => {
@@ -101,6 +120,10 @@ wss.on('connection', (ws) => {
       if (msg.mode === 'practice') {
         target = new Room({ store, auth: authenticate, log, onPoints, onAnnounce, voting: false, maxPlayers: 1, name: 'Practice', startMap: isMapId(msg.map) ? msg.map : MAP_LIST[0].id });
         practiceRooms.add(target);
+      } else if (msg.mode === 'party') {
+        target = newPartyRoom();
+      } else if (msg.room) {
+        target = roomForCode(msg.room);
       } else {
         target = publicRoomWithSpace();
       }
@@ -120,6 +143,7 @@ wss.on('connection', (ws) => {
 setInterval(() => {
   const now = performance.now();
   for (const r of publicRooms) r.advance(now);
+  for (const r of partyRooms.values()) r.advance(now);
   for (const r of practiceRooms) r.advance(now);
 }, 4);
 

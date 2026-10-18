@@ -213,6 +213,7 @@ function renderMenu() {
       <div class="menu-grid">
         <div class="menu-col">
           <button class="btn primary big" id="m-play">${t('play')}</button>
+          ${app.online ? `<button class="btn big" id="m-friends">👥 ${t('friends')}</button>` : ''}
           <button class="btn big" id="m-practice">${t('practice')}</button>
           <button class="btn big" id="m-spec">${t('spectate')}</button>
           <div class="row">
@@ -241,6 +242,7 @@ function renderMenu() {
   const bind = (id, f) => { const b = $('#' + id); if (b) { b.onclick = () => { audio.ensure(); audio.play('click'); f(); }; b.onmouseenter = () => audio.play('hover'); } };
   bind('m-play', () => startGame('public', false));
   bind('m-spec', () => startGame('public', true));
+  bind('m-friends', () => startGame('party', false));
   bind('m-practice', () => openPanel('maps'));
   bind('m-vault', () => openPanel('vault'));
   bind('m-inv', () => openPanel('inventory'));
@@ -320,7 +322,7 @@ function renderSettings() {
 }
 
 // ------------------------------------------------------------------ game flow
-async function startGame(mode, spectate, mapId, booting = false) {
+async function startGame(mode, spectate, mapId, booting = false, room = null) {
   audio.ensure();
   show('#loading', true);
   html('#loading', `<div class="spinner"></div><div>${t('connecting')}</div>`);
@@ -329,14 +331,14 @@ async function startGame(mode, spectate, mapId, booting = false) {
   let tr;
   try {
     if (app.online) tr = await new WsTransport(app.serverUrl).open();
-    else tr = await new LocalTransport({ voting: mode === 'public', map: mapId }).open();
+    else tr = await new LocalTransport({ voting: mode !== 'practice', map: mapId }).open();
   } catch (e) {
     app.online = false;
-    tr = await new LocalTransport({ voting: mode === 'public', map: mapId }).open();
+    tr = await new LocalTransport({ voting: mode !== 'practice', map: mapId }).open();
   }
   app.playMode = mode;
   app.state = 'game';
-  const hello = { ...(await helloBase()), spectate, mode, map: mapId };
+  const hello = { ...(await helloBase()), spectate, mode, map: mapId, room: room || undefined };
   const join = (transport) => {
     const done = new Promise((res) => {
       const offs = [game.on('welcome', () => fin('ok')), game.on('mismatch', () => fin('mismatch'))];
@@ -350,10 +352,15 @@ async function startGame(mode, spectate, mapId, booting = false) {
     // the server still runs other map geometry (not updated yet): play the correct maps offline
     app.online = false;
     app.outdated = true;
-    await join(await new LocalTransport({ voting: mode === 'public', map: mapId }).open());
+    await join(await new LocalTransport({ voting: mode !== 'practice', map: mapId }).open());
   }
   app.starting = false;
   if (app.outdated) hud.feed(t('serverOutdated'), 'record');
+  // every online room can be joined through an invite link (CrazyGames invite button + pause menu)
+  app.roomCode = app.online && game.net && game.roomCode && mode !== 'practice' ? game.roomCode : null;
+  if (app.roomCode) sdk.showInviteButton(app.roomCode);
+  else sdk.hideInviteButton();
+  if (app.roomCode && mode === 'party') hud.feed(`👥 ${t('inviteHint')}: ${t('invite')} (ESC)`, 'pb');
   sdk.loadingStop();
   show('#loading', false);
   show('#menu', false);
@@ -386,6 +393,8 @@ async function startGame(mode, spectate, mapId, booting = false) {
 
 function leaveGame() {
   game.disconnect();
+  app.roomCode = null;
+  sdk.hideInviteButton();
   app.state = 'menu';
   sdk.gameplayStop();
   hud.setVisible(false);
@@ -413,6 +422,8 @@ function showPause(on) {
     ${practice ? `<button class="btn" id="p-maps">${t('choose')}</button>` : `
       <button class="btn" id="p-spec">${game.spectator ? t('joinSurf') : t('spectateMode')}</button>
       ${game.voting !== false ? `<button class="btn" id="p-rtv" ${v && v.state !== 'playing' ? 'disabled' : ''}>${t('rtv')} ${v && v.rtv ? `(${v.rtv}/${v.needed})` : ''}</button>` : ''}`}
+    ${app.roomCode ? `<div class="invite-row"><div class="dim small">👥 ${t('inviteHint')}</div>
+      <div class="row"><input id="p-link" readonly value="${esc(sdk.inviteLink(app.roomCode))}"><button class="btn" id="p-copy">${t('copy')}</button></div></div>` : ''}
     <div class="row"><button class="btn" id="p-vault">🔓 ${t('vault')}</button><button class="btn" id="p-inv">${t('inventory')}</button></div>
     <div class="row"><button class="btn" id="p-lb">🏆 ${t('leaderboard')}</button><button class="btn ghost" id="p-settings">⚙ ${t('settings')}</button></div>
     ${sensRow()}
@@ -429,6 +440,17 @@ function showPause(on) {
   bind('p-settings', () => openPanel('settings'));
   bind('p-lb', () => openPanel('leaderboard'));
   bind('p-leave', () => leaveGame());
+  bind('p-copy', () => copyInvite());
+}
+
+async function copyInvite() {
+  const input = $('#p-link');
+  const link = sdk.inviteLink(app.roomCode);
+  let ok = false;
+  try { await navigator.clipboard.writeText(link); ok = true; } catch (e) { /* clipboard blocked in the iframe */ }
+  if (!ok && input) { try { input.select(); ok = document.execCommand('copy'); } catch (e) { /* */ } }
+  if (input) input.select();
+  hud.feed(ok ? t('inviteCopied') : link, 'pb');
 }
 
 game.input.onLockChange = (locked) => {
@@ -516,8 +538,15 @@ async function boot() {
   app.health = health;
   account.refresh();
   renderMenu();
-  // CrazyGames: the game starts right away - straight into the public server (ESC opens the menu)
-  await startGame('public', false, undefined, true);
+  // CrazyGames: the game starts right away - straight into the public server (ESC opens the menu).
+  // Opened from an invite link: straight into the friend's room. Instant multiplayer (party leader
+  // from the CrazyGames UI): straight into a new joinable party room with the invite button shown.
+  const invite = sdk.inviteRoom();
+  if (app.online && invite) await startGame('public', false, undefined, true, invite);
+  else if (app.online && sdk.instantMultiplayer) await startGame('party', false, undefined, true);
+  else await startGame('public', false, undefined, true);
+  // invite accepted while the game is already running
+  sdk.onJoinRoom((code) => { if (app.online && code !== app.roomCode) startGame('public', false, undefined, false, code); });
   setInterval(async () => {
     if (app.state !== 'menu' || !app.serverUrl) return;
     const h = await probeServer(app.serverUrl);

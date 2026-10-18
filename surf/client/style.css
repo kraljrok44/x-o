@@ -73,6 +73,10 @@ select option { background: var(--panel-solid); }
 /* ---------------------------------------------------------------- overlays */
 .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(4,5,10,.55); backdrop-filter: blur(4px); z-index: 20; }
 .pause-box { width: 360px; display: flex; flex-direction: column; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+.invite-row { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.03); }
+.invite-row .row { display: flex; gap: 8px; }
+.invite-row .row .btn { flex: none; padding-left: 16px; padding-right: 16px; }
+.invite-row input { flex: 1; min-width: 0; font: 12px var(--mono); padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: rgba(0,0,0,.3); color: inherit; }
 .ctp { cursor: pointer; background: rgba(4,5,10,.35); backdrop-filter: none; }
 .ctp-box { text-align: center; background: var(--panel); border: 1px solid var(--line); padding: 24px 32px; border-radius: 18px; max-width: 560px; }
 .ctp-title { font-size: 28px; font-weight: 800; margin-bottom: 8px; }

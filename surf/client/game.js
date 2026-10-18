@@ -280,6 +280,7 @@ export class Game extends Emitter {
         this.viewmodel.visible = !this.spectator;
         this.vote = m.vote;
         this.room = m.room;
+        this.roomCode = m.code || null;
         this.voting = m.voting;
         this.emit('welcome', m);
         this.emit('roster', this.roster);

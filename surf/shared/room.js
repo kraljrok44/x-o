@@ -47,6 +47,7 @@ export class Room {
     this.onAnnounce = o.onAnnounce || ((text, kind) => this.chatSystem(text, kind));
     this.maxPlayers = o.maxPlayers || NET.maxPlayersPerRoom;
     this.name = o.name || 'FPS Surf #1';
+    this.code = o.code || null; // invite code (online rooms only)
     this.clients = new Map();
     this.nextId = 1;
     this.tickNo = 0;
@@ -186,7 +187,7 @@ export class Room {
   _welcome(c) {
     const now = this.clock();
     return {
-      t: 'welcome', id: c.id, room: this.name, tick: this.tickNo, tickRate: PHYS.tickRate,
+      t: 'welcome', id: c.id, room: this.name, code: this.code, tick: this.tickNo, tickRate: PHYS.tickRate,
       physics: PHYSICS_VERSION, catalog: CATALOG_VERSION,
       map: this.map.id, mh: this.map.hash, maps: this.mapIds, timeLeft: Math.max(0, this.vote.mapEndsAt - now), voting: this.voting,
       roster: [...this.clients.values()].filter((o) => o.ready).map((o) => this.rosterEntry(o)),

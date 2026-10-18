@@ -55,6 +55,48 @@ class SDKWrapper {
   gameplayStop() { if (!this.gameplay) return; this.gameplay = false; try { this.cg && this.cg.game.gameplayStop(); } catch (e) { /* */ } }
   happytime() { try { this.cg && this.cg.game.happytime(); } catch (e) { /* */ } }
 
+  // ---------------------------------------------------------------- multiplayer invites
+  /** Room code this page was opened with (CrazyGames invite link, or ?room= when self hosted). */
+  inviteRoom() {
+    let code = null;
+    try {
+      const g = this.cg && this.cg.game;
+      if (g) code = (g.inviteParams && g.inviteParams.roomId) || (g.getInviteParam && g.getInviteParam('roomId')) || null;
+    } catch (e) { /* older sdk */ }
+    if (!code) { try { code = new URLSearchParams(location.search).get('room'); } catch (e) { /* */ } }
+    return code ? String(code).toLowerCase() : null;
+  }
+
+  /** CrazyGames asks the game to go straight into a joinable multiplayer room (party leader). */
+  get instantMultiplayer() {
+    try { const g = this.cg && this.cg.game; return !!(g && (g.isInstantMultiplayer || g.isInstantJoin)); } catch (e) { return false; }
+  }
+
+  inviteLink(code) {
+    try { if (this.cg) { const l = this.cg.game.inviteLink({ roomId: code }); if (l) return l; } } catch (e) { /* */ }
+    const u = new URL(location.href);
+    u.searchParams.set('room', code);
+    return u.toString();
+  }
+
+  /** CrazyGames' own invite button next to the game while the player is in an online room. */
+  showInviteButton(code) {
+    try { if (this.cg && this.cg.game.showInviteButton) this.cg.game.showInviteButton({ roomId: code }); } catch (e) { /* */ }
+  }
+
+  hideInviteButton() {
+    try { if (this.cg && this.cg.game.hideInviteButton) this.cg.game.hideInviteButton(); } catch (e) { /* */ }
+  }
+
+  /** Invite accepted while the game is already open. */
+  onJoinRoom(cb) {
+    try {
+      if (this.cg && this.cg.game.addJoinRoomListener) {
+        this.cg.game.addJoinRoomListener((p) => { const code = p && (p.roomId || (p.inviteParams && p.inviteParams.roomId)); if (code) cb(String(code).toLowerCase()); });
+      }
+    } catch (e) { /* older sdk */ }
+  }
+
   async userToken() {
     if (!this.cg || !this.user) return null;
     try { return await this.cg.user.getUserToken(); } catch (e) { return null; }
