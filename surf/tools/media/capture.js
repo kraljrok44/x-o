@@ -11,6 +11,7 @@ import { MODE } from '../../shared/movement.js';
 import { angleWrap } from '../../shared/vec.js';
 import { Avatar } from '../../client/render/avatars.js';
 import { buildCollectible } from '../../client/render/skins.js';
+import { Ghost } from '../../client/render/ghost.js';
 
 const DT = 1 / PHYS.tickRate;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -65,7 +66,20 @@ function setup(o) {
     }
     return b;
   });
-  sc = { ...o, bots, acc: 0, t: 0, cam: null, yaw: null, pitch: -0.1, prevYaw: null };
+  sc = { ...o, bots, acc: 0, t: 0, cam: null, yaw: null, pitch: -0.1, prevYaw: null, ticks: o.bots[0].ticks || 0 };
+  // record ghost: the same bot run recorded from the spawn, replayed a little ahead of the hero
+  if (!game.ghostFx) game.ghostFx = new Ghost(game.scene);
+  game.ghostFx.set(null);
+  if (o.ghost) {
+    const g = { ps: createPlayerState(game.map) };
+    g.prev = copyState(g.ps);
+    const frames = [];
+    for (let t = 0; t < (o.ghost.secs || 90) * 100; t++) {
+      if (t % 5 === 0) frames.push([g.ps.pos.x, g.ps.pos.y, g.ps.pos.z, g.ps.yaw]);
+      tickBot(g);
+    }
+    game.ghostFx.set({ name: o.ghost.name || 'NovaGlide', ticks: o.ghost.ticks || 6512, every: 5, frames });
+  }
   if (o.view === 'fp') game.viewmodel.setKnife(o.bots[0].knife);
   game.viewmodel.visible = o.view === 'fp' && o.vm !== false;
   game.viewmodel.state = { kind: 'idle', t: 0 };
@@ -81,7 +95,7 @@ function frame(dt, draw = true) {
   const s = sc;
   s.t += dt;
   s.acc += dt;
-  while (s.acc >= DT) { for (const b of s.bots) tickBot(b); s.acc -= DT; }
+  while (s.acc >= DT) { for (const b of s.bots) tickBot(b); s.acc -= DT; s.ticks++; }
   const alpha = s.acc / DT;
   game.time += dt;
   const hero = s.bots[0];
@@ -116,6 +130,7 @@ function frame(dt, draw = true) {
     cam.up.set(0, 0, 1);
     cam.lookAt(h.x + Math.cos(s.yaw) * (s.lead ?? 250), h.y + Math.sin(s.yaw) * (s.lead ?? 250), h.z + 20 + (s.lookUp ?? 0));
   }
+  if (s.ghost) game.ghostFx.update(s.ticks + alpha + (s.ghost.lead || 40), Math.max(dt, 1e-3), true);
   if (game.world && draw) game.world.update(game.time, cam.position);
   if (draw) game._render();
 

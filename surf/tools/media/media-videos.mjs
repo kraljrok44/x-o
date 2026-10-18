@@ -9,9 +9,9 @@ import { uiShots, EQUIPPED } from './media-ui.mjs';
 const FPS = 30;
 const XF = 0.3; // cross-fade between shots
 const SURF = [
-  { name: 'surf-fast', map: 'surf_neon_drift', from: 12.3, dur: 3.0, fov: 106,
+  { name: 'surf-fast', map: 'surf_neon_drift', from: 11.5, dur: 2.9, fov: 106, ghost: { lead: 70, secs: 20 },
     bots: [{ ticks: 0, knife: EQUIPPED }, { ticks: 140, knife: 'warden__abyss_p2', color: 1 }, { ticks: 290, knife: 'moth__jade_flow', color: 6 }] },
-  { name: 'surf-jump', map: 'surf_ember_core', from: 46.9, dur: 4.0, fov: 106, spin: [48.55, 49.85],
+  { name: 'surf-jump', map: 'surf_ember_core', from: 8.9, dur: 4.0, fov: 106, spin: [11.25, 12.3],
     bots: [{ ticks: 0, knife: EQUIPPED }, { ticks: 120, knife: 'flicker__heat_temper', color: 3 }] },
 ];
 
@@ -28,7 +28,7 @@ const VIDEOS = [
 
 async function surfFrames(openPage, w, h, seg, dir) {
   const { browser, page } = await openPage(w, h);
-  await page.evaluate((seg) => { window.media.setup({ map: seg.map, view: 'fp', hud: true, fov: seg.fov, spin: seg.spin, bots: seg.bots }); window.media.skip(seg.from); }, seg);
+  await page.evaluate((seg) => { window.media.setup({ map: seg.map, view: 'fp', hud: true, fov: seg.fov, spin: seg.spin, ghost: seg.ghost, bots: seg.bots }); window.media.skip(seg.from); }, seg);
   const n = Math.round(seg.dur * FPS);
   for (let i = 0; i < n; i++) {
     await page.evaluate(() => window.media.frame(1 / 30));

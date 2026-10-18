@@ -33,13 +33,14 @@ const INIT = `(() => {
   const rnd = Math.random; window.__force = null;
   Math.random = () => (window.__force !== null ? window.__force : rnd());
   try {
-    localStorage.setItem('gz.local.r.__points', ${JSON.stringify(JSON.stringify(POINTS))});
+    localStorage.setItem('gz.tutorial.v1', '1');
+    localStorage.setItem('gz.local.r.__points__e2', ${JSON.stringify(JSON.stringify(POINTS))});
     localStorage.setItem('gz.local.p.local', ${JSON.stringify(JSON.stringify({ owned: OWNED, equipped: EQUIPPED, idem: {}, lastOpenAt: 0, opens: OWNED.length, catalogVersion: CATALOG_VERSION }))});
   } catch (e) {}
 })();`;
 
 const CSS = `* { cursor: none !important; }
-  #menu, #hud, #chat { visibility: hidden !important; }
+  #menu, #hud, #chat, #pause, #tutorial, #mouse-hint, #touch-ui, .free-crate, #click-to-play { visibility: hidden !important; }
   .panels { background: radial-gradient(ellipse at 50% 30%, #1a1440 0%, #07070f 75%) !important; backdrop-filter: none !important; }
   .panel { width: 92vw !important; height: 90vh !important; }
   #lb-close, #inv-close, .vault-close, #viewer-close, #viewer-reset, .inv-tools select, .inv-tools input { display: none !important; }
@@ -75,7 +76,9 @@ export async function uiShots({ openPageRaw, w, h, dir, preview = false }) {
   await page.waitForTimeout(400);
 
   // 1. leaderboard, fast scroll from the top to the bottom and back up a little
-  await page.evaluate(() => document.getElementById('m-lb').click());
+  await page.evaluate(() => window.gz.openPanel('leaderboard'));
+  await page.waitForTimeout(200);
+  await page.evaluate(() => { const b = document.querySelector('.lb-board[data-b="__points"]'); if (b) b.click(); });
   for (let i = 0; i < 10; i++) { await page.waitForTimeout(40); await step(); }
   begin('lb');
   const lbFrames = Math.round(1.9 * FPS);
@@ -88,7 +91,7 @@ export async function uiShots({ openPageRaw, w, h, dir, preview = false }) {
   await step(3);
 
   // 2. unboxing (forced to the showcase knife) + reveal card
-  await page.evaluate(() => document.getElementById('m-vault').click());
+  await page.evaluate(() => window.gz.openPanel('vault'));
   await step(10);
   await page.evaluate((f) => { window.__force = f; document.getElementById('v-open').click(); }, FORCE);
   for (let i = 0; i < 300; i++) {
@@ -107,7 +110,7 @@ export async function uiShots({ openPageRaw, w, h, dir, preview = false }) {
   await step(3);
 
   // 3. collection: fast scroll through the owned knives, then five knives in the 3D viewer
-  await page.evaluate(() => document.getElementById('m-inv').click());
+  await page.evaluate(() => window.gz.openPanel('inventory'));
   await step(2);
   await page.evaluate(() => { const b = document.querySelector('#inventory .tab[data-tab="owned"]'); if (b) b.click(); });
   for (let i = 0; i < 40; i++) await step(); // thumbnails render

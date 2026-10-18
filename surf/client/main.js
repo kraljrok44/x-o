@@ -491,7 +491,7 @@ async function boot() {
     if (changed && app.state === 'menu' && !app.panel) renderMenu();
   }, 15000);
   window.addEventListener('gz-auth', () => { account.closeMenuConn(); account.refresh(); renderMenu(); });
-  window.gz = { game, app, account }; // handy for debugging / automated tests
+  window.gz = { game, app, account, openPanel }; // handy for debugging / automated tests
   window.gzVault = vault;
 }
 

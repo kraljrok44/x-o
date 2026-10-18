@@ -33,7 +33,7 @@ export class Ghost {
       if (o.isMesh && o.material) {
         o.material = o.material.clone();
         o.material.transparent = true;
-        o.material.opacity = 0.38;
+        o.material.opacity = 0.5;
         o.material.depthWrite = false;
         if (o.material.emissive) { o.material.emissive.set(0x4fd8ff); o.material.emissiveIntensity = 0.6; }
       }

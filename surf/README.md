@@ -21,6 +21,11 @@ v projektu ni nobenih sredstev iz Counter-Strike ali drugih iger.
 | Trezor nožev | 15 izvirnih modelov × 33 skinov = **428 zbirateljskih predmetov** (izračunano iz matrike združljivosti). Vsak krejt: video oglas → strežnik izbere in **shrani** predmet, ki ga igralec še nima → šele nato animacija odpiranja (preskočljiva). Brez podvajanj, idempotentne zahteve, zaščita pred dvojnim klikom. |
 | Nož med igro | Opremljen nož je viden v prvi osebi (animacije: izvlek, nihanje, pregled **F**, zamah **LMB**) in v rokah avatarja za druge igralce. |
 | Merek | Samo ena pikica na sredini zaslona. |
+| Takojšen začetek | Igra se začne brez menija in brez klika (tipkovnica deluje takoj, miška po prvem kliku). Ob prvem obisku se ob strani pokažejo kontrole. |
+| Telefon | Leva četrtina zaslona = A, druga četrtina = D, desna polovica = pogled; prst na desni sam hodi do rampe in skače. |
+| Duh rekorda | Strežnik posname pot rekordne vožnje (20 Hz) in jo predvaja sinhrono s tvojo vožnjo kot prosojnega surferja s sledjo (**G**). **H** skrije druge igralce (igralci se med sabo ne zaletavajo). |
+| XP in nivoji | Krivulja do nivoja 99: 40 XP prvi prevoz, 80 navaden, 160 osebni rekord, 500 rekord mape; nagrada se podvoji vsakih 14 nivojev; vsak 10. nivo brezplačen krejt (brez oglasa); vojaški čin ob imenu se dvigne vsakih 10 nivojev. |
+| CrazyGames | `happytime` ob končani mapi, nov rekord mape v klepetu vseh sob. |
 | HUD | Hitrost, čas proge, etapa, osebni rekord, rekord strežnika, preostali čas mape, glasovanje, dogodki, lestvica (**TAB**), fizikalni debug (**F3**). |
 | Nastavitve | Občutljivost miške, FOV, glasnosti (glavna/učinki/vmesnik), bloom, nihanje noža, manj gibanja/bliskov, velikost HUD, kakovost, jezik (EN/SL). |
 
@@ -130,7 +135,7 @@ Ključne odločitve:
 ## Kontrole
 `WASD` gibanje · `SPACE` skok · `R` ponovni začetek · `F` ogled noža · `LMB` zamah ·
 `TAB` lestvica · `V` glas za menjavo mape · `1–5` glasovanje · `J` opazovalni način ·
-`F3` fizikalni debug · `ESC` meni.
+`H` skrij igralce · `G` duh rekorda · `Q`/`E` obračanje brez miške · `ESC` meni. (Fizikalni debug samo z `?debug` v URL-ju.)
 
 Surfanje: spusti se na rampo, drži stransko tipko proti rampi (A ali D) in usmerjaj z miško. Na rampi ne pritiskaj W.
 
