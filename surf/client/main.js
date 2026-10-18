@@ -15,6 +15,7 @@ import { audio } from './audio.js';
 import { settings, saveSettings, guestToken, DEFAULTS } from './settings.js';
 import { WsTransport, LocalTransport, defaultServerUrl, probeServer } from './net.js';
 import { MAP_LIST } from '../shared/maps/index.js';
+import { PRIVACY } from './privacy.js';
 import { CATALOG_TOTAL } from '../shared/catalog.js';
 import { GAME } from '../shared/config.js';
 
@@ -172,6 +173,7 @@ function openPanel(which) {
   if (which === 'settings') renderSettings();
   if (which === 'leaderboard') leaderboard.open(app.state === 'game' && game.map ? game.map.id : undefined);
   if (which === 'maps') renderMaps();
+  if (which === 'privacy') renderPrivacy();
   app.panel = which;
   game.input.unlock();
 }
@@ -182,9 +184,17 @@ function closePanels() {
   leaderboard.close();
   show('#settings', false);
   show('#maps', false);
+  show('#privacy', false);
   show('#panels', false);
   app.panel = null;
   if (app.state === 'game') showPause(true);
+}
+
+function renderPrivacy() {
+  show('#privacy', true);
+  html('#privacy', `<div class="panel-head"><div class="panel-title">${t('privacy')}</div><button class="btn ghost" id="priv-close">✕ ${t('close')}</button></div>
+    <div class="privacy-body">${PRIVACY[lang()] || PRIVACY.en}</div>`);
+  $('#priv-close').onclick = () => { audio.play('click'); closePanels(); };
 }
 
 document.addEventListener('gz-close-panels', () => { audio.play('click'); closePanels(); });
@@ -236,6 +246,7 @@ function renderMenu() {
           <p class="howto">${t('howTo')}</p>
           <p class="howto">${t('jumpHint')}</p>
           <p class="keys-line">${t('controls')}</p>
+          <button class="link-btn" id="m-privacy">${t('privacy')}</button>
         </div>
       </div>
     </div>`);
@@ -243,6 +254,7 @@ function renderMenu() {
   bind('m-play', () => startGame('public', false));
   bind('m-spec', () => startGame('public', true));
   bind('m-friends', () => startGame('party', false));
+  bind('m-privacy', () => openPanel('privacy'));
   bind('m-practice', () => openPanel('maps'));
   bind('m-vault', () => openPanel('vault'));
   bind('m-inv', () => openPanel('inventory'));
@@ -285,7 +297,7 @@ function renderSettings() {
   const slider = (key, label, min, max, step) => `<label class="set-row"><span>${label}</span><input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${s[key]}"><b data-v="${key}">${s[key]}</b></label>`;
   const toggle = (key, label) => `<label class="set-row"><span>${label}</span><input type="checkbox" data-k="${key}" ${s[key] ? 'checked' : ''}></label>`;
   html('#settings', `
-    <div class="panel-head"><div class="panel-title">${t('settings')}</div><button class="btn ghost" id="set-close">✕ ${t('close')}</button></div>
+    <div class="panel-head"><div class="panel-title">${t('settings')}</div><div class="row"><button class="btn ghost" id="set-privacy">${t('privacy')}</button><button class="btn ghost" id="set-close">✕ ${t('close')}</button></div></div>
     <div class="set-grid">
       <div>
         ${slider('sensitivity', t('sens'), 0.2, 6, 0.05)}
@@ -317,6 +329,7 @@ function renderSettings() {
     };
   });
   $('#set-close').onclick = () => { audio.play('click'); closePanels(); };
+  $('#set-privacy').onclick = () => { audio.play('click'); show('#settings', false); renderPrivacy(); app.panel = 'privacy'; };
   $('#set-reset').onclick = () => { saveSettings({ ...DEFAULTS, name: settings.name }); renderSettings(); };
 }
 
@@ -429,6 +442,7 @@ function showPause(on) {
     <div class="row"><button class="btn" id="p-lb">🏆 ${t('leaderboard')}</button><button class="btn ghost" id="p-settings">⚙ ${t('settings')}</button></div>
     ${sensRow()}
     <button class="btn ghost" id="p-leave">${t('leave')}</button>
+    <button class="link-btn" id="p-privacy">${t('privacy')}</button>
   </div>`);
   bindSens($('#pause'));
   const bind = (id, f) => { const b = $('#' + id); if (b) b.onclick = () => { audio.play('click'); f(); }; };
@@ -442,6 +456,7 @@ function showPause(on) {
   bind('p-lb', () => openPanel('leaderboard'));
   bind('p-leave', () => leaveGame());
   bind('p-copy', () => copyInvite());
+  bind('p-privacy', () => openPanel('privacy'));
 }
 
 async function copyInvite() {

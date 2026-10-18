@@ -353,3 +353,13 @@ body.touch .hud-feed { top: 66px !important; }
   .sb-body { grid-template-columns: 1fr; }
   .ctp-box { padding: 14px 18px; }
 }
+.link-btn { background: none; border: 0; padding: 4px 0; color: var(--dim, #9aa3b8); font: 600 12px var(--font); text-decoration: underline; cursor: pointer; align-self: flex-start; }
+.pause-box .link-btn { align-self: center; }
+.link-btn:hover { color: #fff; }
+.privacy { width: min(820px, 96vw); }
+.privacy-body { overflow-y: auto; padding-right: 8px; line-height: 1.55; font-size: 14px; color: #d8deea; }
+.privacy-body h3 { margin: 18px 0 6px; font-size: 20px; color: #fff; }
+.privacy-body h3:first-child { margin-top: 0; }
+.privacy-body h4 { margin: 14px 0 4px; font-size: 15px; color: #fff; }
+.privacy-body ul { margin: 4px 0; padding-left: 20px; }
+.privacy-body a { color: var(--a1); }
