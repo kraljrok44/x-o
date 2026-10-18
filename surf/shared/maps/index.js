@@ -161,7 +161,7 @@ const DEFS = [
       { heading: 0, ramps: [R(2600, { ...K, sides: 'left', turn: 50 }), R(2600, { ...KN, sides: 'left', turn: -70, corridor: { h: 170 } }), R(2600, { ...K, sides: 'right', turn: 45, window: { w: 280, h: 220 } }), R(2600, { ...K, sides: 'right', turn: -60 })] },
       { heading: 0, ramps: [R(2600, { ...K, sides: 'left', turn: 50, ring: true }), R(2600, { ...K, sides: 'left', turn: -30, corner: -90 }), R(2600, { ...KC, sides: 'right', turn: 45 }), R(2600, { ...K, sides: 'right', turn: -60, drop: 850, gap: 240 }), R(3800, { w: 420, d: 700, sides: 'right', turn: 30, cave: true })] },
       { heading: 0, ramps: [R(2600, { ...K, turn: 75, cave: true }), R(2600, { ...K, sides: 'left', turn: -55, window: { w: 280, h: 220 } }), R(2600, { ...K, sides: 'right', turn: 40 }), R(2600, { ...K, sides: 'right', turn: -65, jump: { pads: 2 } }), R(2600, { ...K, sides: 'right', turn: 20 })] },
-      { heading: 0, ramps: [R(2600, { ...K, sides: 'right', turn: 50 }), R(2600, { ...K, sides: 'right', turn: -20, corner: 90 }), R(2600, { ...KC, sides: 'left', turn: 45 }), R(2600, { ...K, sides: 'left', turn: -40, speedcheck: { min: 1100 } }), R(2600, { ...K, sides: 'left', turn: 30 })] },
+      { heading: 0, ramps: [R(2600, { ...K, sides: 'right', turn: 50 }), R(2600, { ...K, sides: 'right', turn: -20, corner: 90 }), R(2600, { ...KC, sides: 'left', turn: 45 }), R(2600, { ...K, sides: 'left', turn: -40 }), R(2600, { ...K, sides: 'left', turn: 30, speedcheck: { min: 1100 } }), R(2600, { ...K, sides: 'left', turn: -30 })] },
     ],
   },
 ];

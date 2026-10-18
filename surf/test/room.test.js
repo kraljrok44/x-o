@@ -134,5 +134,5 @@ test('chat is filtered, rate limited, and knife unlocks are announced in chat', 
   room.handleMessage(b.c, { t: 'crate', key: 'idem-key-chat1' });
   const k = a.last('chat');
   assert.equal(k.kind, 'knife');
-  assert.ok(k.text.startsWith('Bob opened the Glide Vault'));
+  assert.ok(k.text.startsWith('Bob opened the Surf Vault'));
 });
