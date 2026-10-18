@@ -8,7 +8,9 @@
   <link rel="stylesheet" href="style.css">
   <script>
     // Multiplayer server address. Empty = same origin (/ws). Override with ?server=wss://host/ws
-    window.GLIDEZONE_SERVER = window.GLIDEZONE_SERVER || '';
+    // Multiplayer server for the published build. Local development (localhost) uses the same origin.
+    window.GLIDEZONE_SERVER = window.GLIDEZONE_SERVER ||
+      (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? '' : 'wss://glidezone-rok.duckdns.org/ws');
   </script>
   <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
 </head>

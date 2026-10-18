@@ -8,13 +8,14 @@
     "build": "node tools/build.mjs",
     "dev": "node tools/build.mjs && node server/index.js",
     "start": "node server/index.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "package": "bash tools/package.sh"
   },
   "dependencies": {
-    "three": "0.170.0",
     "ws": "8.18.0"
   },
   "devDependencies": {
-    "esbuild": "0.24.0"
+    "esbuild": "0.24.0",
+    "three": "0.170.0"
   }
 }

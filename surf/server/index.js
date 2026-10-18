@@ -1,5 +1,6 @@
 // GLIDEZONE dedicated server: serves the built client (dist/) and hosts the multiplayer room
-// over WebSocket at /ws. Usage: PORT=8080 DATA_DIR=./data node server/index.js
+// over WebSocket at /ws. Usage: PORT=8081 HOST=127.0.0.1 DATA_DIR=./data node server/index.js
+// Behind a reverse proxy (Caddy) keep HOST=127.0.0.1 so the port is never exposed directly.
 
 import http from 'node:http';
 import fs from 'node:fs';
@@ -17,6 +18,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
 const PORT = Number(process.env.PORT || NET.defaultPort);
+const HOST = process.env.HOST || '127.0.0.1';
 const DATA = process.env.DATA_DIR || path.join(ROOT, 'data');
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
 
@@ -121,7 +123,7 @@ setInterval(() => {
   for (const r of practiceRooms) r.advance(now);
 }, 4);
 
-server.listen(PORT, () => {
-  console.log(`GLIDEZONE server on http://localhost:${PORT}  (ws path /ws, data ${DATA})`);
+server.listen(PORT, HOST, () => {
+  console.log(`GLIDEZONE server on http://${HOST}:${PORT}  (ws path /ws, data ${DATA})`);
   console.log(`CrazyGames leaderboard forwarding: ${crazyBoard.enabled ? 'on' : 'off (set CG_LEADERBOARD_API_KEY)'}`);
 });

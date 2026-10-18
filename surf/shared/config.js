@@ -32,7 +32,7 @@ export const PHYS = {
 };
 
 export const NET = {
-  defaultPort: 8080,
+  defaultPort: 8081,
   snapshotEveryTicks: 5,    // 20 Hz snapshots
   interpDelayTicks: 12,     // remote players are rendered 120 ms in the past
   maxCmdBudget: 25,         // anti speed-hack: commands are processed at most at tick rate

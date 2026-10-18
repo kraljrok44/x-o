@@ -61,7 +61,8 @@ Potrebuješ Node.js 20+.
 cd surf
 npm install
 npm run build      # zgradi klienta v dist/
-npm start          # strežnik + statične datoteke na http://localhost:8080
+npm start          # strežnik + statične datoteke na http://localhost:8081
+npm run package    # release/glidezone-crazygames.zip + release/glidezone-server.zip
 npm test           # 57 testov: fizika, mape (bot prevozi vse), krejti, glasovanje, soba
 ```
 
@@ -70,16 +71,16 @@ Brez strežnika (npr. ob odprtju `dist/index.html` ali če strežnik ni doseglji
 
 **CrazyGames lestvica:** CrazyGames dovoli eno lestvico na igro, funkcija je na voljo samo povabljenim igram. Ko dobiš API ključ, ga nastavi v `CG_LEADERBOARD_API_KEY`: strežnik bo skupne točke igralcev, prijavljenih s CrazyGames računom, sproti (v paketih do 100) pošiljal na strežniški API CrazyGames. Naslov endpointa lahko po potrebi spremeniš s `CG_LEADERBOARD_URL`. Lestvica v igri deluje tudi brez ključa.
 
-Spremenljivke strežnika: `PORT` (8080), `DATA_DIR` (./data – profili in rekordi), `ALLOWED_ORIGINS`
+Spremenljivke strežnika: `PORT` (8081), `HOST` (127.0.0.1 – za dostop iz omrežja nastavi `0.0.0.0`), `DATA_DIR` (./data – profili in rekordi), `ALLOWED_ORIGINS`
 (npr. `crazygames.com,crazygames.si` – omeji WebSocket povezave), `START_MAP`, `ROOM_NAME`.
 
 ## Objava na CrazyGames
 
-1. **Strežnik** postavi na gostovanje z WebSocket podporo (Fly.io, Render, Railway, VPS …):
-   `npm install --omit=dev && npm start`, z obstojnim diskom za `DATA_DIR`. Nastavi `ALLOWED_ORIGINS`.
-2. V `client/index.html` nastavi `window.GLIDEZONE_SERVER = 'wss://tvoj-streznik.example/ws'`.
-3. `npm run build` in zapakiraj vsebino mape `dist/` (index.html, game.js, style.css) v ZIP ter ga
-   naloži kot HTML5 igro.
+1. **Strežnik**: namestitev na obstoječi Oracle strežnik (poleg Fightstorma) je opisana v
+   [`deploy/NAVODILA.md`](deploy/NAVODILA.md) (`deploy/add-game.sh`, posodobitve z `deploy/update.sh`).
+2. Klient se poveže na `wss://glidezone-rok.duckdns.org/ws` (`client/index.html`; na localhost
+   uporabi isti strežnik, s katerega je naložen, `?server=` v URL-ju pa ga lahko zamenja).
+3. `npm run package` in naloži `release/glidezone-crazygames.zip` kot HTML5 igro.
 4. CrazyGames SDK v3 je že vključen (`index.html`). Uporablja se:
    - `ad.requestAd('rewarded')` – vsak krejt (če oglas ne uspe, se krejt ne odpre);
    - `ad.requestAd('midgame')` – samo ob naravnem premoru menjave mape, največ 1× na 3 minute;
