@@ -46,7 +46,7 @@ export class Room {
     // server-wide announcements (knife unlocks); default: only this room's chat
     this.onAnnounce = o.onAnnounce || ((text, kind) => this.chatSystem(text, kind));
     this.maxPlayers = o.maxPlayers || NET.maxPlayersPerRoom;
-    this.name = o.name || 'GLIDEZONE #1';
+    this.name = o.name || 'FPS Surf #1';
     this.clients = new Map();
     this.nextId = 1;
     this.tickNo = 0;
@@ -276,7 +276,7 @@ export class Room {
     this.send(c, { t: 'crate', key: msg.key, ...res });
     if (res.status === CRATE_STATUS.SUCCESS && !res.replay) {
       const col = getCollectible(res.collectible_id);
-      this.onAnnounce(`${c.name} opened the Glide Vault and unlocked ${col ? col.display_name : 'a knife'}!`, 'knife');
+      this.onAnnounce(`${c.name} opened the Surf Vault and unlocked ${col ? col.display_name : 'a knife'}!`, 'knife');
     }
   }
 

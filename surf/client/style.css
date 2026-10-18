@@ -77,6 +77,9 @@ select option { background: var(--panel-solid); }
 .ctp-box { text-align: center; background: var(--panel); border: 1px solid var(--line); padding: 24px 32px; border-radius: 18px; max-width: 560px; }
 .ctp-title { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
 .tut-box { max-width: 640px; text-align: left; }
+.sens-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; font-weight: 600; }
+.sens-row input { flex: 1; accent-color: var(--a1, #00e5ff); }
+.sens-row b { font: 700 13px var(--mono); min-width: 38px; text-align: right; }
 .tutorial { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); width: min(420px, 40vw); pointer-events: none; background: rgba(10,12,24,.82); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; transition: opacity .6s; }
 .tutorial.fade { opacity: 0; }
 .tutorial .ctp-title { font-size: 20px; margin-bottom: 4px; }
@@ -314,3 +317,35 @@ body.touch .hud-feed { top: 66px !important; }
 .chat-row { display: flex; gap: 6px; margin-top: 6px; }
 .chat-row input { flex: 1; padding: 7px 10px; font-size: 14px; background: rgba(6,8,14,.75); }
 .chat-off { color: var(--dim); font-size: 11px; opacity: .6; padding: 2px 6px; }
+
+/* ---------- short screens (phones in landscape): everything fits and scrolls ---------- */
+@media (max-height: 560px) {
+  .panel { height: 96vh; width: 96vw; padding: 10px 14px; overflow-y: auto; border-radius: 14px; }
+  .panel-head { margin-bottom: 8px; }
+  .panel-title { font-size: 19px; }
+  .panels { align-items: center; }
+  .btn.big { padding: 9px 14px; font-size: 15px; }
+  .pause-box { width: min(520px, 94vw); max-height: 94vh; overflow-y: auto; padding: 12px 16px; gap: 7px; }
+  .pause-box .logo.small { font-size: 26px; }
+  .logo.small { font-size: 26px; }
+  .vault { flex-direction: row !important; }
+  .vault-panel { width: 300px !important; max-height: none !important; border-left: 1px solid var(--line) !important; border-top: none !important; padding: 12px; font-size: 13px; gap: 6px; }
+  .vault-title { font-size: 18px; }
+  .vault-models { display: none; }
+  .lb-layout { grid-template-columns: 1fr; gap: 8px; }
+  .lb-boards { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; }
+  .lb-board { flex: none; white-space: nowrap; }
+  .lb-main { min-height: 220px; }
+  .inv-tools { flex-wrap: wrap; gap: 6px; }
+  .inv-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); min-height: 200px; }
+  .map-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); overflow: visible; }
+  .map-card { flex: none; }
+  .set-row { padding: 6px 0; font-size: 13px; }
+  .menu-inner { max-height: 96vh; overflow-y: auto; }
+  .menu-grid { grid-template-columns: 300px 1fr; gap: 16px; }
+  .logo { font-size: 40px; }
+  .viewer-box { height: 92vh; width: 96vw; }
+  .viewer-side { width: 240px; padding: 12px; font-size: 13px; }
+  .sb-body { grid-template-columns: 1fr; }
+  .ctp-box { padding: 14px 18px; }
+}

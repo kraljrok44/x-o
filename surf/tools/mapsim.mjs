@@ -13,6 +13,7 @@ const SPECS = {
   speed: [{ heading: 0, ramps: [R(2600, {}), R(2600, { speedcheck: { min: 1100 } }), R(3000, {}), R(2600, {})] }],
   window: [{ heading: 0, ramps: [R(2600, { window: {} }), R(3000, {}), R(2600, {})] }],
   corridor: [{ heading: 0, ramps: [R(2600, {}), R(3000, { sides: 'left', w: 320, corridor: {} }), R(2600, {})] }],
+  cave: [{ heading: 0, cave: true, ramps: [R(2600, {}), R(2600, { turn: 40 }), R(3000, { turn: -40, jump: { pads: 2 } }), R(2600, {})] }],
   drop: [{ heading: 0, ramps: [R(2600, { drop: 1100, gap: 260 }), R(4200, { d: 700 }), R(2600, {})] }],
 };
 

@@ -189,6 +189,16 @@ function closePanels() {
 
 document.addEventListener('gz-close-panels', () => { audio.play('click'); closePanels(); });
 
+// mouse / touch sensitivity right in the main and pause menus
+function sensRow() {
+  return `<label class="sens-row"><span>${t('sens')}</span><input type="range" class="sens-input" min="0.2" max="6" step="0.05" value="${settings.sensitivity}"><b class="sens-val">${(+settings.sensitivity).toFixed(2)}</b></label>`;
+}
+function bindSens(root) {
+  root.querySelectorAll('.sens-input').forEach((el) => {
+    el.oninput = () => { saveSettings({ sensitivity: +el.value }); const v = el.parentElement.querySelector('.sens-val'); if (v) v.textContent = (+el.value).toFixed(2); };
+  });
+}
+
 // ------------------------------------------------------------------ main menu
 function renderMenu() {
   const h = app.health;
@@ -198,7 +208,7 @@ function renderMenu() {
   const cgName = sdk.user && sdk.user.username;
   html('#menu', `
     <div class="menu-inner">
-      <div class="logo"><span>GLIDE</span>ZONE</div>
+      <div class="logo"><span>FPS</span> SURF</div>
       <div class="tagline">${t('tagline')}</div>
       <div class="menu-grid">
         <div class="menu-col">
@@ -219,6 +229,7 @@ function renderMenu() {
             <input id="m-name" maxlength="${GAME.maxNameLength}" value="${esc(cgName || settings.name)}" ${cgName ? 'disabled' : ''} placeholder="Surfer">
           </label>
           ${sdk.available && !cgName ? `<button class="btn ghost small" id="m-login">${t('login')}</button>` : ''}
+          ${sensRow()}
           <div class="status">${status}</div>
           <div class="status"><span class="chat-rank">${rankFor(levelFor(account.xp)).short}</span> ${t('level')} ${levelFor(account.xp)} · ${account.xp.toLocaleString()} XP</div>
           <p class="howto">${t('howTo')}</p>
@@ -236,6 +247,7 @@ function renderMenu() {
   bind('m-settings', () => openPanel('settings'));
   bind('m-lb', () => openPanel('leaderboard'));
   bind('m-login', async () => { await sdk.showAuthPrompt(); account.closeMenuConn(); account.refresh(); renderMenu(); });
+  bindSens($('#menu'));
   const nameEl = $('#m-name');
   if (nameEl) nameEl.onchange = () => { saveSettings({ name: nameEl.value.trim().slice(0, GAME.maxNameLength) }); account.closeMenuConn(); }; // reconnect with the new name
 }
@@ -381,7 +393,7 @@ function showPause(on) {
   const v = game.vote;
   const practice = app.playMode === 'practice';
   html('#pause', `<div class="pause-box">
-    <div class="logo small"><span>GLIDE</span>ZONE</div>
+    <div class="logo small"><span>FPS</span> SURF</div>
     <div class="dim">${esc(game.map ? game.map.display_name : '')} · ${esc(game.room || '')}</div>
     <button class="btn primary big" id="p-resume">${t('resume')}</button>
     ${practice ? `<button class="btn" id="p-maps">${t('choose')}</button>` : `
@@ -389,8 +401,10 @@ function showPause(on) {
       ${game.voting !== false ? `<button class="btn" id="p-rtv" ${v && v.state !== 'playing' ? 'disabled' : ''}>${t('rtv')} ${v && v.rtv ? `(${v.rtv}/${v.needed})` : ''}</button>` : ''}`}
     <div class="row"><button class="btn" id="p-vault">🔓 ${t('vault')}</button><button class="btn" id="p-inv">${t('inventory')}</button></div>
     <div class="row"><button class="btn" id="p-lb">🏆 ${t('leaderboard')}</button><button class="btn ghost" id="p-settings">⚙ ${t('settings')}</button></div>
+    ${sensRow()}
     <button class="btn ghost" id="p-leave">${t('leave')}</button>
   </div>`);
+  bindSens($('#pause'));
   const bind = (id, f) => { const b = $('#' + id); if (b) b.onclick = () => { audio.play('click'); f(); }; };
   bind('p-resume', () => { show('#pause', false); game.input.lock(); sdk.gameplayStart(); });
   bind('p-spec', () => { game.setSpectate(!game.spectator); show('#pause', false); game.input.lock(); });
@@ -491,7 +505,7 @@ async function boot() {
     if (changed && app.state === 'menu' && !app.panel) renderMenu();
   }, 15000);
   window.addEventListener('gz-auth', () => { account.closeMenuConn(); account.refresh(); renderMenu(); });
-  window.gz = { game, app, account, openPanel }; // handy for debugging / automated tests
+  window.gz = { game, app, account, openPanel, showPause }; // handy for debugging / automated tests
   window.gzVault = vault;
 }
 

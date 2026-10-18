@@ -36,7 +36,7 @@ const practiceRooms = new Set();
 function newPublicRoom() {
   const r = new Room({
     store, auth: authenticate, log, onPoints, onAnnounce,
-    name: `${process.env.ROOM_NAME || 'GLIDEZONE'} #${publicRooms.length + 1}`,
+    name: `${process.env.ROOM_NAME || 'FPS Surf'} #${publicRooms.length + 1}`,
     startMap: process.env.START_MAP || MAP_LIST[0].id,
   });
   publicRooms.push(r);

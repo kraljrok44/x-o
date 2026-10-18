@@ -87,6 +87,7 @@ function buildSurfaces(map, theme) {
         if (b.mat === 'pad') col.set(theme.accent).multiplyScalar(0.6);
         else if (b.mat === 'glass') col.set(theme.edge);
         else if (b.mat === 'window') col.set(theme.accent);
+        else if (b.mat === 'rock') col.set(theme.wall).lerp(new THREE.Color(theme.platform), 0.4).multiplyScalar(0.75);
         else col.set(theme[b.mat] || theme.platform);
         col.offsetHSL(0, 0, n.z > 0.7 ? 0.1 : 0.05);
       }
@@ -215,6 +216,38 @@ function buildMarkers(map, theme) {
     m.rotation.order = 'ZXY';
     m.rotation.set(Math.PI / 2, 0, Math.atan2(dy, dx) + Math.PI / 2);
     out.push(m);
+  }
+  // caves: stalactites hanging from the ceiling and glowing crystals on the walls (two instanced draws)
+  const caves = map.caves || [];
+  if (caves.length) {
+    const rnd = rng32(hashString(map.id + 'cave'));
+    const spikes = [], gems = [];
+    for (const cv of caves) {
+      for (let i = 0; i < cv.pts.length - 1; i++) {
+        const A = cv.pts[i], B = cv.pts[i + 1];
+        const dx = B[0] - A[0], dy = B[1] - A[1], l = Math.hypot(dx, dy), lx = -dy / l, ly = dx / l;
+        const n = Math.max(1, Math.round(l / 260));
+        for (let j = 0; j < n; j++) {
+          const f = (j + rnd()) / n;
+          const x = A[0] + dx * f, y = A[1] + dy * f, z = A[2] + (B[2] - A[2]) * f;
+          const lat = cv.lo + (cv.hi - cv.lo) * rnd();
+          spikes.push([x + lx * lat, y + ly * lat, z + cv.ch, 60 + rnd() * 90, 160 + rnd() * 360]);
+          if (rnd() < 0.55) {
+            const side = rnd() < 0.5 ? cv.lo : cv.hi;
+            gems.push([x + lx * side, y + ly * side, z - cv.d * rnd() * 0.6 + 120, 30 + rnd() * 50, rnd() * 6.28]);
+          }
+        }
+      }
+    }
+    const dummy = new THREE.Object3D();
+    const spikeMesh = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 6), new THREE.MeshStandardMaterial({ color: new THREE.Color(theme.wall).lerp(new THREE.Color(theme.ramp[0]), 0.25), roughness: 0.95, flatShading: true }), spikes.length);
+    spikes.forEach(([x, y, z, r, h], i) => { dummy.position.set(x, y, z - h / 2); dummy.rotation.set(-Math.PI / 2, 0, 0); dummy.scale.set(r, h, r); dummy.updateMatrix(); spikeMesh.setMatrixAt(i, dummy.matrix); });
+    out.push(spikeMesh);
+    if (gems.length) {
+      const gemMesh = new THREE.InstancedMesh(new THREE.OctahedronGeometry(1, 0), new THREE.MeshBasicMaterial({ color: new THREE.Color(theme.accent).multiplyScalar(1.5), toneMapped: false }), gems.length);
+      gems.forEach(([x, y, z, s, a], i) => { dummy.position.set(x, y, z); dummy.rotation.set(a, a * 0.7, 0); dummy.scale.set(s * 0.6, s * 0.6, s * 1.4); dummy.updateMatrix(); gemMesh.setMatrixAt(i, dummy.matrix); });
+      out.push(gemMesh);
+    }
   }
   return out;
 }
@@ -371,7 +404,7 @@ export function buildWorld(map, opts = {}) {
     }
     const mat = new THREE.MeshStandardMaterial({
       map: albedo, vertexColors: true,
-      roughness: name === 'ramp' ? 0.42 : 0.8, metalness: name === 'ramp' ? 0.2 : 0.05,
+      roughness: name === 'ramp' ? 0.42 : name === 'rock' ? 0.95 : 0.8, metalness: name === 'ramp' ? 0.2 : 0.05,
       envMapIntensity: name === 'ramp' ? 0.45 : 0.2,
       emissive: name === 'window' ? new THREE.Color(theme.accent) : emiss ? new THREE.Color(theme.edge) : new THREE.Color(0x000000),
       emissiveMap: name === 'window' ? null : emiss, emissiveIntensity: name === 'window' ? 0.6 : emiss ? 0.35 : 0,

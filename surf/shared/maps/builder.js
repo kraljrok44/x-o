@@ -19,6 +19,7 @@ export class MapBuilder {
     this.signs = [];        // speed check gates
     this.windows = [];      // window frames (renderer glow)
     this.hazards = [];      // speed check kill zones (renderer)
+    this.caves = [];        // cave tunnels (renderer decor)
     this.curStage = 0;
   }
 
@@ -61,12 +62,37 @@ export class MapBuilder {
       signs: this.signs,
       windows: this.windows,
       hazards: this.hazards,
+      caves: this.caves,
       killZ: minZ - 3000,
     };
   }
 }
 
 const dirOf = (h) => ({ x: Math.cos(h), y: Math.sin(h) });
+
+/**
+ * Cave: a rock tunnel around a ramp (high ceiling, walls beyond the slopes). Gives a section a
+ * closed-in feel without making it tighter to ride; the renderer adds stalactites and crystals.
+ */
+function buildCave(b, pts, w, d, sides, opt, stage) {
+  const ch = opt.h ?? 950, th = 140, ext = 30, m = opt.margin ?? 320;
+  const lo = sides === 'right' ? -(w + m) : sides === 'left' ? -260 : -(w + m);
+  const hi = sides === 'left' ? w + m : sides === 'right' ? 260 : w + m;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const A = pts[i], B = pts[i + 1];
+    const dx = B[0] - A[0], dy = B[1] - A[1], l = Math.hypot(dx, dy);
+    const ux = dx / l, uy = dy / l, lx = -uy, ly = ux;
+    const a = [A[0] - ux * ext, A[1] - uy * ext, A[2] + (B[2] - A[2]) * (-ext / l)];
+    const c = [B[0] + ux * ext, B[1] + uy * ext, B[2] + (B[2] - A[2]) * (ext / l)];
+    const quad = (P, l0, l1, z0, z1) => [[P[0] + lx * l0, P[1] + ly * l0, P[2] + z0], [P[0] + lx * l1, P[1] + ly * l1, P[2] + z0], [P[0] + lx * l1, P[1] + ly * l1, P[2] + z1], [P[0] + lx * l0, P[1] + ly * l0, P[2] + z1]];
+    b._add([
+      prismBrush(quad(a, lo - th, hi + th, ch, ch + th), quad(c, lo - th, hi + th, ch, ch + th), 'rock'),
+      prismBrush(quad(a, lo - th, lo, -d - 500, ch), quad(c, lo - th, lo, -d - 500, ch), 'rock'),
+      prismBrush(quad(a, hi, hi + th, -d - 500, ch), quad(c, hi, hi + th, -d - 500, ch), 'rock'),
+    ]);
+  }
+  b.caves.push({ stage, pts, lo, hi, ch, d });
+}
 
 /**
  * Tight corridor over a one-sided ramp: a glass ceiling close above the ridge line (no room to
@@ -150,6 +176,7 @@ export function buildStage(b, k, spec, isLast, nextSpawnRef, continuous = false)
     b.ramp(pts, { w: wA, d: dA, sides, mat: r.mat || 'ramp' });
     for (const pt of pts) { grow(pt[0], pt[1]); minZ = Math.min(minZ, pt[2] - dA); }
     if (r.corridor) buildCorridor(b, pts, wA, dA, sides, r.corridor);
+    if (r.cave || spec.cave) buildCave(b, pts, wA, dA, sides, typeof r.cave === 'object' ? r.cave : {}, k);
     lastEnd = { ...q };
     const Dn = dirOf(h), Ln = leftOf(h);
     const nx = spec.ramps[ri + 1];
