@@ -4,15 +4,20 @@ V `FPS-Surf-objava.zip` so štiri stvari:
 
 | Datoteka | Za kaj |
 |---|---|
-| `crazygames/glidezone-crazygames.zip` | Igra za CrazyGames: en sam `index.html` (vse je v njem) |
+| `crazygames/fps-surf-crazygames.zip` | Igra za CrazyGames: en sam `index.html` (vse je v njem) |
 | `crazygames/media/` | 3 naslovnice in 2 videa za obrazec CrazyGames |
 | `server/glidezone-server.zip` | Nova različica strežnika za tvoj Oracle |
 | `OBJAVA.md` | Ta navodila |
 
 ## 1. Najprej posodobi strežnik (Oracle)
 
-Strežnik **moraš** posodobiti, ker so nove mape, XP, duh rekorda in nova lestvica. Brez tega
-se igra na CrazyGames poveže na staro različico.
+Strežnik **moraš** posodobiti, ker so nove mape, XP, duh rekorda in nova lestvica.
+
+> **Zakaj so bloki izginjali in si padal skozi rampe:** igra je risala nove mape, strežnik pa
+> je fiziko še računal po starih. Ko si zapeljal na rampo, ki je strežnik ni poznal, te je
+> potegnil dol skozi njo. Igra zdaj ob povezavi primerja geometrijo map s strežnikom. Če se ne
+> ujema, se sama preklopi na igro brez povezave in izpiše »Strežnik se posodablja«. Ko je
+> strežnik posodobljen, igra spet teče online.
 
 V PowerShellu (mapa Downloads, kjer je ključ in razpakiran `server/glidezone-server.zip`):
 
@@ -33,8 +38,10 @@ Na koncu se mora izpisati **SUCCESS**. Preveri še:
 
 ```bash
 systemctl is-active fightstorm glidezone          # oba: active
-curl -s https://glidezone-rok.duckdns.org/health   # JSON z mapo "surf_aurora_dawn"
+curl -s https://glidezone-rok.duckdns.org/health   # JSON mora vsebovati polje "mh"
 ```
+
+Če v odgovoru ni polja `"mh"`, na strežniku še teče stara različica.
 
 - Fightstorm, Caddy in DuckDNS ostanejo nespremenjeni, posodobi se samo igra (storitev se še
   naprej imenuje `glidezone`, domena ostane `glidezone-rok.duckdns.org`).
@@ -47,7 +54,7 @@ curl -s https://glidezone-rok.duckdns.org/health   # JSON z mapo "surf_aurora_da
 ## 2. Naloži igro na CrazyGames
 
 1. developer.crazygames.com, nato **Submit a game**, nato **HTML5**.
-2. Naloži `crazygames/glidezone-crazygames.zip`. V njem je samo `index.html`, vsa igra je
+2. Naloži `crazygames/fps-surf-crazygames.zip`. V njem je samo `index.html`, vsa igra je
    v tej datoteki.
 3. Obrazec:
    - **Game name:** `FPS Surf` (tako se igra zdaj imenuje v igri)
@@ -66,6 +73,7 @@ curl -s https://glidezone-rok.duckdns.org/health   # JSON z mapo "surf_aurora_da
 
 ## Kaj je novo v tej različici
 
+- **Popravek padanja skozi rampe:** igra se ne poveže več na strežnik z drugačnimi mapami.
 - **Novo ime: FPS Surf.**
 - **Jame** (kot pri mesa-tipu map) v petih mapah: kamnit tunel s stalaktiti in svetlečimi kristali.
 - **Občutljivost miške** je zdaj nastavljiva neposredno v glavnem meniju in v meniju pavze.

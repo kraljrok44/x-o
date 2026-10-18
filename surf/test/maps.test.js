@@ -141,3 +141,13 @@ test('speed checks stop riders below the minimum and let faster ones through', (
     }
   }
 });
+
+test('geometry hash identifies each map build', async () => {
+  const { MAP_LIST, getMap, geometryHash } = await import('../shared/maps/index.js');
+  const hashes = MAP_LIST.map((m) => getMap(m.id).hash);
+  assert.equal(new Set(hashes).size, hashes.length);
+  const m = getMap(MAP_LIST[0].id);
+  assert.equal(geometryHash(m), m.hash);
+  const moved = { ...m, brushes: m.brushes.map((b, i) => (i === 3 ? { ...b, verts: b.verts.map((v) => ({ ...v, z: v.z + 40 })) } : b)) };
+  assert.notEqual(geometryHash(moved), m.hash);
+});

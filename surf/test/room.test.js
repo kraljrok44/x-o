@@ -32,6 +32,7 @@ test('clients join, receive welcome and snapshots; spectators are not simulated'
   const a = mk('Alice'), b = mk('Bob', true);
   await flush();
   assert.equal(a.last('welcome').map, room.map.id);
+  assert.equal(a.last('welcome').mh, room.map.hash); // client refuses servers with other geometry
   assert.equal(b.last('welcome').spectator, true);
   room.handleMessage(a.c, { t: 'cmds', c: [[1, 1, 0, 0, 0, 0], [2, 1, 0, 0, 0, 0]] });
   for (let i = 0; i < 10; i++) room.tick();

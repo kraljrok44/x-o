@@ -188,7 +188,7 @@ export class Room {
     return {
       t: 'welcome', id: c.id, room: this.name, tick: this.tickNo, tickRate: PHYS.tickRate,
       physics: PHYSICS_VERSION, catalog: CATALOG_VERSION,
-      map: this.map.id, maps: this.mapIds, timeLeft: Math.max(0, this.vote.mapEndsAt - now), voting: this.voting,
+      map: this.map.id, mh: this.map.hash, maps: this.mapIds, timeLeft: Math.max(0, this.vote.mapEndsAt - now), voting: this.voting,
       roster: [...this.clients.values()].filter((o) => o.ready).map((o) => this.rosterEntry(o)),
       inventory: { owned: c.profile.owned, equipped: c.profile.equipped, total: CATALOG_TOTAL, xp: c.profile.xp || 0, freeCrates: c.profile.freeCrates || 0 },
       vote: this._voteState(now),
@@ -304,7 +304,7 @@ export class Room {
           for (const c of this.clients.values()) {
             if (!c.ready) continue;
             c.profile = this.store.load(c.key) || c.profile;
-            this.send(c, { t: 'map', map: this.map.id, timeLeft: a.mapEndsAt - now, me: copyState(c.ps), records: this.records.slice(0, 10).map((r) => ({ name: r.name, ticks: r.ticks })) });
+            this.send(c, { t: 'map', map: this.map.id, mh: this.map.hash, timeLeft: a.mapEndsAt - now, me: copyState(c.ps), records: this.records.slice(0, 10).map((r) => ({ name: r.name, ticks: r.ticks })) });
             this.send(c, this.ghost ? { t: 'ghost', map: this.map.id, ...this.ghost } : { t: 'ghost', map: this.map.id, frames: null });
           }
           this.broadcast({ t: 'roster', roster: [...this.clients.values()].filter((o) => o.ready).map((o) => this.rosterEntry(o)) });

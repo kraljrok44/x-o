@@ -337,9 +337,23 @@ async function startGame(mode, spectate, mapId, booting = false) {
   app.playMode = mode;
   app.state = 'game';
   const hello = { ...(await helloBase()), spectate, mode, map: mapId };
-  const welcomed = new Promise((res) => { const off = game.on('welcome', () => { off(); res(); }); });
-  game.connect(tr, hello);
-  await Promise.race([welcomed, new Promise((r) => setTimeout(r, 6000))]);
+  const join = (transport) => {
+    const done = new Promise((res) => {
+      const offs = [game.on('welcome', () => fin('ok')), game.on('mismatch', () => fin('mismatch'))];
+      function fin(r) { offs.forEach((o) => o()); res(r); }
+    });
+    game.connect(transport, hello);
+    return Promise.race([done, new Promise((r) => setTimeout(() => r('timeout'), 6000))]);
+  };
+  app.starting = true;
+  if ((await join(tr)) === 'mismatch') {
+    // the server still runs other map geometry (not updated yet): play the correct maps offline
+    app.online = false;
+    app.outdated = true;
+    await join(await new LocalTransport({ voting: mode === 'public', map: mapId }).open());
+  }
+  app.starting = false;
+  if (app.outdated) hud.feed(t('serverOutdated'), 'record');
   sdk.loadingStop();
   show('#loading', false);
   show('#menu', false);
@@ -442,6 +456,13 @@ game.on('disconnected', () => {
   hud.feed('Connection lost', 'record');
   setTimeout(() => leaveGame(), 1200);
 });
+game.on('mismatch', () => {
+  // map changed mid-session to geometry this client does not have: continue offline
+  if (app.state !== 'game' || app.starting) return;
+  app.online = false;
+  app.outdated = true;
+  startGame(app.playMode || 'public', false);
+});
 game.on('servermsg', (m) => {
   if (m.t === 'full') hud.feed('Server is full', 'record');
   if (m.t === 'kicked') { hud.feed(m.text || 'Disconnected', 'record'); setTimeout(() => leaveGame(), 1500); }
@@ -500,8 +521,9 @@ async function boot() {
   setInterval(async () => {
     if (app.state !== 'menu' || !app.serverUrl) return;
     const h = await probeServer(app.serverUrl);
-    const changed = !!h !== app.online || (h && app.health && h.players !== app.health.players);
-    app.online = !!h; app.health = h;
+    const up = !!h && !app.outdated; // an outdated server stays unused for this session
+    const changed = up !== app.online || (h && app.health && h.players !== app.health.players);
+    app.online = up; app.health = h;
     if (changed && app.state === 'menu' && !app.panel) renderMenu();
   }, 15000);
   window.addEventListener('gz-auth', () => { account.closeMenuConn(); account.refresh(); renderMenu(); });

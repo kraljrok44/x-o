@@ -262,8 +262,9 @@ export class Game extends Emitter {
   _onMessage(m) {
     switch (m.t) {
       case 'welcome':
-        this.myId = m.id;
         this.loadMap(m.map);
+        if (this._mapMismatch(m)) return;
+        this.myId = m.id;
         this.ps = m.me;
         this.prevPs = copyState(m.me);
         this.viewTp = m.me.tpSeq;
@@ -312,6 +313,7 @@ export class Game extends Emitter {
         break;
       case 'map':
         this.loadMap(m.map);
+        if (this._mapMismatch(m)) return;
         this.ps = m.me;
         this.prevPs = copyState(m.me);
         this.pending.length = 0;
@@ -381,6 +383,19 @@ export class Game extends Emitter {
       default:
         break;
     }
+  }
+
+  // A server with different map geometry would keep pulling the player through ramps that it
+  // does not have (old server build): stop using it, main.js falls back to offline play.
+  _mapMismatch(m) {
+    if (m.mh === this.map.hash) return false;
+    console.warn('[FPS Surf] server map differs', m.map, m.mh, 'client', this.map.hash);
+    const net = this.net;
+    this.net = null;
+    this.mode = 'none';
+    if (net) { net.onclose = () => {}; try { net.close(); } catch (e) { /* */ } }
+    this.emit('mismatch', m);
+    return true;
   }
 
   myName() { const me = this.roster && this.roster.get(this.myId); return me ? me.name : ''; }

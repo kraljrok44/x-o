@@ -58,7 +58,7 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/health') {
     res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*' });
     res.end(JSON.stringify({
-      ok: true, players: publicRooms.reduce((n, r) => n + r.playerCount(), 0), map: room.map.id,
+      ok: true, players: publicRooms.reduce((n, r) => n + r.playerCount(), 0), map: room.map.id, mh: room.map.hash,
       rooms: publicRooms.map((r) => ({ name: r.name, players: r.playerCount(), map: r.map.id })), practice: practiceRooms.size,
     }));
     return;

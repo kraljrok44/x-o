@@ -201,8 +201,28 @@ export function getMap(id) {
   };
   const specs = def.stages.map((s, k) => ({ ...s, origin: [0, k * ST, 0] }));
   const map = buildLinearMap(meta, specs, def.layout === 'linear');
+  map.hash = geometryHash(map);
   cache.set(id, map);
   return map;
+}
+
+/**
+ * Fingerprint of everything the physics touches (brushes + triggers). Client and server compare
+ * it on connect: a server running other geometry would pull the player through ramps that only
+ * exist on one side, so the client refuses to play against it.
+ */
+export function geometryHash(map) {
+  let h = 0x811c9dc5;
+  const mix = (n) => { h = Math.imul(h ^ (n | 0), 0x01000193) >>> 0; };
+  for (const b of map.brushes) {
+    for (const v of b.verts) { mix(Math.round(v.x * 8)); mix(Math.round(v.y * 8)); mix(Math.round(v.z * 8)); }
+    mix(b.verts.length);
+  }
+  for (const t of map.triggers) {
+    for (const k of ['c', 'h']) if (Array.isArray(t[k])) for (const n of t[k]) mix(Math.round(n * 8));
+    mix(Math.round((t.yaw || 0) * 1000)); mix(t.type.length);
+  }
+  return h.toString(36);
 }
 
 export function isMapId(id) {
