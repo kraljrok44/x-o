@@ -5,6 +5,12 @@
 
 import { audio } from './audio.js';
 
+// Build switch (tools/build.mjs --ads): CrazyGames "Basic" launches must not show ads, so the basic
+// build grants crate rewards without an ad and never requests midgame ads. The "Full" build plays
+// real ads and only rewards a fully watched video.
+export const ADS_ENABLED = typeof __ADS__ !== 'undefined' ? __ADS__ : true;
+const LOCAL_DEV = typeof location !== 'undefined' && (location.protocol === 'file:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname));
+
 class SDKWrapper {
   constructor() {
     this.cg = null;
@@ -53,12 +59,18 @@ class SDKWrapper {
     return this.user;
   }
 
-  /** Resolves 'ok' when the ad finished, 'error' otherwise. */
+  /** Resolves 'ok' when the ad finished (reward may be granted), 'error' otherwise. */
   requestAd(type) {
+    // basic build: no ads at all; a rewarded action is granted directly
+    if (!ADS_ENABLED) return Promise.resolve(type === 'rewarded' ? 'ok' : 'error');
     if (this.adPlaying) return Promise.resolve('error');
     this.adPlaying = true;
     const done = (r) => { this.adPlaying = false; audio.mute(false); return r; };
-    if (!this.cg) return simulatedAd(type).then(done);
+    if (!this.cg) {
+      // the simulated ad exists only for local development; a blocked SDK on a portal = no reward
+      if (LOCAL_DEV) return simulatedAd(type).then(done);
+      return Promise.resolve(done('error'));
+    }
     return new Promise((resolve) => {
       try {
         this.cg.ad.requestAd(type, {

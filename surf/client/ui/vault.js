@@ -8,7 +8,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { $, esc, html, show, randomHex } from './dom.js';
 import { stage3d } from './stage3d.js';
 import { t } from '../i18n.js';
-import { sdk } from '../sdk.js';
+import { sdk, ADS_ENABLED } from '../sdk.js';
 import { audio } from '../audio.js';
 import { settings } from '../settings.js';
 import { buildCollectible, disposeObject } from '../render/skins.js';
@@ -258,7 +258,7 @@ export class Vault {
         <button class="btn" id="v-inv">${t('toInventory')}</button>`;
     } else {
       const busy = this.state === 'ad' || this.state === 'request' || this.state === 'opening';
-      body = `<button class="btn primary big" id="v-open" ${busy ? 'disabled' : ''}><span class="ad-badge">▶ AD</span> ${busy ? '…' : t('openCrate')}</button>
+      body = `<button class="btn primary big" id="v-open" ${busy ? 'disabled' : ''}>${ADS_ENABLED ? '<span class="ad-badge">▶ AD</span> ' : ''}${busy ? '…' : t(ADS_ENABLED ? 'openCrate' : 'openFree')}</button>
         <div class="msg" id="v-msg">${this.msg ? esc(this.msg) : ''}</div>
         <button class="btn ghost" id="v-inv">${t('toInventory')}</button>`;
     }

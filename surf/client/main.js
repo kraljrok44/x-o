@@ -9,7 +9,7 @@ import { Leaderboard } from './ui/leaderboard.js';
 import { Chat } from './ui/chat.js';
 import { $, $$, esc, html, show } from './ui/dom.js';
 import { t, lang } from './i18n.js';
-import { sdk } from './sdk.js';
+import { sdk, ADS_ENABLED } from './sdk.js';
 import { audio } from './audio.js';
 import { settings, saveSettings, guestToken, DEFAULTS } from './settings.js';
 import { WsTransport, LocalTransport, defaultServerUrl, probeServer } from './net.js';
@@ -406,7 +406,7 @@ game.on('servermsg', (m) => {
 game.on('vote', () => { if (!$('#pause').classList.contains('hidden')) showPause(true); });
 game.on('mapchange', () => {
   // natural break between maps: the only place a midgame ad is requested (capped to 1 per 3 min)
-  if (performance.now() - app.lastMidAd > 180000 && sdk.available) {
+  if (ADS_ENABLED && performance.now() - app.lastMidAd > 180000 && sdk.available) {
     app.lastMidAd = performance.now();
     game.input.unlock();
     sdk.requestAd('midgame');
