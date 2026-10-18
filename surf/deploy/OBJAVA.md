@@ -1,4 +1,4 @@
-# GLIDEZONE: končna objava
+# FPS Surf: končna objava
 
 V `GLIDEZONE-objava.zip` so štiri stvari:
 
@@ -36,7 +36,8 @@ systemctl is-active fightstorm glidezone          # oba: active
 curl -s https://glidezone-rok.duckdns.org/health   # JSON z mapo "surf_aurora_dawn"
 ```
 
-- Fightstorm, Caddy in DuckDNS ostanejo nespremenjeni, posodobi se samo GLIDEZONE.
+- Fightstorm, Caddy in DuckDNS ostanejo nespremenjeni, posodobi se samo igra (storitev se še
+  naprej imenuje `glidezone`, domena ostane `glidezone-rok.duckdns.org`).
 - **Noži, inventar in XP igralcev ostanejo.**
 - **Rekordi in lestvica se začnejo na novo**, ker so mape nove in stari časi niso več
   primerljivi. Stari podatki ostanejo na disku, igra jih samo ne prikazuje več.
@@ -49,7 +50,7 @@ curl -s https://glidezone-rok.duckdns.org/health   # JSON z mapo "surf_aurora_da
 2. Naloži `crazygames/glidezone-crazygames.zip`. V njem je samo `index.html`, vsa igra je
    v tej datoteki.
 3. Obrazec:
-   - **Game name:** `GLIDEZONE`
+   - **Game name:** `FPS Surf` (tako se igra zdaj imenuje v igri)
    - **Game engine:** HTML5
    - **Save progress:** *Yes, linked to a game account on the game's backend…*
    - ☑ **The game supports mobile devices**. Zdaj podpira telefon: leva četrtina zaslona je
@@ -64,6 +65,12 @@ curl -s https://glidezone-rok.duckdns.org/health   # JSON z mapo "surf_aurora_da
    v Full launchu samo po ogledanem oglasu.
 
 ## Kaj je novo v tej različici
+
+- **Novo ime: FPS Surf.**
+- **Jame** (kot pri mesa-tipu map) v petih mapah: kamnit tunel s stalaktiti in svetlečimi kristali.
+- **Občutljivost miške** je zdaj nastavljiva neposredno v glavnem meniju in v meniju pavze.
+- **Telefon v ležečem položaju:** vsi meniji in paneli so prilagojeni nizkemu zaslonu.
+- **Skyforge Gauntlet (T3)** je spet daljši, približno 3:40.
 
 - **Mape do Tier 3**, tier je v imenu, npr. *Aurora Dawn (T1)*. Novi elementi: 90° obrati
   z obvezno menjavo strani, enostranske rampe, speed checki (tabla in HUD kažeta zahtevano
