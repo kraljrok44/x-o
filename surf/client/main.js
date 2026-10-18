@@ -299,7 +299,6 @@ function renderSettings() {
         ${slider('master', t('master'), 0, 1, 0.05)}
         ${slider('sfx', t('sfx'), 0, 1, 0.05)}
         ${slider('ui', t('uiVol'), 0, 1, 0.05)}
-        ${toggle('bloom', t('bloom'))}
         ${toggle('viewBob', t('viewBob'))}
         ${toggle('reduceMotion', t('reduceMotion'))}
         <label class="set-row"><span>${t('quality')}</span><select data-k="quality"><option value="ultra" ${s.quality === 'ultra' ? 'selected' : ''}>Ultra</option><option value="high" ${s.quality === 'high' ? 'selected' : ''}>High</option><option value="low" ${s.quality === 'low' ? 'selected' : ''}>Low</option></select></label>

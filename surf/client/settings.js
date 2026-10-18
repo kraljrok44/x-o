@@ -9,7 +9,6 @@ export const DEFAULTS = {
   master: 0.8,
   sfx: 0.8,
   ui: 0.7,
-  bloom: true,
   viewBob: true,
   reduceMotion: false,  // disables camera tilt, crate shake, flashes
   hudScale: 1,

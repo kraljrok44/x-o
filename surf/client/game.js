@@ -4,7 +4,6 @@
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -80,7 +79,7 @@ export class Game extends Emitter {
     this.canvas = canvas;
     const r = (this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' }));
     r.toneMapping = THREE.ACESFilmicToneMapping;
-    r.toneMappingExposure = 1.05;
+    r.toneMappingExposure = 0.95;
     r.outputColorSpace = THREE.SRGBColorSpace;
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(settings.fov, 1, 4, 120000);
@@ -88,7 +87,7 @@ export class Game extends Emitter {
     this.camera.rotation.order = 'ZYX';
     this.composer = new EffectComposer(r);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    // Guard: a single NaN/Inf pixel would be blown up by the bloom blur into large black blocks.
+    // Guard: a single NaN/Inf pixel would be smeared by the anti-aliasing pass into black blocks.
     this.composer.addPass(new ShaderPass({
       uniforms: { tDiffuse: { value: null } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
@@ -97,8 +96,6 @@ export class Game extends Emitter {
           if (any(isnan(c)) || any(isinf(c))) c = vec4(0.0, 0.0, 0.0, 1.0);
           gl_FragColor = clamp(c, 0.0, 32.0); }`,
     }));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.4, 0.85);
-    this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
     this.finalPass = new ShaderPass(FinalShader);
     this.composer.addPass(this.finalPass);
@@ -122,7 +119,7 @@ export class Game extends Emitter {
     this.dynScale = 1;
     this.frameMs = 16;
     this.perfCheckAt = performance.now() + 3000;
-    this.autoBloomOff = false;
+    this.autoPostOff = false;
     this.acc = 0;
     this.time = 0;
     this.debug = false;
@@ -138,7 +135,7 @@ export class Game extends Emitter {
   applySettings() {
     this.camera.fov = settings.fov;
     this.camera.updateProjectionMatrix();
-    this.autoBloomOff = false;
+    this.autoPostOff = false;
     this.dynScale = 1;
     audio.setVolumes({ master: settings.master, sfx: settings.sfx, ui: settings.ui });
     this.resize();
@@ -153,7 +150,6 @@ export class Game extends Emitter {
     this.renderer.setSize(w, h, false);
     this.composer.setPixelRatio(pr);
     this.composer.setSize(w, h);
-    this.bloom.resolution.set(w * pr * 0.35, h * pr * 0.35);
     this.finalPass.uniforms.res.value.set(w * pr, h * pr);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
@@ -514,7 +510,8 @@ export class Game extends Emitter {
   }
 
   // ------------------------------------------------------------------ main loop
-  bloomActive() { return settings.bloom && settings.quality !== 'low' && !this.autoBloomOff; }
+  // anti-aliasing + colour grading pass (no bloom: it washed the bright maps out)
+  postActive() { return settings.quality !== 'low' && !this.autoPostOff; }
 
   _adaptQuality(rawDt) {
     if (document.hidden || rawDt > 0.25) return; // tab switches are not slow frames
@@ -524,7 +521,7 @@ export class Game extends Emitter {
     this.perfCheckAt = now + 1500;
     if (this.frameMs > 21) {
       if (this.dynScale > 0.55) { this.dynScale = Math.max(0.5, this.dynScale - 0.12); this.resize(); }
-      else if (!this.autoBloomOff && settings.bloom) this.autoBloomOff = true;
+      else if (!this.autoPostOff) this.autoPostOff = true;
     } else if (this.frameMs < 13 && this.dynScale < 1) {
       this.dynScale = Math.min(1, this.dynScale + 0.06);
       this.resize();
@@ -788,7 +785,7 @@ export class Game extends Emitter {
   _render() {
     const r = this.renderer;
     r.autoClear = true;
-    if (this.bloomActive()) this.composer.render();
+    if (this.postActive()) this.composer.render();
     else r.render(this.scene, this.camera);
     if (this.viewmodel.visible) this.viewmodel.render(r);
   }
