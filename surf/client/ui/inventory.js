@@ -193,6 +193,8 @@ export class Inventory {
       requestAnimationFrame(frame);
       const { w, h } = stage3d.fit();
       cam.aspect = w / h;
+      // narrow (portrait) stages widen the vertical FOV so the whole blade stays in view
+      cam.fov = cam.aspect >= 1.25 ? 35 : (2 * Math.atan(Math.tan((35 * Math.PI) / 360) * (1.25 / cam.aspect)) * 180) / Math.PI;
       cam.updateProjectionMatrix();
       cam.position.set(0, 0, 7 / v.zoom);
       cam.lookAt(0, 0, 0);
