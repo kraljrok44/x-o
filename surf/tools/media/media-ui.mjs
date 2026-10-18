@@ -53,7 +53,7 @@ const CSS = `* { cursor: none !important; }
   @media (max-aspect-ratio: 1/1) { #vault-panel { left: 6vw; right: 6vw; bottom: 6vh; width: auto !important; } }
   .viewer { background: radial-gradient(ellipse at 50% 30%, #1a1440 0%, #07070f 75%) !important; }
   .viewer-box { width: 92vw !important; height: 86vh !important; }
-  @media (max-aspect-ratio: 1/1) { .viewer-box { flex-direction: column; } .viewer-side { width: auto !important; border-left: 0 !important; } .viewer-side p, .viewer-side .sub, #viewer-lights { display: none !important; } }`;
+  @media (max-aspect-ratio: 1/1) { .viewer-box { flex-direction: column; } .viewer-stage { flex: none !important; height: 62% !important; overflow: hidden; } .viewer-stage canvas { position: absolute; inset: 0; } .viewer-side { width: auto !important; border-left: 0 !important; } .viewer-side p, .viewer-side .sub, #viewer-lights { display: none !important; } }`;
 
 const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
