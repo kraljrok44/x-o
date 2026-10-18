@@ -11,7 +11,7 @@ const SURF = [
   { map: 'surf_neon_drift', from: 2.6, dur: 6.0, bots: [{ ticks: 0, knife: KNIFE }, { ticks: 170, knife: 'warden__abyss_p2', color: 1 }, { ticks: 330, knife: 'moth__jade_flow', color: 6 }] },
   { map: 'surf_void_garden', from: 3.0, dur: 4.5, bots: [{ ticks: 0, knife: KNIFE }, { ticks: 150, knife: 'flicker__heat_temper', color: 3 }, { ticks: 300, knife: 'hook__candy_marble', color: 4 }] },
 ];
-const VAULT = { from: 1.6, to: 6.8 };
+const VAULT = { from: 1.6, to: 7.6 }; // ends a moment into the result pose
 
 const scaleCover = (c, k, w, h, name) => ({
   ...c, name, w, h,
@@ -40,20 +40,22 @@ export default async function ({ openPage, openPageRaw, OUT, execFileSync }) {
   for (const v of VIDEOS) {
     if (only && !v.name.includes(only)) continue;
     const tmp = `${OUT}/tmp-${v.name}`;
-    fs.rmSync(tmp, { recursive: true, force: true });
+    if (process.argv.includes('--fresh')) fs.rmSync(tmp, { recursive: true, force: true });
     fs.mkdirSync(tmp, { recursive: true });
     // 1. cover still (first frame)
     { const { browser, page } = await openPage(v.w, v.h); await renderCover(page, v.cover, `${tmp}/cover.png`); await browser.close(); }
     // 2. gameplay
     const parts = [];
     for (const [i, seg] of SURF.entries()) {
-      const dir = `${tmp}/surf${i}`; fs.mkdirSync(dir);
-      await surfFrames(openPage, v.w, v.h, seg, dir);
+      const dir = `${tmp}/surf${i}`;
+      // gameplay frames are deterministic: reuse a complete earlier render
+      const have = fs.existsSync(dir) ? fs.readdirSync(dir).length : 0;
+      if (have !== Math.round(seg.dur * FPS)) { fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir); await surfFrames(openPage, v.w, v.h, seg, dir); }
       parts.push({ pattern: `${dir}/%04d.jpg`, dur: seg.dur });
       console.log(v.name, 'surf', i, 'done');
     }
     // 3. unboxing
-    { const dir = `${tmp}/vault`; fs.mkdirSync(dir);
+    { const dir = `${tmp}/vault`; fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir);
       await vaultFrames({ openPageRaw, w: v.w, h: v.h, prefix: `${dir}/`, fps: FPS, from: VAULT.from, to: VAULT.to });
       parts.push({ pattern: `${dir}/%04d.jpg`, dur: VAULT.to - VAULT.from });
       console.log(v.name, 'vault done'); }
