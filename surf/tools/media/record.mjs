@@ -31,9 +31,10 @@ export async function openPage(w, h) {
   return { browser, page };
 }
 
-export async function openPageRaw(w, h) {
+export async function openPageRaw(w, h, scale = 1) {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-  const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
+  // scale > 1: the UI is laid out at w/scale x h/scale CSS px and rendered at w x h pixels
+  const page = await browser.newPage({ viewport: { width: Math.round(w / scale), height: Math.round(h / scale) }, deviceScaleFactor: scale });
   page.on('pageerror', (e) => console.error('pageerror', e.message));
   return { browser, page };
 }

@@ -58,7 +58,8 @@ const CSS = `* { cursor: none !important; }
 const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
 export async function uiShots({ openPageRaw, w, h, dir, preview = false }) {
-  const { browser, page } = await openPageRaw(w, h);
+  // larger interface scale so the UI text reads well in a 1080p video
+  const { browser, page } = await openPageRaw(w, h, w > h ? 1.6 : 1.5);
   page.on('console', (m) => { if (m.type() === 'error') console.error('console', m.text()); });
   await page.addInitScript(INIT);
   await page.goto('file://' + path.join(root, 'dist/index.html'));
