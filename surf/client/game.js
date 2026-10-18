@@ -107,6 +107,7 @@ export class Game extends Emitter {
     this.viewmodel = new ViewModel(r);
     this.input = new Input(canvas);
     this.input.onGround = () => !!(this.ps && this.ps.onGround);
+    this.input.running = () => !!(this.ps && this.ps.runState === 'running');
     this.avatars = new Map();
     this.ghost = new Ghost(this.scene);
     this.showGhost = settings.ghost !== false; // G

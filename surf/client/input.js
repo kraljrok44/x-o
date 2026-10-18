@@ -16,9 +16,10 @@ export class Input {
     this.enabled = false;
     this.onLockChange = () => {};
     // phones: left quarter = A, second quarter = D, right half = look; a finger on the look side
-    // also walks forward while on the ground (to reach the first ramp) and keeps jumping
+    // also walks forward while on the ground (to reach the ramp) and bunny-hops once the timer runs
     this.touch = { A: new Set(), D: new Set(), look: null, x: 0, y: 0 };
     this.onGround = () => true;
+    this.running = () => false;
     this._touchEvents();
 
     window.addEventListener('keydown', (e) => {
@@ -130,7 +131,7 @@ export class Input {
     const T = this.touch, look = T.look !== null;
     const fwd = (this.down('KeyW') || this.down('ArrowUp') || (look && this.onGround()) ? 1 : 0) - (this.down('KeyS') || this.down('ArrowDown') ? 1 : 0);
     const side = (this.down('KeyD') || this.down('ArrowRight') || T.D.size ? 1 : 0) - (this.down('KeyA') || this.down('ArrowLeft') || T.A.size ? 1 : 0);
-    return { fwd, side, jump: this.down('Space') || look };
+    return { fwd, side, jump: this.down('Space') || (look && this.running()) };
   }
 
   takeMouseDelta() {
