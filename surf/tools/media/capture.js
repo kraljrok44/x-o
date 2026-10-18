@@ -69,6 +69,8 @@ function setup(o) {
   if (o.view === 'fp') game.viewmodel.setKnife(o.bots[0].knife);
   game.viewmodel.visible = o.view === 'fp' && o.vm !== false;
   game.viewmodel.state = { kind: 'idle', t: 0 };
+  game.camera.fov = o.fov || 90;
+  game.camera.updateProjectionMatrix();
   const hud = document.getElementById('hud');
   hud.style.display = o.hud ? '' : 'none';
   document.getElementById('dot').style.display = o.view === 'fp' && o.hud ? '' : 'none';
@@ -98,9 +100,12 @@ function frame(dt, draw = true) {
     const tp = Math.max(-0.32, Math.min(0.12, Math.atan2(h.vz, Math.max(hs, 1)) * 0.3)) - 0.09;
     s.pitch += (tp - s.pitch) * (snap ? 1 : 1 - Math.exp(-dt * 2));
     cam.position.set(h.x - Math.cos(s.yaw) * (s.pull ?? 0), h.y - Math.sin(s.yaw) * (s.pull ?? 0), h.z + PHYS.viewHeight + (s.rise ?? 0));
-    game._setCamAngles(s.yaw + (s.yawAdd ?? 0), s.pitch + (s.pitchAdd ?? 0), hero.ps);
-    const yawRate = s.prevYaw === null || dt === 0 ? 0 : angleWrap(s.yaw - s.prevYaw) / dt;
-    s.prevYaw = s.yaw;
+    // optional 360 spin while airborne: o.spin = [startSec, endSec] in run time
+    let spin = 0;
+    if (s.spin) { const u = Math.max(0, Math.min(1, (s.t - s.spin[0]) / (s.spin[1] - s.spin[0]))); spin = (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2) * Math.PI * 2; }
+    game._setCamAngles(s.yaw + (s.yawAdd ?? 0) + spin, s.pitch + (s.pitchAdd ?? 0), hero.ps);
+    const yawRate = s.prevYaw === null || dt === 0 ? 0 : (s.yaw + spin - s.prevYaw) / dt;
+    s.prevYaw = s.yaw + spin;
     game.viewmodel.update(Math.max(dt, 1e-3), { speed: hs, onGround: hero.ps.onGround, mouseDX: -yawRate * 40, mouseDY: 0, bob: true, reduceMotion: false });
   } else {
     // rigidly attached to the hero; only the viewing direction is smoothed (no positional lag)
@@ -119,7 +124,12 @@ function frame(dt, draw = true) {
     const p = hero.ps;
     document.getElementById('tim').textContent = formatTime(Math.floor(p.runTicks || 0));
   }
-  return { speed: hs, mode: hero.ps.mode, stage: hero.ps.stage, z: h.z, finished: !!hero.finished, surfing: hero.ps.mode === MODE.SURFING };
+  const pad = (game.map.pads || []).some((pd) => {
+    if (pd.stage !== hero.ps.stage) return false;
+    const dx = h.x - pd.c[0], dy = h.y - pd.c[1], c = Math.cos(-pd.yaw), sn = Math.sin(-pd.yaw);
+    return Math.abs(c * dx - sn * dy) < pd.hl + 120 && Math.abs(sn * dx + c * dy) < pd.hw && h.z > pd.c[2] - 200 && h.z < pd.c[2] + 600;
+  });
+  return { speed: hs, mode: hero.ps.mode, stage: hero.ps.stage, z: h.z, finished: !!hero.finished, surfing: hero.ps.mode === MODE.SURFING, ground: hero.ps.onGround, pad, t: s.t };
 }
 
 // ---------------------------------------------------------------- cover key art: hero knife overlay

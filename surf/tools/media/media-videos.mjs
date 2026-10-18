@@ -1,17 +1,19 @@
 // CrazyGames preview videos: 15-20 s, silent, 1080p landscape (16:9) and portrait (2:3).
-// Structure: cover image as the first frame -> first-person surfing on two maps -> knife unboxing
-// from the real vault UI. Real-time speed (no fast-forward), no cursor, no promotional text.
+// Cover as the first frame -> fast first-person surfing -> runway hops, jump with a 360 and landing
+// on the next section -> leaderboard -> knife unboxing with the reveal card -> collection + 5 knives.
+// Real-time speed (no fast-forward), no cursor, no promotional text.
 import fs from 'node:fs';
 import { COVERS, renderCover } from './media-covers.mjs';
-import { vaultFrames } from './media-vault.mjs';
+import { uiShots, EQUIPPED } from './media-ui.mjs';
 
 const FPS = 30;
-const KNIFE = 'lancer__sunset_melt';
+const XF = 0.3; // cross-fade between shots
 const SURF = [
-  { map: 'surf_neon_drift', from: 2.6, dur: 6.0, bots: [{ ticks: 0, knife: KNIFE }, { ticks: 170, knife: 'warden__abyss_p2', color: 1 }, { ticks: 330, knife: 'moth__jade_flow', color: 6 }] },
-  { map: 'surf_void_garden', from: 3.0, dur: 4.5, bots: [{ ticks: 0, knife: KNIFE }, { ticks: 150, knife: 'flicker__heat_temper', color: 3 }, { ticks: 300, knife: 'hook__candy_marble', color: 4 }] },
+  { name: 'surf-fast', map: 'surf_neon_drift', from: 12.3, dur: 3.0, fov: 106,
+    bots: [{ ticks: 0, knife: EQUIPPED }, { ticks: 140, knife: 'warden__abyss_p2', color: 1 }, { ticks: 290, knife: 'moth__jade_flow', color: 6 }] },
+  { name: 'surf-jump', map: 'surf_ember_core', from: 46.9, dur: 4.0, fov: 106, spin: [48.55, 49.85],
+    bots: [{ ticks: 0, knife: EQUIPPED }, { ticks: 120, knife: 'flicker__heat_temper', color: 3 }] },
 ];
-const VAULT = { from: 1.6, to: 7.6 }; // ends a moment into the result pose
 
 const scaleCover = (c, k, w, h, name) => ({
   ...c, name, w, h,
@@ -26,7 +28,7 @@ const VIDEOS = [
 
 async function surfFrames(openPage, w, h, seg, dir) {
   const { browser, page } = await openPage(w, h);
-  await page.evaluate((seg) => { window.media.setup({ map: seg.map, view: 'fp', hud: true, bots: seg.bots }); window.media.skip(seg.from); }, seg);
+  await page.evaluate((seg) => { window.media.setup({ map: seg.map, view: 'fp', hud: true, fov: seg.fov, spin: seg.spin, bots: seg.bots }); window.media.skip(seg.from); }, seg);
   const n = Math.round(seg.dur * FPS);
   for (let i = 0; i < n; i++) {
     await page.evaluate(() => window.media.frame(1 / 30));
@@ -35,43 +37,35 @@ async function surfFrames(openPage, w, h, seg, dir) {
   await browser.close();
 }
 
+const count = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.jpg')).length : 0);
+
 export default async function ({ openPage, openPageRaw, OUT, execFileSync }) {
-  const only = process.argv[3];
+  const only = process.argv[3] && !process.argv[3].startsWith('--') ? process.argv[3] : null;
   for (const v of VIDEOS) {
     if (only && !v.name.includes(only)) continue;
     const tmp = `${OUT}/tmp-${v.name}`;
     if (process.argv.includes('--fresh')) fs.rmSync(tmp, { recursive: true, force: true });
     fs.mkdirSync(tmp, { recursive: true });
-    // 1. cover still (first frame)
     { const { browser, page } = await openPage(v.w, v.h); await renderCover(page, v.cover, `${tmp}/cover.png`); await browser.close(); }
-    // 2. gameplay
-    const parts = [];
-    for (const [i, seg] of SURF.entries()) {
-      const dir = `${tmp}/surf${i}`;
+    for (const seg of SURF) {
+      const dir = `${tmp}/${seg.name}`;
       // gameplay frames are deterministic: reuse a complete earlier render
-      const have = fs.existsSync(dir) ? fs.readdirSync(dir).length : 0;
-      if (have !== Math.round(seg.dur * FPS)) { fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir); await surfFrames(openPage, v.w, v.h, seg, dir); }
-      parts.push({ pattern: `${dir}/%04d.jpg`, dur: seg.dur });
-      console.log(v.name, 'surf', i, 'done');
+      if (count(dir) !== Math.round(seg.dur * FPS)) { fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir); await surfFrames(openPage, v.w, v.h, seg, dir); }
+      console.log(v.name, seg.name, 'ok');
     }
-    // 3. unboxing
-    { const dir = `${tmp}/vault`; fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir);
-      await vaultFrames({ openPageRaw, w: v.w, h: v.h, prefix: `${dir}/`, fps: FPS, from: VAULT.from, to: VAULT.to });
-      parts.push({ pattern: `${dir}/%04d.jpg`, dur: VAULT.to - VAULT.from });
-      console.log(v.name, 'vault done'); }
+    if (!count(`${tmp}/ui/inv`) || process.argv.includes('--ui')) { fs.rmSync(`${tmp}/ui`, { recursive: true, force: true }); await uiShots({ openPageRaw, w: v.w, h: v.h, dir: `${tmp}/ui` }); }
+    console.log(v.name, 'ui ok');
 
-    // 4. assemble: cover 1.0 s, then cross-fades between the parts
-    const COVER = 1.0, XF = 0.4;
+    const parts = [...SURF.map((s) => `${tmp}/${s.name}`), `${tmp}/ui/lb`, `${tmp}/ui/vault`, `${tmp}/ui/inv`].map((dir) => ({ pattern: `${dir}/%04d.jpg`, dur: count(dir) / FPS }));
+    const COVER = 0.9;
     const inputs = ['-loop', '1', '-framerate', String(FPS), '-t', String(COVER + XF), '-i', `${tmp}/cover.png`];
     for (const p of parts) inputs.push('-framerate', String(FPS), '-i', p.pattern);
-    let chain = '', last = '[0:v]', offset = COVER;
-    let total = COVER + XF;
+    let chain = '', last = '[0:v]', offset = COVER, total = COVER + XF;
     parts.forEach((p, i) => {
-      const out = `[x${i}]`;
-      chain += `${last}[${i + 1}:v]xfade=transition=fade:duration=${XF}:offset=${offset.toFixed(3)}${out};`;
+      chain += `${last}[${i + 1}:v]xfade=transition=fade:duration=${XF}:offset=${offset.toFixed(3)}[x${i}];`;
       offset += p.dur - XF;
       total += p.dur - XF;
-      last = out;
+      last = `[x${i}]`;
     });
     chain += `${last}scale=${v.w}:${v.h},format=yuv420p[v]`;
     execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...inputs, '-filter_complex', chain, '-map', '[v]', '-an', '-r', String(FPS),
