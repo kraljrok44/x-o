@@ -5,10 +5,16 @@
 
 import { audio } from './audio.js';
 
-// Build switch (tools/build.mjs --ads): CrazyGames "Basic" launches must not show ads, so the basic
-// build grants crate rewards without an ad and never requests midgame ads. The "Full" build plays
-// real ads and only rewards a fully watched video.
-export const ADS_ENABLED = typeof __ADS__ !== 'undefined' ? __ADS__ : true;
+// One build for both CrazyGames launch stages. During a Basic launch the SDK answers every ad
+// request with the adError code 'adsDisabledBasicLaunch': the player is then entitled to the reward
+// without an ad. In a Full launch only a finished video rewards; any other error (unfilled, adblock,
+// closed early, SDK blocked) gives nothing.
+const BASIC_LAUNCH_CODE = 'adsDisabledBasicLaunch';
+const isBasicLaunchError = (err) => {
+  if (!err) return false;
+  if (err.code === BASIC_LAUNCH_CODE) return true;
+  try { return JSON.stringify(err).includes(BASIC_LAUNCH_CODE) || String(err.message || err).includes(BASIC_LAUNCH_CODE); } catch (e) { return false; }
+};
 const LOCAL_DEV = typeof location !== 'undefined' && (location.protocol === 'file:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname));
 
 class SDKWrapper {
@@ -18,6 +24,7 @@ class SDKWrapper {
     this.user = null;
     this.adPlaying = false;
     this.gameplay = false;
+    this.adsDisabled = false; // set once the SDK reports a Basic launch
   }
 
   async init() {
@@ -59,10 +66,11 @@ class SDKWrapper {
     return this.user;
   }
 
-  /** Resolves 'ok' when the ad finished (reward may be granted), 'error' otherwise. */
+  /**
+   * Resolves 'ok' when the video was watched, 'free' when ads are disabled for a Basic launch
+   * (reward without an ad), 'error' otherwise (no reward).
+   */
   requestAd(type) {
-    // basic build: no ads at all; a rewarded action is granted directly
-    if (!ADS_ENABLED) return Promise.resolve(type === 'rewarded' ? 'ok' : 'error');
     if (this.adPlaying) return Promise.resolve('error');
     this.adPlaying = true;
     const done = (r) => { this.adPlaying = false; audio.mute(false); return r; };
@@ -76,7 +84,16 @@ class SDKWrapper {
         this.cg.ad.requestAd(type, {
           adStarted: () => audio.mute(true),
           adFinished: () => resolve(done('ok')),
-          adError: (err) => { console.warn('ad error', err); resolve(done('error')); },
+          adError: (err) => {
+            if (isBasicLaunchError(err)) {
+              this.adsDisabled = true;
+              window.dispatchEvent(new Event('gz-ads-disabled'));
+              resolve(done('free'));
+              return;
+            }
+            console.warn('ad error', err);
+            resolve(done('error'));
+          },
         });
       } catch (e) {
         resolve(done('error'));

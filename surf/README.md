@@ -80,15 +80,14 @@ Spremenljivke strežnika: `PORT` (8081), `HOST` (127.0.0.1 – za dostop iz omre
    [`deploy/NAVODILA.md`](deploy/NAVODILA.md) (`deploy/add-game.sh`, posodobitve z `deploy/update.sh`).
 2. Klient se poveže na `wss://glidezone-rok.duckdns.org/ws` (`client/index.html`; na localhost
    uporabi isti strežnik, s katerega je naložen, `?server=` v URL-ju pa ga lahko zamenja).
-3. `npm run package` naredi dva klienta:
-   - `release/glidezone-crazygames-basic.zip` – za **Basic** launch: brez oglasov, krejt se odpre
-     brez oglasa (nagrada vseeno deluje, strežnik omeji na 1 krejt / 20 s);
-   - `release/glidezone-crazygames-full.zip` – za **Full** launch: vsak krejt zahteva oglas,
-     nagrada samo, če je bil video v celoti ogledan.
-   Stikalo je `node tools/build.mjs --ads` (brez `--ads` = basic).
+3. `npm run package` in naloži `release/glidezone-crazygames.zip` kot HTML5 igro. Isti ZIP velja
+   za **Basic** in **Full** launch: igra ob zahtevi za oglas prebere napako SDK-ja. Koda
+   `adsDisabledBasicLaunch` (Basic launch, oglasi izklopljeni) pomeni, da igralec nagrado dobi
+   brez oglasa. V Full launchu nagrado da samo do konca ogledan video; vsaka druga napaka
+   (`unfilled`, `adblock`, prekinjen oglas, blokiran SDK) pomeni brez nagrade.
 4. CrazyGames SDK v3 je že vključen (`index.html`). Uporablja se:
-   - `ad.requestAd('rewarded')` – vsak krejt v Full buildu (če oglas ne uspe ali ga igralec prekine, krejta ni; simulirani oglas je samo za localhost);
-   - `ad.requestAd('midgame')` – samo v Full buildu ob naravnem premoru menjave mape, največ 1× na 3 minute;
+   - `ad.requestAd('rewarded')` – vsak krejt (Basic launch: nagrada brez oglasa; simulirani oglas je samo za localhost);
+   - `ad.requestAd('midgame')` – ob naravnem premoru menjave mape, največ 1× na 3 minute (v Basic launchu se ne zahteva več, ko SDK sporoči izklopljene oglase);
    - `game.loadingStart/Stop`, `game.gameplayStart/Stop`, `game.happytime` (ob odprtju krejta);
    - `user.getUser / getUserToken / showAuthPrompt` – prijavljenim igralcem se inventar veže na
      CrazyGames račun (strežnik preveri RS256 žeton z javnim ključem CrazyGames), gostom pa na

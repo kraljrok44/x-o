@@ -57,13 +57,13 @@ rm -rf ~/glidezone-server && unzip -q ~/glidezone-server.zip -d ~ && cd ~/glidez
    Lahko pa mi napišeš novo ime in pripravim nov ZIP.
 2. Na https://developer.crazygames.com izberi **Submit a game**, nato tip **HTML5**, in naloži
    ZIP. V ZIP-u je `index.html` v korenu, zraven pa `game.js` in `style.css`.
-   - **Basic** launch: `glidezone-crazygames-basic.zip`. Oglasov ni, krejt se odpre brez oglasa.
-   - **Full** launch: `glidezone-crazygames-full.zip`. Vsak krejt zahteva oglas, nagrada je samo
-     za v celoti ogledan video.
+   - Isti `glidezone-crazygames.zip` velja za **Basic** in **Full** launch. V Basic launchu SDK
+     vrne napako `adsDisabledBasicLaunch`; igra jo prepozna in krejt odpre brez oglasa. V Full
+     launchu krejt odpre samo do konca ogledan oglas.
 3. Izpolni podatke igre: ime GLIDEZONE, kategorija, kontrole (tipkovnica in miška), in označi, da je
    igra večigralska.
 4. V predogledu CrazyGames preveri, da meni pokaže strežnik kot *online* in da se krejt odpre
-   (v Full buildu po oglasu).
+   (v Full launchu po oglasu).
 
 ## 5. Preverjanje, da delujeta obe igri
 
@@ -102,5 +102,5 @@ ostanejo nespremenjeni.
 ## Za razvijalca: kako nastaneta ZIP-a
 
 ```bash
-cd surf && npm install && npm run package    # → release/glidezone-crazygames-{basic,full}.zip, release/glidezone-server.zip
+cd surf && npm install && npm run package    # → release/glidezone-crazygames.zip, release/glidezone-server.zip
 ```
