@@ -96,7 +96,7 @@ select option { background: var(--panel-solid); }
 .touch-ui-btn { position: absolute; right: 12px; top: 12px; pointer-events: auto; width: 46px; height: 46px; border-radius: 12px; border: 1px solid var(--line); background: rgba(10,12,24,.7); color: #fff; font-size: 22px; }
 .rotate-hint { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; background: rgba(5,6,14,.92); font: 800 20px var(--font); }
 body.touch .hud-keys, body.touch #hud-net { display: none; }
-body.touch .tutorial { width: 46vw; left: 50%; right: auto; top: 84px; bottom: auto; transform: translateX(-50%); padding: 8px 12px; }
+body.touch .tutorial { width: 46vw; left: 50%; right: auto; top: 84px; bottom: auto; transform: translateX(-50%); padding: 8px 12px; z-index: 6; background: rgba(10,12,24,.92); }
 body.touch .tutorial .ctp-title { font-size: 15px; }
 body.touch .tutorial .tut-list { font-size: 11px; gap: 4px 8px; margin: 6px 0 2px; }
 body.touch .tutorial .tut-list .k { font-size: 10px; padding: 2px 6px; white-space: normal; }
