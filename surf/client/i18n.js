@@ -25,6 +25,7 @@ const STR = {
     bloom: 'Glow (bloom)', viewBob: 'Weapon bob', reduceMotion: 'Reduce motion & flashes', hudScale: 'HUD scale', showKeys: 'Show key overlay', quality: 'Graphics quality', language: 'Language',
     debug: 'Physics debug (F3)',
     controls: 'WASD move · SPACE jump · R restart · H hide players · G ghost · TAB scores · V vote map · J spectate · ENTER chat · ESC menu',
+    xpFirst: 'First completion', xpNormal: 'Map completed', xpPb: 'Personal best', xpRecord: 'MAP RECORD', levelUp: 'Level', promoted: 'Promoted to', freeCrateTitle: 'Free crate unlocked!', freeCrateText: 'Every 10th level gives you a crate - no ad needed.', openFreeNow: 'Open it now', later: 'Later', openFreeCrate: 'Open free crate', level: 'Level', xp: 'XP',
     tutTitle: 'How to surf', tutStart: 'Start surfing',
     tut: [
       ['A / D', 'Hold the strafe key towards the ramp to stay on it'],
@@ -38,7 +39,7 @@ const STR = {
     ],
     clickToPlay: 'Click to play', desktopOnly: 'GLIDEZONE needs a keyboard and mouse.',
     howTo: 'How to surf: drop onto a ramp, hold the strafe key towards the ramp (A or D) and steer with the mouse. Never press W on a ramp.',
-    difficulty: ['', 'Beginner', 'Easy', 'Medium', 'Hard', 'Expert'], stages: 'stages', linear: 'Linear', staged: 'Staged', checkpoints: 'checkpoints', choose: 'Choose a map',
+    difficulty: ['', 'Tier 1', 'Tier 2', 'Tier 3'], stages: 'stages', linear: 'Linear', staged: 'Staged', checkpoints: 'checkpoints', choose: 'Choose a map',
     login: 'Log in to keep your knives on every device',
     leaderboard: 'Leaderboard', overall: 'Overall', points: 'Points', time: 'Time', allTime: 'All time', thisWeek: 'This week',
     seasonEnds: 'season resets in', mapsDone: 'maps', lbEmpty: 'No times yet - be the first!', lbOffline: 'Leaderboard unavailable right now.',
@@ -69,6 +70,7 @@ const STR = {
     bloom: 'Sij (bloom)', viewBob: 'Nihanje noža', reduceMotion: 'Manj gibanja in bliskov', hudScale: 'Velikost HUD', showKeys: 'Prikaži tipke', quality: 'Kakovost grafike', language: 'Jezik',
     debug: 'Fizikalni debug (F3)',
     controls: 'WASD gibanje · PRESLEDNICA skok · R ponovno · H skrij igralce · G duh · TAB lestvica · V glas za mapo · J opazuj · ENTER klepet · ESC meni',
+    xpFirst: 'Prvi prevoz', xpNormal: 'Mapa prevožena', xpPb: 'Osebni rekord', xpRecord: 'REKORD MAPE', levelUp: 'Nivo', promoted: 'Napredovanje v', freeCrateTitle: 'Brezplačen krejt!', freeCrateText: 'Vsak 10. nivo ti podari krejt - brez oglasa.', openFreeNow: 'Odpri ga zdaj', later: 'Kasneje', openFreeCrate: 'Odpri brezplačen krejt', level: 'Nivo', xp: 'XP',
     tutTitle: 'Kako surfati', tutStart: 'Začni surfati',
     tut: [
       ['A / D', 'Drži stransko tipko proti rampi, da ostaneš na njej'],
@@ -82,7 +84,7 @@ const STR = {
     ],
     clickToPlay: 'Klikni za igro', desktopOnly: 'GLIDEZONE potrebuje tipkovnico in miško.',
     howTo: 'Kako surfati: spusti se na rampo, drži stransko tipko proti rampi (A ali D) in usmerjaj z miško. Na rampi nikoli ne pritiskaj W.',
-    difficulty: ['', 'Začetniška', 'Lahka', 'Srednja', 'Težka', 'Ekspertna'], stages: 'etap', linear: 'Linearna', staged: 'Po etapah', checkpoints: 'checkpointov', choose: 'Izberi mapo',
+    difficulty: ['', 'Tier 1', 'Tier 2', 'Tier 3'], stages: 'etap', linear: 'Linearna', staged: 'Po etapah', checkpoints: 'checkpointov', choose: 'Izberi mapo',
     login: 'Prijavi se in ohrani nože na vseh napravah',
     leaderboard: 'Lestvica', overall: 'Skupno', points: 'Točke', time: 'Čas', allTime: 'Vseh časov', thisWeek: 'Ta teden',
     seasonEnds: 'sezona se ponastavi čez', mapsDone: 'map', lbEmpty: 'Še ni časov - bodi prvi!', lbOffline: 'Lestvica trenutno ni na voljo.',

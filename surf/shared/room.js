@@ -9,6 +9,7 @@ import { MapVote, EXTEND } from './vote.js';
 import { openCrate, equipKnife, emptyProfile, CRATE_STATUS } from './crate.js';
 import { CATALOG_TOTAL, getCollectible } from './catalog.js';
 import { submitTime, queryBoard, mapRecords, loadGhost, saveGhost, POINTS_BOARD } from './leaderboard.js';
+import { awardXp, levelFor, rankFor } from './xp.js';
 
 export const GHOST_EVERY = 5; // ghost samples every 5 ticks (20 per second)
 import { filterChat, badName } from './chatfilter.js';
@@ -110,7 +111,8 @@ export class Room {
   rosterEntry(c) {
     const best = this.records.find((r) => r.key === c.key);
     const prof = c.profile || emptyProfile();
-    return { id: c.id, name: c.name, spec: c.spectator, knife: prof.equipped, best: best ? best.ticks : null, ping: c.ping };
+    const lvl = levelFor(prof.xp || 0);
+    return { id: c.id, name: c.name, spec: c.spectator, knife: prof.equipped, best: best ? best.ticks : null, ping: c.ping, lvl, rank: rankFor(lvl).short };
   }
 
   async handleMessage(c, msg) {
@@ -135,7 +137,7 @@ export class Room {
         const id = msg.id === null ? null : String(msg.id);
         if (equipKnife(this.store, c.key, id)) {
           c.profile = this.store.load(c.key) || emptyProfile();
-          this.send(c, { t: 'inventory', owned: c.profile.owned, equipped: c.profile.equipped, total: CATALOG_TOTAL });
+          this.send(c, { t: 'inventory', owned: c.profile.owned, equipped: c.profile.equipped, total: CATALOG_TOTAL, xp: c.profile.xp || 0, freeCrates: c.profile.freeCrates || 0 });
           this.broadcast({ t: 'pinfo', p: this.rosterEntry(c) });
         }
         return;
@@ -144,7 +146,7 @@ export class Room {
       case 'chat': return this._chat(c, msg);
       case 'inventory':
         c.profile = this.store.load(c.key) || emptyProfile();
-        return this.send(c, { t: 'inventory', owned: c.profile.owned, equipped: c.profile.equipped, total: CATALOG_TOTAL });
+        return this.send(c, { t: 'inventory', owned: c.profile.owned, equipped: c.profile.equipped, total: CATALOG_TOTAL, xp: c.profile.xp || 0, freeCrates: c.profile.freeCrates || 0 });
       case 'leaderboard': {
         const board = msg.board === POINTS_BOARD ? POINTS_BOARD : isMap(msg.board) ? msg.board : this.map.id;
         const period = msg.period === 'week' ? 'week' : 'all';
@@ -188,7 +190,7 @@ export class Room {
       physics: PHYSICS_VERSION, catalog: CATALOG_VERSION,
       map: this.map.id, maps: this.mapIds, timeLeft: Math.max(0, this.vote.mapEndsAt - now), voting: this.voting,
       roster: [...this.clients.values()].filter((o) => o.ready).map((o) => this.rosterEntry(o)),
-      inventory: { owned: c.profile.owned, equipped: c.profile.equipped, total: CATALOG_TOTAL },
+      inventory: { owned: c.profile.owned, equipped: c.profile.equipped, total: CATALOG_TOTAL, xp: c.profile.xp || 0, freeCrates: c.profile.freeCrates || 0 },
       vote: this._voteState(now),
       records: this.records.slice(0, 10).map((r) => ({ name: r.name, ticks: r.ticks })),
       me: copyState(c.ps), spectator: c.spectator,
@@ -265,11 +267,11 @@ export class Room {
     if (text === c.lastChat) return;
     c.lastChat = text;
     c.chatTimes.push(now);
-    this.broadcast({ t: 'chat', kind: c.spectator ? 'spec' : 'player', id: c.id, name: c.name, text });
+    this.broadcast({ t: 'chat', kind: c.spectator ? 'spec' : 'player', id: c.id, name: c.name, rank: rankFor(levelFor((c.profile && c.profile.xp) || 0)).short, text });
   }
 
   _crate(c, msg) {
-    const res = openCrate(this.store, c.key, String(msg.key || ''), { now: this.clock() });
+    const res = openCrate(this.store, c.key, String(msg.key || ''), { now: this.clock(), free: !!msg.free });
     c.profile = this.store.load(c.key) || emptyProfile();
     this.send(c, { t: 'crate', key: msg.key, ...res });
     if (res.status === CRATE_STATUS.SUCCESS && !res.replay) {
@@ -346,6 +348,25 @@ export class Room {
       this.feed(`${c.name} finished in ${time} (+${formatTime(ticks - prevAll.ticks)})${res.weekly.improved ? ' - weekly best!' : ''}`, 'finish');
     }
     if (res.points !== null) this.onPoints(c.key, res.points, c.name);
+    this._awardXp(c, res);
+  }
+
+  /** XP for a completion: first time on the map, plain run, personal best or map record. */
+  _awardXp(c, res) {
+    const prof = this.store.load(c.key) || emptyProfile();
+    const doneKey = `${this.map.id}@${this.map.version}`;
+    const done = prof.completed || {};
+    const record = res.allTime.improved && res.allTime.rank === 1;
+    const kind = record ? 'record' : !done[doneKey] ? 'first' : res.allTime.improved ? 'pb' : 'normal';
+    const aw = awardXp({ ...prof, completed: { ...done, [doneKey]: (done[doneKey] || 0) + 1 } }, kind);
+    this.store.save(c.key, aw.profile);
+    c.profile = aw.profile;
+    this.send(c, { t: 'xp', kind, gained: aw.gained, mult: aw.mult, xp: aw.xp, level: aw.level, prevLevel: aw.prevLevel, freeCrates: aw.profile.freeCrates || 0, newCrates: aw.freeCrates });
+    if (aw.level > aw.prevLevel) {
+      const r0 = rankFor(aw.prevLevel), r1 = rankFor(aw.level);
+      this.feed(`${c.name} reached level ${aw.level}${r1 !== r0 ? ` and was promoted to ${r1.name}!` : '!'}`, 'pb');
+      this.broadcast({ t: 'pinfo', p: this.rosterEntry(c) });
+    }
   }
 
   // ---------------------------------------------------------------- simulation

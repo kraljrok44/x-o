@@ -24,6 +24,7 @@ import { audio } from './audio.js';
 import { settings } from './settings.js';
 
 const DT = 1 / PHYS.tickRate;
+const DEV_DEBUG = typeof location !== 'undefined' && /[?&]debug\b/.test(location.search);
 const RUN_STATES = ['idle', 'ready', 'running', 'finished'];
 const lerp = (a, b, t) => a + (b - a) * t;
 const lerpAngle = (a, b, t) => a + angleWrap(b - a) * t;
@@ -320,6 +321,9 @@ export class Game extends Emitter {
       case 'chat':
         this.emit('chat', m);
         break;
+      case 'xp':
+        this.emit('xp', m);
+        break;
       case 'pong':
         this.rtt = performance.now() - m.t0;
         break;
@@ -514,7 +518,8 @@ export class Game extends Emitter {
       this.showGhost = !this.showGhost;
       this.emit('feed', { text: this.ghost.data ? (this.showGhost ? 'Record ghost on (G)' : 'Record ghost off (G)') : 'No record ghost on this map yet', kind: 'info' });
     }
-    if (I.takePressed('F3')) this.debug = !this.debug;
+    // physics debug overlay: developers only (add ?debug to the URL)
+    if (I.takePressed('F3') && DEV_DEBUG) this.debug = !this.debug;
     for (let i = 1; i <= 5; i++) if (I.takePressed('Digit' + i)) this.castVote(i - 1);
     I.clearPressed();
   }
@@ -556,13 +561,14 @@ export class Game extends Emitter {
         if (id === this.myId) continue;
         let av = this.avatars.get(id);
         const info = this.roster.get(id);
+        const label = info ? (info.rank ? `${info.rank} · ${info.name}` : info.name) : 'player';
         if (!av) {
-          av = new Avatar(id, info ? info.name : 'player');
+          av = new Avatar(id, label);
           this.avatars.set(id, av);
           this.scene.add(av.root);
         }
         av.setKnife(info ? info.knife : null);
-        if (info && av.name !== info.name) av.setName(info.name);
+        if (info && av.name !== label) av.setName(label);
         const hidden = (this.spectator && this.spec.mode === 'first' && this.spec.target === id) || (this.hideOthers && !this.spectator);
         av.root.visible = !hidden;
         av.update(st, dt, true);

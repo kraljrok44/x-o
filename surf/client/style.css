@@ -91,6 +91,20 @@ select option { background: var(--panel-solid); }
 @keyframes flash { 0% { box-shadow: inset 0 0 180px rgba(0,229,255,.45); } 100% { box-shadow: inset 0 0 180px rgba(0,229,255,0); } }
 .hud-tl { position: absolute; left: 18px; top: 14px; font-size: calc(14px * var(--hud-scale)); line-height: 1.5; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
 .hud-map { font-weight: 800; font-size: calc(17px * var(--hud-scale)); }
+.hud-xp { margin-top: 10px; width: calc(220px * var(--hud-scale)); }
+.xp-row { display: flex; gap: 8px; align-items: center; font-size: calc(13px * var(--hud-scale)); }
+.rank-badge { font: 800 calc(11px * var(--hud-scale)) var(--mono); padding: 2px 7px; border-radius: 6px; background: linear-gradient(135deg, #ffd23f, #ff8a3d); color: #1a1205; letter-spacing: .5px; }
+.xp-bar { height: 6px; margin-top: 5px; border-radius: 4px; background: rgba(255,255,255,.14); overflow: hidden; }
+.xp-bar > div { height: 100%; width: 0; background: linear-gradient(90deg, #4fd8ff, #8d7bff); transition: width .6s ease; }
+.xp-pop { position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; opacity: 0; transition: opacity .3s, transform .3s; text-shadow: 0 3px 12px rgba(0,0,0,.7); }
+.xp-pop.show { opacity: 1; transform: translate(-50%, -60%); }
+.xp-pop .gain { font: 900 calc(34px * var(--hud-scale)) var(--font); color: #8dffcf; }
+.xp-pop .why { font-weight: 700; color: #fff; }
+.xp-pop .lvl { margin-top: 6px; font: 900 calc(26px * var(--hud-scale)) var(--font); color: #ffd23f; }
+.free-crate { position: absolute; right: 24px; bottom: 24vh; pointer-events: auto; background: var(--panel-solid); border: 1px solid #ffd23f; border-radius: 16px; padding: 14px 18px; max-width: 280px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+.free-crate b { color: #ffd23f; }
+.free-crate .btn { margin-top: 10px; width: 100%; }
+.chat-rank { font: 800 10px var(--mono); padding: 1px 5px; border-radius: 4px; background: rgba(255,210,63,.85); color: #1a1205; margin-right: 4px; }
 .hud-top { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); text-align: center; text-shadow: 0 2px 6px rgba(0,0,0,.7); }
 .hud-stage { font-size: calc(13px * var(--hud-scale)); letter-spacing: 2px; text-transform: uppercase; color: var(--dim); }
 .hud-time { font: 800 calc(34px * var(--hud-scale)) var(--mono); }

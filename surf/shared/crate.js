@@ -47,7 +47,9 @@ export function openCrate(store, key, idemKey, opts = {}) {
   if (available.length === 0) {
     return { status: CRATE_STATUS.COLLECTION_COMPLETE, collection_count: owned.size, collection_total: CATALOG_TOTAL };
   }
-  if (now - profile.lastOpenAt < cooldownMs) {
+  // free crates (every 10th level) need no ad and skip the cooldown
+  if (opts.free && !(profile.freeCrates > 0)) return { status: CRATE_STATUS.BAD_REQUEST, reason: 'no_free_crate' };
+  if (!opts.free && now - profile.lastOpenAt < cooldownMs) {
     return { status: CRATE_STATUS.COOLDOWN, retryInMs: cooldownMs - (now - profile.lastOpenAt) };
   }
 
@@ -62,6 +64,7 @@ export function openCrate(store, key, idemKey, opts = {}) {
     idem: { ...profile.idem, [idemKey]: chosen.collectible_id },
     lastOpenAt: now,
     opens: (profile.opens || 0) + 1,
+    freeCrates: Math.max(0, (profile.freeCrates || 0) - (opts.free ? 1 : 0)),
     catalogVersion: CATALOG_VERSION,
   };
   // keep the idempotency table bounded
@@ -78,6 +81,7 @@ export function openCrate(store, key, idemKey, opts = {}) {
     collectible_id: chosen.collectible_id,
     collection_count: next.owned.length,
     collection_total: CATALOG_TOTAL,
+    free_crates: next.freeCrates,
   };
 }
 

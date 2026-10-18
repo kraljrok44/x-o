@@ -107,7 +107,7 @@ export class Chat {
     const el = document.createElement('div');
     el.className = 'chat-line ' + (m.kind || 'player');
     if (m.kind === 'player' || m.kind === 'spec') {
-      el.innerHTML = `<b class="chat-name">${esc(m.name)}${m.kind === 'spec' ? ' <span class="dim">(spec)</span>' : ''}:</b> ${esc(m.text)}`;
+      el.innerHTML = `${m.rank ? `<span class="chat-rank">${esc(m.rank)}</span>` : ''}<b class="chat-name">${esc(m.name)}${m.kind === 'spec' ? ' <span class="dim">(spec)</span>' : ''}:</b> ${esc(m.text)}`;
     } else {
       el.innerHTML = (m.kind === 'knife' ? '🔪 ' : '') + esc(m.text);
     }

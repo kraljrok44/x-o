@@ -10,6 +10,7 @@ import { Chat } from './ui/chat.js';
 import { $, $$, esc, html, show } from './ui/dom.js';
 import { t, lang } from './i18n.js';
 import { sdk } from './sdk.js';
+import { levelFor, rankFor } from '../shared/xp.js';
 import { audio } from './audio.js';
 import { settings, saveSettings, guestToken, DEFAULTS } from './settings.js';
 import { WsTransport, LocalTransport, defaultServerUrl, probeServer } from './net.js';
@@ -35,6 +36,8 @@ const isTouchOnly = () => ('ontouchstart' in window) && !matchMedia('(pointer:fi
 class Account {
   constructor() {
     this.inventory = { owned: [], equipped: null, total: CATALOG_TOTAL };
+    this.xp = 0;
+    this.freeCrates = 0;
     this.conn = null;
     this.waiters = new Map();
     this.connecting = null;
@@ -46,6 +49,7 @@ class Account {
     else if (m.t === 'crate') {
       const w = this.waiters.get(m.key);
       if (w) { this.waiters.delete(m.key); w(m); }
+      if (m.free_crates !== undefined) this.freeCrates = m.free_crates;
       if (m.status === 'SUCCESS') this.send({ t: 'inventory' });
     } else if (m.t === 'leaderboard') {
       const w = this.waiters.get('lb:' + m.req);
@@ -65,6 +69,7 @@ class Account {
 
   _setInv(inv) {
     this.inventory = { owned: inv.owned || [], equipped: inv.equipped ?? null, total: inv.total || CATALOG_TOTAL };
+    if (inv.xp !== undefined) { this.xp = inv.xp; this.freeCrates = inv.freeCrates || 0; hud.setXp(this.xp); }
     window.dispatchEvent(new CustomEvent('gz-inventory'));
   }
 
@@ -103,12 +108,12 @@ class Account {
     if (await this.ensure()) this.send({ t: 'inventory' });
   }
 
-  async requestCrate(key) {
+  async requestCrate(key, free = false) {
     if (!(await this.ensure())) return null;
     return new Promise((resolve) => {
       const to = setTimeout(() => { this.waiters.delete(key); resolve(null); }, 8000);
       this.waiters.set(key, (m) => { clearTimeout(to); resolve(m); });
-      this.send({ t: 'crate', key });
+      this.send({ t: 'crate', key, free });
     });
   }
 
@@ -130,7 +135,8 @@ game.on('leaderboard', (m) => account._handle(m));
 const vault = new Vault({
   getInventory: () => account.inventory,
   refreshInventory: () => account.refresh(),
-  requestCrate: (key) => account.requestCrate(key),
+  requestCrate: (key, free) => account.requestCrate(key, free),
+  freeCrates: () => account.freeCrates,
   equip: (id) => account.equip(id),
   openInventory: () => { closePanels(); openPanel('inventory'); },
   onCommitted: () => account.refresh(),
@@ -214,6 +220,7 @@ function renderMenu() {
           </label>
           ${sdk.available && !cgName ? `<button class="btn ghost small" id="m-login">${t('login')}</button>` : ''}
           <div class="status">${status}</div>
+          <div class="status"><span class="chat-rank">${rankFor(levelFor(account.xp)).short}</span> ${t('level')} ${levelFor(account.xp)} · ${account.xp.toLocaleString()} XP</div>
           <p class="howto">${t('howTo')}</p>
           <p class="howto">${t('jumpHint')}</p>
           <p class="keys-line">${t('controls')}</p>
@@ -286,7 +293,7 @@ function renderSettings() {
         <label class="set-row"><span>${t('language')}</span><select data-k="lang"><option value="">English (default)</option><option value="sl" ${s.lang === 'sl' ? 'selected' : ''}>Slovenščina</option></select></label>
       </div>
     </div>
-    <div class="row"><button class="btn ghost" id="set-reset">Reset</button><span class="dim small">${t('debug')}</span></div>`);
+    <div class="row"><button class="btn ghost" id="set-reset">Reset</button></div>`);
   $$('#settings [data-k]').forEach((el) => {
     el.oninput = el.onchange = () => {
       const k = el.dataset.k;
@@ -414,6 +421,21 @@ game.on('servermsg', (m) => {
   if (m.t === 'kicked') { hud.feed(m.text || 'Disconnected', 'record'); setTimeout(() => leaveGame(), 1500); }
 });
 game.on('vote', () => { if (!$('#pause').classList.contains('hidden')) showPause(true); });
+// XP for every completion; every 10th level brings a free crate (no ad)
+game.on('xp', (m) => {
+  account.xp = m.xp;
+  account.freeCrates = m.freeCrates;
+  hud.xpGain(m);
+  if (m.newCrates > 0) showFreeCrate();
+});
+function showFreeCrate() {
+  show('#free-crate', true);
+  html('#free-crate', `<div><b>🎁 ${t('freeCrateTitle')}</b></div><div class="dim small">${t('freeCrateText')}</div>
+    <button class="btn primary" id="fc-open">${t('openFreeNow')}</button><button class="btn ghost small" id="fc-later">${t('later')}</button>`);
+  $('#fc-open').onclick = () => { show('#free-crate', false); openPanel('vault'); vault.startOpen(true); };
+  $('#fc-later').onclick = () => show('#free-crate', false);
+  setTimeout(() => show('#free-crate', false), 15000);
+}
 // CrazyGames: a completed map is a moment of celebration
 game.on('finish', () => sdk.happytime());
 game.on('mapchange', () => {

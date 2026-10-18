@@ -8,6 +8,7 @@ import { MAP_LIST } from '../../shared/maps/index.js';
 import { EXTEND } from '../../shared/vote.js';
 import { getCollectible } from '../../shared/catalog.js';
 import { settings } from '../settings.js';
+import { levelProgress, rankFor } from '../../shared/xp.js';
 
 // DOM writes are expensive at high frame rates: only touch an element when its value changes.
 const cache = new Map();
@@ -38,6 +39,31 @@ export class Hud {
     window.addEventListener('gz-settings', () => this.applyScale());
     this.applyScale();
     setInterval(() => this.tickSlow(), 250);
+  }
+
+  /** XP bar (top left): rank badge, level, progress to the next level. */
+  setXp(xp) {
+    const p = levelProgress(xp || 0);
+    setText('#hud-rank', rankFor(p.level).short);
+    setText('#hud-lvl', `Lv ${p.level}`);
+    setText('#hud-xpnum', p.need ? `${p.into.toLocaleString()} / ${p.need.toLocaleString()} XP` : 'MAX');
+    $('#hud-xpbar').style.width = `${Math.round(p.frac * 100)}%`;
+  }
+
+  /** "+160 XP · Personal best" pop-up, with level up / promotion. */
+  xpGain(m) {
+    const why = { first: t('xpFirst'), normal: t('xpNormal'), pb: t('xpPb'), record: t('xpRecord') }[m.kind] || '';
+    let extra = '';
+    if (m.level > m.prevLevel) {
+      const r0 = rankFor(m.prevLevel), r1 = rankFor(m.level);
+      extra = `<div class="lvl">${t('levelUp')} ${m.level}${r1 !== r0 ? ` · ${t('promoted')} ${esc(r1.name)}` : ''}</div>`;
+    }
+    const el = $('#xp-pop');
+    el.innerHTML = `<div class="gain">+${m.gained.toLocaleString()} XP${m.mult > 1 ? ` <span class="dim small">x${m.mult}</span>` : ''}</div><div class="why">${esc(why)}</div>${extra}`;
+    el.classList.add('show');
+    clearTimeout(this.xpTimer);
+    this.xpTimer = setTimeout(() => el.classList.remove('show'), extra ? 3600 : 2400);
+    this.setXp(m.xp);
   }
 
   applyScale() {
@@ -178,7 +204,7 @@ export class Hud {
     const specs = players.filter((p) => p.spec);
     const rows = surfers.map((p, i) => {
       const col = p.knife ? getCollectible(p.knife) : null;
-      return `<tr class="${p.id === g.myId ? 'me' : ''}"><td>${i + 1}</td><td>${esc(p.name)}</td><td>${p.best ? formatTime(p.best) : '-'}</td><td class="dim">${col ? esc(col.display_name) : 'Ranger | Factory'}</td><td>${p.ping ?? '-'}</td></tr>`;
+      return `<tr class="${p.id === g.myId ? 'me' : ''}"><td>${i + 1}</td><td>${p.rank ? `<span class="chat-rank">${esc(p.rank)}</span>` : ''}${esc(p.name)} <span class="dim small">Lv ${p.lvl || 1}</span></td><td>${p.best ? formatTime(p.best) : '-'}</td><td class="dim">${col ? esc(col.display_name) : 'Ranger | Factory'}</td><td>${p.ping ?? '-'}</td></tr>`;
     }).join('');
     const recs = (g.records || []).slice(0, 5).map((r, i) => `<li><span>${i + 1}. ${esc(r.name)}</span><b>${formatTime(r.ticks)}</b></li>`).join('');
     html('#scoreboard', `<div class="sb-head"><div><div class="sb-title">${esc(g.map ? g.map.display_name : '')}</div><div class="dim">${esc(g.room || '')}</div></div><div class="dim">${players.length} ${t('players')}</div></div>

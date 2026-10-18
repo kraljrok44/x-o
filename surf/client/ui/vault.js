@@ -258,7 +258,9 @@ export class Vault {
         <button class="btn" id="v-inv">${t('toInventory')}</button>`;
     } else {
       const busy = this.state === 'ad' || this.state === 'request' || this.state === 'opening';
-      body = `<button class="btn primary big" id="v-open" ${busy ? 'disabled' : ''}>${sdk.adsDisabled ? '' : '<span class="ad-badge">▶ AD</span> '}${busy ? '…' : t(sdk.adsDisabled ? 'openFree' : 'openCrate')}</button>
+      const free = (this.hooks.freeCrates && this.hooks.freeCrates()) || 0;
+      body = `${free ? `<button class="btn primary big" id="v-free" ${busy ? 'disabled' : ''}>🎁 ${t('openFreeCrate')} (${free})</button>` : ''}
+        <button class="btn ${free ? '' : 'primary'} big" id="v-open" ${busy ? 'disabled' : ''}>${sdk.adsDisabled ? '' : '<span class="ad-badge">▶ AD</span> '}${busy ? '…' : t(sdk.adsDisabled ? 'openFree' : 'openCrate')}</button>
         <div class="msg" id="v-msg">${this.msg ? esc(this.msg) : ''}</div>
         <button class="btn ghost" id="v-inv">${t('toInventory')}</button>`;
     }
@@ -276,6 +278,7 @@ export class Vault {
     `);
     const on = (id, f) => { const b = $('#' + id); if (b) b.onclick = () => { audio.play('click'); f(); }; };
     on('v-open', () => this.startOpen());
+    on('v-free', () => this.startOpen(true));
     on('v-again', () => { this.state = 'idle'; this.result = null; this._setKnife(null); this.anim = { t: 0, playing: false, fired: new Set() }; this.startOpen(); });
     on('v-inv', () => this.hooks.openInventory());
     on('v-equip', () => this.hooks.equip(this.result.collectible_id));
@@ -283,18 +286,21 @@ export class Vault {
     on('v-skip', () => this.skip());
   }
 
-  async startOpen() {
+  /** @param free open one of the free crates earned by levelling up (no ad) */
+  async startOpen(free = false) {
     if (this.state !== 'idle' && this.state !== 'result') return;
+    if (free && !((this.hooks.freeCrates && this.hooks.freeCrates()) > 0)) free = false;
     this.msg = '';
+    if (this.state === 'result') { this.result = null; this._setKnife(null); this.anim = { t: 0, playing: false, fired: new Set() }; }
     this.state = 'ad';
     this._renderPanel();
-    const ad = await sdk.requestAd('rewarded');
+    const ad = free ? 'free' : await sdk.requestAd('rewarded');
     if (ad !== 'ok' && ad !== 'free') { this.state = 'idle'; this.msg = t('adFailed'); this._renderPanel(); return; }
     this.state = 'request';
     this._renderPanel();
     const key = randomHex(12);
-    let res = await this.hooks.requestCrate(key);
-    if (!res) res = await this.hooks.requestCrate(key); // safe retry: same idempotency key
+    let res = await this.hooks.requestCrate(key, free);
+    if (!res) res = await this.hooks.requestCrate(key, free); // safe retry: same idempotency key
     if (!res) { this.state = 'idle'; this.msg = t('retry'); this._renderPanel(); return; }
     if (res.status === 'COLLECTION_COMPLETE') { this.state = 'idle'; audio.play('collection_complete'); this._renderPanel(); return; }
     if (res.status === 'COOLDOWN') { this.state = 'idle'; this.msg = `${t('cooldown')} (${Math.ceil(res.retryInMs / 1000)} s)`; this._renderPanel(); return; }
