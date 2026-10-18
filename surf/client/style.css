@@ -76,6 +76,12 @@ select option { background: var(--panel-solid); }
 .ctp { cursor: pointer; background: rgba(4,5,10,.35); backdrop-filter: none; }
 .ctp-box { text-align: center; background: var(--panel); border: 1px solid var(--line); padding: 24px 32px; border-radius: 18px; max-width: 560px; }
 .ctp-title { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+.tut-box { max-width: 640px; text-align: left; }
+.tut-box .ctp-title { text-align: center; }
+.tut-list { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 14px 0 18px; }
+.tut-list .k { font: 800 13px var(--mono); background: rgba(255,255,255,.1); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; white-space: nowrap; align-self: center; }
+.tut-list .d { align-self: center; }
+.tut-box .btn { display: block; margin: 0 auto; }
 
 /* ---------------------------------------------------------------- HUD */
 #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; font-variant-numeric: tabular-nums; }

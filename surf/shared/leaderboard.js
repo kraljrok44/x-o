@@ -15,6 +15,18 @@ const KEEP = 500;
 export function seasonId(now = Date.now()) { return Math.floor((now - SEASON_REF) / WEEK); }
 export function seasonEndsAt(now = Date.now()) { return SEASON_REF + (seasonId(now) + 1) * WEEK; }
 const weeklyKey = (board, now) => `${board}__w${seasonId(now)}`;
+// Record epoch: bumped when map layouts change, so old times (no longer comparable) are left
+// behind and every board starts fresh. Storage keys and the profile field carry the epoch.
+const EPOCH = 'e2';
+const recKey = (board) => `${board}__${EPOCH}`;
+const BEST = `best_${EPOCH}`;
+
+/** Record ghost of a map (the record run's path), if the store keeps ghosts. */
+export function loadGhost(store, mapId) { return store.loadGhost ? store.loadGhost(recKey(mapId)) : null; }
+export function saveGhost(store, mapId, ghost) { if (store.saveGhost) store.saveGhost(recKey(mapId), ghost); }
+
+/** All-time records of one map (current epoch). */
+export function mapRecords(store, mapId) { return store.loadRecords(recKey(mapId)) || []; }
 
 /** Points for one map: 1000 at par time, more when faster (capped at 2000). */
 export function mapPoints(mapId, ticks) {
@@ -40,24 +52,24 @@ function upsertTime(list, entry) {
  */
 export function submitTime(store, { key, name, mapId, ticks, mapVersion = '1.0', now = Date.now() }) {
   const entry = { key, name, ticks, date: now, map: mapId, mapVersion, physics: PHYSICS_VERSION };
-  const all = upsertTime(store.loadRecords(mapId) || [], entry);
-  if (all.improved) store.saveRecords(mapId, all.list);
-  const wk = weeklyKey(mapId, now);
+  const all = upsertTime(store.loadRecords(recKey(mapId)) || [], entry);
+  if (all.improved) store.saveRecords(recKey(mapId), all.list);
+  const wk = weeklyKey(recKey(mapId), now);
   const week = upsertTime(store.loadRecords(wk) || [], { ...entry });
   if (week.improved) store.saveRecords(wk, week.list);
 
   // overall points from the player's best time on every map
   const profile = store.load(key) || emptyProfile();
-  const best = { ...(profile.best || {}) };
+  const best = { ...(profile[BEST] || {}) };
   let points = null;
   if (!best[mapId] || ticks < best[mapId]) {
     best[mapId] = ticks;
-    store.save(key, { ...profile, best });
+    store.save(key, { ...profile, [BEST]: best });
     const total = Object.entries(best).reduce((s, [m, t]) => s + mapPoints(m, t), 0);
-    const board = (store.loadRecords(POINTS_BOARD) || []).filter((r) => r.key !== key);
+    const board = (store.loadRecords(recKey(POINTS_BOARD)) || []).filter((r) => r.key !== key);
     board.push({ key, name, points: total, maps: Object.keys(best).length, date: now });
     board.sort((a, b) => b.points - a.points || a.date - b.date);
-    store.saveRecords(POINTS_BOARD, board.slice(0, KEEP));
+    store.saveRecords(recKey(POINTS_BOARD), board.slice(0, KEEP));
     points = total;
   }
   return { allTime: all, weekly: week, points, list: all.list };
@@ -66,7 +78,7 @@ export function submitTime(store, { key, name, mapId, ticks, mapVersion = '1.0',
 /** Leaderboard rows for the UI. board = map id or POINTS_BOARD; period = 'all' | 'week'. */
 export function queryBoard(store, board, period, key, limit = 50, now = Date.now()) {
   const isPoints = board === POINTS_BOARD;
-  const src = store.loadRecords(isPoints || period !== 'week' ? board : weeklyKey(board, now)) || [];
+  const src = store.loadRecords(isPoints || period !== 'week' ? recKey(board) : weeklyKey(recKey(board), now)) || [];
   const row = (r, i) => ({ rank: i + 1, name: r.name, value: isPoints ? r.points : r.ticks, maps: r.maps, me: r.key === key, cg: String(r.key).startsWith('cg:') });
   const list = src.slice(0, limit).map(row);
   const mine = src.findIndex((r) => r.key === key);

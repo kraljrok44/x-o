@@ -302,12 +302,12 @@ function renderSettings() {
 }
 
 // ------------------------------------------------------------------ game flow
-async function startGame(mode, spectate, mapId) {
+async function startGame(mode, spectate, mapId, booting = false) {
   if (isTouchOnly() && !spectate) { alert(t('desktopOnly')); return; }
   audio.ensure();
   show('#loading', true);
   html('#loading', `<div class="spinner"></div><div>${t('connecting')}</div>`);
-  sdk.loadingStart();
+  if (!booting) sdk.loadingStart();
   account.closeMenuConn();
   let tr;
   try {
@@ -331,7 +331,17 @@ async function startGame(mode, spectate, mapId) {
   hud.renderScoreboard();
   showPause(false);
   show('#click-to-play', true);
-  html('#click-to-play', `<div class="ctp-box"><div class="ctp-title">${t('clickToPlay')}</div><div class="dim">${t('controls')}</div></div>`);
+  let firstTime = false;
+  try { firstTime = !localStorage.getItem('gz.tutorial.v1'); } catch (e) { /* storage blocked */ }
+  if (firstTime && !spectate) {
+    // first visit: the basic controls, dismissed by the click that starts playing
+    html('#click-to-play', `<div class="ctp-box tut-box"><div class="ctp-title">${t('tutTitle')}</div>
+      <div class="tut-list">${t('tut').map(([k, d]) => `<span class="k">${esc(k)}</span><span class="d">${esc(d)}</span>`).join('')}</div>
+      <button class="btn primary big">${t('tutStart')}</button></div>`);
+    try { localStorage.setItem('gz.tutorial.v1', '1'); } catch (e) { /* */ }
+  } else {
+    html('#click-to-play', `<div class="ctp-box"><div class="ctp-title">${t('clickToPlay')}</div><div class="dim">${t('controls')}</div></div>`);
+  }
 }
 
 function leaveGame() {
@@ -422,12 +432,10 @@ async function boot() {
   const health = await probeServer(app.serverUrl);
   app.online = !!health;
   app.health = health;
-  game.startDemo();
-  renderMenu();
-  show('#loading', false);
-  show('#menu', true);
-  sdk.loadingStop();
   account.refresh();
+  renderMenu();
+  // CrazyGames: the game starts right away - straight into the public server (ESC opens the menu)
+  await startGame('public', isTouchOnly(), undefined, true);
   setInterval(async () => {
     if (app.state !== 'menu' || !app.serverUrl) return;
     const h = await probeServer(app.serverUrl);

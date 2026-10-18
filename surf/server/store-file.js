@@ -10,6 +10,7 @@ export class FileStore {
     this.dir = dir;
     fs.mkdirSync(path.join(dir, 'players'), { recursive: true });
     fs.mkdirSync(path.join(dir, 'records'), { recursive: true });
+    fs.mkdirSync(path.join(dir, 'ghosts'), { recursive: true });
     this.cache = new Map();
   }
 
@@ -47,6 +48,14 @@ export class FileStore {
     } catch (e) {
       return [];
     }
+  }
+
+  loadGhost(key) {
+    try { return JSON.parse(fs.readFileSync(path.join(this.dir, 'ghosts', key.replace(/[^a-z0-9_]/g, '') + '.json'), 'utf8')); } catch (e) { return null; }
+  }
+
+  saveGhost(key, ghost) {
+    this._write(path.join(this.dir, 'ghosts', key.replace(/[^a-z0-9_]/g, '') + '.json'), ghost);
   }
 
   saveRecords(mapId, list) {

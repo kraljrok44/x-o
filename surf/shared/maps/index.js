@@ -185,7 +185,7 @@ export function getMap(id) {
     id: def.id,
     display_name: def.display_name,
     author: 'GLIDEZONE team (original layout)',
-    version: '1.0',
+    version: '2.0',
     physics_profile: PHYSICS_VERSION,
     difficulty: def.difficulty,
     category: def.category,

@@ -18,6 +18,7 @@ import { COLLECTIBLES } from '../shared/catalog.js';
 import { buildWorld } from './render/world.js';
 import { ViewModel } from './render/viewmodel.js';
 import { Avatar } from './render/avatars.js';
+import { Ghost } from './render/ghost.js';
 import { Input } from './input.js';
 import { audio } from './audio.js';
 import { settings } from './settings.js';
@@ -63,6 +64,9 @@ export class Game extends Emitter {
     this.viewmodel = new ViewModel(r);
     this.input = new Input(canvas);
     this.avatars = new Map();
+    this.ghost = new Ghost(this.scene);
+    this.showGhost = settings.ghost !== false; // G
+    this.hideOthers = false; // H: other surfers are hidden (they never collide with you anyway)
     this.mode = 'none'; // 'demo' | 'play'
     this.world = null;
     this.mapId = null;
@@ -195,6 +199,7 @@ export class Game extends Emitter {
     if (this.net) { try { this.net.close(); } catch (e) { /* */ } }
     this.net = null;
     if (this.mode === 'play') this.clearAvatars();
+    this.ghost.set(null);
     this.mode = 'none';
   }
 
@@ -247,6 +252,9 @@ export class Game extends Emitter {
         if (this.avatars.has(m.id)) { const a = this.avatars.get(m.id); this.scene.remove(a.root); a.dispose(); this.avatars.delete(m.id); }
         if (this.spec && this.spec.target === m.id) this.spec.target = null;
         this.emit('roster', this.roster);
+        break;
+      case 'ghost':
+        if (!m.map || m.map === this.mapId) this.ghost.set(m.frames ? m : null);
         break;
       case 'roster':
         this.roster.clear();
@@ -498,6 +506,14 @@ export class Game extends Emitter {
     }
     if (I.takePressed('KeyJ')) this.setSpectate(!this.spectator);
     if (I.takePressed('KeyV')) this.requestRtv();
+    if (I.takePressed('KeyH')) {
+      this.hideOthers = !this.hideOthers;
+      this.emit('feed', { text: this.hideOthers ? 'Other players hidden (H)' : 'Other players visible (H)', kind: 'info' });
+    }
+    if (I.takePressed('KeyG')) {
+      this.showGhost = !this.showGhost;
+      this.emit('feed', { text: this.ghost.data ? (this.showGhost ? 'Record ghost on (G)' : 'Record ghost off (G)') : 'No record ghost on this map yet', kind: 'info' });
+    }
     if (I.takePressed('F3')) this.debug = !this.debug;
     for (let i = 1; i <= 5; i++) if (I.takePressed('Digit' + i)) this.castVote(i - 1);
     I.clearPressed();
@@ -547,7 +563,7 @@ export class Game extends Emitter {
         }
         av.setKnife(info ? info.knife : null);
         if (info && av.name !== info.name) av.setName(info.name);
-        const hidden = this.spectator && this.spec.mode === 'first' && this.spec.target === id;
+        const hidden = (this.spectator && this.spec.mode === 'first' && this.spec.target === id) || (this.hideOthers && !this.spectator);
         av.root.visible = !hidden;
         av.update(st, dt, true);
       }
@@ -566,7 +582,9 @@ export class Game extends Emitter {
         showViewmodel = true;
         hud = { self: true, check: this._speedCheck(b, vmSpeed), speed: vmSpeed, vel: b.vel, mode: b.mode, runState: b.runState, runTicks: b.runTicks + (b.runState === 'running' ? alpha : 0), stage: b.stage, onGround: b.onGround, pos: b.pos, surfNormal: b.surfNormal, maxSpeed: b.maxSpeed, finishTicks: b.finishTicks };
         audio.setMotion(vmSpeed, b.mode === MODE.SURFING, true);
+        this.ghost.update(b.runState === 'running' ? b.runTicks + alpha : 0, dt, this.showGhost);
       } else {
+        this.ghost.update(0, dt, false);
         // spectator
         let target = this.spec.target !== null ? remotes.get(this.spec.target) : null;
         if (!target && this.spec.mode !== 'free') {

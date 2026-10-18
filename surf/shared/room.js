@@ -8,7 +8,9 @@ import { createPlayerState, stepPlayer, restartRun, copyState, EV, formatTime } 
 import { MapVote, EXTEND } from './vote.js';
 import { openCrate, equipKnife, emptyProfile, CRATE_STATUS } from './crate.js';
 import { CATALOG_TOTAL, getCollectible } from './catalog.js';
-import { submitTime, queryBoard, POINTS_BOARD } from './leaderboard.js';
+import { submitTime, queryBoard, mapRecords, loadGhost, saveGhost, POINTS_BOARD } from './leaderboard.js';
+
+export const GHOST_EVERY = 5; // ghost samples every 5 ticks (20 per second)
 import { filterChat, badName } from './chatfilter.js';
 import { isMapId as isMap } from './maps/index.js';
 
@@ -55,7 +57,8 @@ export class Room {
   _loadMap(id) {
     this.map = getMap(id);
     this.world = new CollisionWorld(this.map.brushes);
-    this.records = (this.store.loadRecords && this.store.loadRecords(id)) || [];
+    this.records = this.store.loadRecords ? mapRecords(this.store, id) : [];
+    this.ghost = loadGhost(this.store, id);
     for (const c of this.clients.values()) {
       c.ps = createPlayerState(this.map);
       c.cmdQueue.length = 0;
@@ -173,6 +176,7 @@ export class Room {
     c.ps = createPlayerState(this.map);
     c.ready = true;
     this.send(c, this._welcome(c));
+    if (this.ghost) this.send(c, { t: 'ghost', map: this.map.id, ...this.ghost });
     this.broadcast({ t: 'joined', p: this.rosterEntry(c) }, c);
     this.feed(`${c.name} joined`);
   }
@@ -299,6 +303,7 @@ export class Room {
             if (!c.ready) continue;
             c.profile = this.store.load(c.key) || c.profile;
             this.send(c, { t: 'map', map: this.map.id, timeLeft: a.mapEndsAt - now, me: copyState(c.ps), records: this.records.slice(0, 10).map((r) => ({ name: r.name, ticks: r.ticks })) });
+            this.send(c, this.ghost ? { t: 'ghost', map: this.map.id, ...this.ghost } : { t: 'ghost', map: this.map.id, frames: null });
           }
           this.broadcast({ t: 'roster', roster: [...this.clients.values()].filter((o) => o.ready).map((o) => this.rosterEntry(o)) });
           break;
@@ -320,14 +325,21 @@ export class Room {
   _onFinish(c, ev) {
     const ticks = ev.ticks;
     const time = formatTime(ticks);
-    const prevAll = (this.store.loadRecords(this.map.id) || []).find((r) => r.key === c.key);
+    const prevAll = mapRecords(this.store, this.map.id).find((r) => r.key === c.key);
     const res = submitTime(this.store, { key: c.key, name: c.name, mapId: this.map.id, ticks, mapVersion: this.map.version, now: Date.now() });
     this.records = res.list;
     if (res.allTime.improved) {
       const rank = res.allTime.rank;
       this.feed(`${c.name} finished in ${time} - new personal best! (#${rank})`, rank === 1 ? 'record' : 'pb');
       // a new map record is announced in the chat of every server room
-      if (rank === 1) this.onAnnounce(`🏆 ${c.name} set a new record on ${this.map.display_name}: ${time}`, 'record');
+      if (rank === 1) {
+        this.onAnnounce(`🏆 ${c.name} set a new record on ${this.map.display_name}: ${time}`, 'record');
+        if (c.path && c.path.length > 10) {
+          this.ghost = { name: c.name, ticks, every: GHOST_EVERY, frames: c.path };
+          saveGhost(this.store, this.map.id, this.ghost);
+          this.broadcast({ t: 'ghost', map: this.map.id, ...this.ghost });
+        }
+      }
       this.broadcast({ t: 'pinfo', p: this.rosterEntry(c) });
       this.broadcast({ t: 'records', map: this.map.id, list: this.records.slice(0, 10).map((r) => ({ name: r.name, ticks: r.ticks })) });
     } else {
@@ -360,6 +372,12 @@ export class Room {
         c.processed++;
         events.length = 0;
         stepPlayer(c.ps, cmd, ctx, events);
+        // record the run's path for a possible record ghost
+        if (events.some((e) => e.type === EV.START)) c.path = [];
+        if (c.ps.runState === 'running' && c.path && c.ps.runTicks % GHOST_EVERY === 0) {
+          const p = c.ps.pos;
+          c.path.push([Math.round(p.x), Math.round(p.y), Math.round(p.z), Math.round(c.ps.yaw * 100) / 100]);
+        }
         c.ack = cmd.seq;
         for (const e of events) if (e.type === EV.FINISH) this._onFinish(c, e);
       }

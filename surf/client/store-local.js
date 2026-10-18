@@ -24,4 +24,6 @@ export class LocalStore {
   save(key, profile) { this._set('p.' + key, profile); }
   loadRecords(mapId) { return this._get('r.' + mapId) || []; }
   saveRecords(mapId, list) { this._set('r.' + mapId, list.slice(0, 50)); }
+  loadGhost(key) { return this._get('g.' + key); }
+  saveGhost(key, ghost) { this._set('g.' + key, ghost); }
 }
