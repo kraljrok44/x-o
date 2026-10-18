@@ -556,8 +556,8 @@ game.input.canPlay = () => app.state === 'game' && !app.panel && $('#pause').cla
 
 // ------------------------------------------------------------------ boot
 async function boot() {
+  await sdk.init(); // the SDK must be initialised before any other SDK call
   sdk.loadingStart();
-  await sdk.init();
   const health = await probeServer(app.serverUrl);
   app.online = !!health;
   app.health = health;
