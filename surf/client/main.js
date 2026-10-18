@@ -404,6 +404,8 @@ game.on('servermsg', (m) => {
   if (m.t === 'kicked') { hud.feed(m.text || 'Disconnected', 'record'); setTimeout(() => leaveGame(), 1500); }
 });
 game.on('vote', () => { if (!$('#pause').classList.contains('hidden')) showPause(true); });
+// CrazyGames: a completed map is a moment of celebration
+game.on('finish', () => sdk.happytime());
 game.on('mapchange', () => {
   // natural break between maps: the only place a midgame ad is requested (capped to 1 per 3 min)
   if (!sdk.adsDisabled && performance.now() - app.lastMidAd > 180000 && sdk.available) {

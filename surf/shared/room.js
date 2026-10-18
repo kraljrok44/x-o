@@ -326,6 +326,8 @@ export class Room {
     if (res.allTime.improved) {
       const rank = res.allTime.rank;
       this.feed(`${c.name} finished in ${time} - new personal best! (#${rank})`, rank === 1 ? 'record' : 'pb');
+      // a new map record is announced in the chat of every server room
+      if (rank === 1) this.onAnnounce(`🏆 ${c.name} set a new record on ${this.map.display_name}: ${time}`, 'record');
       this.broadcast({ t: 'pinfo', p: this.rosterEntry(c) });
       this.broadcast({ t: 'records', map: this.map.id, list: this.records.slice(0, 10).map((r) => ({ name: r.name, ticks: r.ticks })) });
     } else {

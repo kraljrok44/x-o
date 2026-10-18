@@ -269,6 +269,7 @@ select option { background: var(--panel-solid); }
 .chat-line.spec .chat-name { color: #b9a7ff; }
 .chat-line.system { color: #ffd479; }
 .chat-line.knife { color: #ff8fd0; font-weight: 600; }
+.chat-line.record { color: #ffd23f; font-weight: 700; }
 .chat-row { display: flex; gap: 6px; margin-top: 6px; }
 .chat-row input { flex: 1; padding: 7px 10px; font-size: 14px; background: rgba(6,8,14,.75); }
 .chat-off { color: var(--dim); font-size: 11px; opacity: .6; padding: 2px 6px; }
