@@ -15,9 +15,10 @@ export class Input {
     this.locked = false;
     this.enabled = false;
     this.onLockChange = () => {};
-    // phones: hold buttons A / D (bottom left) and forward ▲ / jump ⤒ (bottom right);
-    // dragging anywhere else turns the view
-    this.touch = { A: new Set(), D: new Set(), fwd: new Set(), jump: new Set(), look: null, x: 0, y: 0 };
+    // phones: a movement joystick in the bottom right corner (W/A/S/D), dragging anywhere else
+    // turns the view; jumping is automatic (autoHop, decided by the game: only while the run is on)
+    this.touch = { stick: null, sx: 0, sy: 0, fwd: 0, side: 0, look: null, x: 0, y: 0, used: false };
+    this.autoHop = () => false;
     this.onGround = () => true;
     this._touchEvents();
 
@@ -79,9 +80,10 @@ export class Input {
   clearPressed() { this.pressed.clear(); }
 
   _touchEvents() {
-    const blocked = (el) => el && el.closest && el.closest('button, input, select, .panel, .panels, .pause-box, .viewer, .free-crate, #chat-row, .touch-ui-btn');
+    const blocked = (el) => el && el.closest && el.closest('button, input, select, .panel, .panels, .pause-box, .viewer, .free-crate, #chat-row, .touch-ui-btn, .touch-stick');
     const start = (e) => {
       if (!this.active || blocked(e.target)) return;
+      this.touch.used = true;
       for (const t of e.changedTouches) {
         if (this.touch.look === null) { this.touch.look = t.identifier; this.touch.x = t.clientX; this.touch.y = t.clientY; }
       }
@@ -89,6 +91,7 @@ export class Input {
     };
     const move = (e) => {
       for (const t of e.changedTouches) {
+        if (t.identifier === this.touch.stick) { this._setStick(t.clientX, t.clientY); e.preventDefault(); continue; }
         if (t.identifier !== this.touch.look) continue;
         const dx = t.clientX - this.touch.x, dy = t.clientY - this.touch.y;
         this.touch.x = t.clientX; this.touch.y = t.clientY;
@@ -101,28 +104,44 @@ export class Input {
     };
     const end = (e) => {
       for (const t of e.changedTouches) {
-        this.touch.A.delete(t.identifier);
-        this.touch.D.delete(t.identifier);
-        this.touch.fwd.delete(t.identifier);
-        this.touch.jump.delete(t.identifier);
+        if (t.identifier === this.touch.stick) this._releaseStick();
         if (t.identifier === this.touch.look) this.touch.look = null;
       }
     };
-    // hold buttons: each finger on a button counts until it is lifted (wherever it ends)
-    const hold = (id, set) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const sync = () => el.classList.toggle('on', set.size > 0);
-      el.addEventListener('touchstart', (e) => { e.preventDefault(); for (const t of e.changedTouches) set.add(t.identifier); sync(); }, { passive: false });
-      const up = (e) => { for (const t of e.changedTouches) set.delete(t.identifier); sync(); };
-      el.addEventListener('touchend', up);
-      el.addEventListener('touchcancel', up);
-      el.addEventListener('contextmenu', (e) => e.preventDefault());
+    // joystick: 8 directions (commands carry -1/0/1), knob follows the finger inside the ring
+    const stick = document.getElementById('touch-stick');
+    const knob = stick && stick.querySelector('.stick-knob');
+    const R = 48;
+    const setStick = (cx, cy) => {
+      const T = this.touch;
+      let dx = cx - T.sx, dy = cy - T.sy;
+      const l = Math.hypot(dx, dy);
+      if (l > R) { dx *= R / l; dy *= R / l; }
+      if (knob) knob.style.transform = `translate(${dx}px, ${dy}px)`;
+      const nx = dx / R, ny = dy / R;
+      T.side = nx > 0.35 ? 1 : nx < -0.35 ? -1 : 0;
+      T.fwd = ny < -0.35 ? 1 : ny > 0.35 ? -1 : 0;
     };
-    hold('touch-a', this.touch.A);
-    hold('touch-d', this.touch.D);
-    hold('touch-fwd', this.touch.fwd);
-    hold('touch-jump', this.touch.jump);
+    const releaseStick = () => {
+      const T = this.touch;
+      T.stick = null; T.fwd = 0; T.side = 0;
+      if (knob) knob.style.transform = '';
+      if (stick) stick.classList.remove('on');
+    };
+    if (stick) {
+      stick.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const T = this.touch, t = e.changedTouches[0];
+        if (T.stick !== null || !t) return;
+        T.used = true;
+        const r = stick.getBoundingClientRect();
+        T.stick = t.identifier; T.sx = r.left + r.width / 2; T.sy = r.top + r.height / 2;
+        stick.classList.add('on');
+        setStick(t.clientX, t.clientY);
+      }, { passive: false });
+    }
+    this._setStick = setStick;
+    this._releaseStick = releaseStick;
     document.addEventListener('touchstart', start, { passive: false });
     document.addEventListener('touchmove', move, { passive: false });
     document.addEventListener('touchend', end);
@@ -142,9 +161,9 @@ export class Input {
   moveAxes() {
     if (!this.active) return { fwd: 0, side: 0, jump: false };
     const T = this.touch;
-    const fwd = (this.down('KeyW') || this.down('ArrowUp') || T.fwd.size ? 1 : 0) - (this.down('KeyS') || this.down('ArrowDown') ? 1 : 0);
-    const side = (this.down('KeyD') || this.down('ArrowRight') || T.D.size ? 1 : 0) - (this.down('KeyA') || this.down('ArrowLeft') || T.A.size ? 1 : 0);
-    return { fwd, side, jump: this.down('Space') || T.jump.size > 0 };
+    const fwd = Math.max(-1, Math.min(1, (this.down('KeyW') || this.down('ArrowUp') ? 1 : 0) - (this.down('KeyS') || this.down('ArrowDown') ? 1 : 0) + T.fwd));
+    const side = Math.max(-1, Math.min(1, (this.down('KeyD') || this.down('ArrowRight') ? 1 : 0) - (this.down('KeyA') || this.down('ArrowLeft') ? 1 : 0) + T.side));
+    return { fwd, side, jump: this.down('Space') || (T.used && this.autoHop()) };
   }
 
   takeMouseDelta() {

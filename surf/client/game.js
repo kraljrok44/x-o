@@ -107,6 +107,17 @@ export class Game extends Emitter {
     this.viewmodel = new ViewModel(r);
     this.input = new Input(canvas);
     this.input.onGround = () => !!(this.ps && this.ps.onGround);
+    // touch auto-jump: only while the run timer is on; on staged maps only once you are actually
+    // surfing the stage (not on the stage's start platform after a teleport / respawn)
+    this.hop = { tp: null, armed: false };
+    this.input.autoHop = () => {
+      const ps = this.ps;
+      if (!ps || ps.runState !== 'running') { this.hop.armed = false; return false; }
+      if (this.map && this.map.layout === 'linear') return true;
+      if (ps.tpSeq !== this.hop.tp) { this.hop.tp = ps.tpSeq; this.hop.armed = false; }
+      if (ps.mode === MODE.SURFING) this.hop.armed = true;
+      return this.hop.armed;
+    };
     this.avatars = new Map();
     this.ghost = new Ghost(this.scene);
     this.showGhost = settings.ghost !== false; // G
