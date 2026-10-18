@@ -84,6 +84,20 @@ class SDKWrapper {
     try { if (this.cg && this.cg.game.showInviteButton) this.cg.game.showInviteButton({ roomId: code }); } catch (e) { /* */ }
   }
 
+  /** Tells CrazyGames which room the player is in and that friends can join it (or not). */
+  updateRoom(code) {
+    try {
+      if (!this.cg || !this.cg.game.updateRoom) return;
+      if (code) this.cg.game.updateRoom({ roomId: code, isJoinable: true, inviteParams: { roomId: code } });
+      else this.cg.game.updateRoom({ isJoinable: false });
+    } catch (e) { /* older sdk */ }
+  }
+
+  /** Share of the maps this player has finished at least once (0-100). */
+  reportCompletion(pct) {
+    try { if (this.cg && this.cg.game.reportGameCompletedPercentage) this.cg.game.reportGameCompletedPercentage(Math.max(0, Math.min(100, Math.round(pct)))); } catch (e) { /* */ }
+  }
+
   hideInviteButton() {
     try { if (this.cg && this.cg.game.hideInviteButton) this.cg.game.hideInviteButton(); } catch (e) { /* */ }
   }

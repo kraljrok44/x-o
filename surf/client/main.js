@@ -359,6 +359,7 @@ async function startGame(mode, spectate, mapId, booting = false, room = null) {
   app.roomCode = app.online && game.net && game.roomCode && mode !== 'practice' ? game.roomCode : null;
   if (app.roomCode) sdk.showInviteButton(app.roomCode);
   else sdk.hideInviteButton();
+  sdk.updateRoom(app.roomCode);
   if (app.roomCode && mode === 'party') hud.feed(`👥 ${t('inviteHint')}: ${t('invite')} (ESC)`, 'pb');
   sdk.loadingStop();
   show('#loading', false);
@@ -394,6 +395,7 @@ function leaveGame() {
   game.disconnect();
   app.roomCode = null;
   sdk.hideInviteButton();
+  sdk.updateRoom(null);
   app.state = 'menu';
   sdk.gameplayStop();
   hud.setVisible(false);
@@ -505,7 +507,16 @@ function showFreeCrate() {
   setTimeout(() => show('#free-crate', false), 15000);
 }
 // CrazyGames: a completed map is a moment of celebration
-game.on('finish', () => sdk.happytime());
+game.on('finish', () => {
+  sdk.happytime();
+  // game completion for CrazyGames: share of the maps finished at least once on this device
+  try {
+    const done = new Set(JSON.parse(localStorage.getItem('gz.completed') || '[]'));
+    if (game.mapId) done.add(game.mapId);
+    localStorage.setItem('gz.completed', JSON.stringify([...done]));
+    sdk.reportCompletion((MAP_LIST.filter((m) => done.has(m.id)).length / MAP_LIST.length) * 100);
+  } catch (e) { /* storage blocked */ }
+});
 game.on('mapchange', () => {
   // natural break between maps: the only place a midgame ad is requested (capped to 1 per 3 min)
   if (!sdk.adsDisabled && performance.now() - app.lastMidAd > 180000 && sdk.available) {
