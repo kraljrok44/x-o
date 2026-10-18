@@ -28,8 +28,8 @@ const STR = {
     controls: 'WASD move · SPACE jump · R restart · H hide players · G ghost · TAB scores · V vote map · J spectate · ENTER chat · ESC menu',
     xpFirst: 'First completion', xpNormal: 'Map completed', xpPb: 'Personal best', xpRecord: 'MAP RECORD', levelUp: 'Level', promoted: 'Promoted to', freeCrateTitle: 'Free crate unlocked!', freeCrateText: 'Every 10th level gives you a crate - no ad needed.', openFreeNow: 'Open it now', later: 'Later', openFreeCrate: 'Open free crate', level: 'Level', xp: 'XP',
     tutTouch: [
-      ['Left ¼ / ½', 'Hold A or D - towards the ramp to stay on it'],
-      ['Right half', 'Drag to look and steer'],
+      ['A  /  D', 'Hold towards the ramp to stay on it'],
+      ['Drag', 'Anywhere else: look and steer'],
       ['▲  /  ⤒', 'Hold to walk forward  /  hold to jump (bunny-hop)'],
       ['In the air', 'Hold A or D and drag the same way to turn - needed for 90° corners'],
       ['☰', 'Menu: knife vault, maps, leaderboard, settings'],
@@ -83,8 +83,8 @@ const STR = {
     controls: 'WASD gibanje · PRESLEDNICA skok · R ponovno · H skrij igralce · G duh · TAB lestvica · V glas za mapo · J opazuj · ENTER klepet · ESC meni',
     xpFirst: 'Prvi prevoz', xpNormal: 'Mapa prevožena', xpPb: 'Osebni rekord', xpRecord: 'REKORD MAPE', levelUp: 'Nivo', promoted: 'Napredovanje v', freeCrateTitle: 'Brezplačen krejt!', freeCrateText: 'Vsak 10. nivo ti podari krejt - brez oglasa.', openFreeNow: 'Odpri ga zdaj', later: 'Kasneje', openFreeCrate: 'Odpri brezplačen krejt', level: 'Nivo', xp: 'XP',
     tutTouch: [
-      ['Leva ¼ / ½', 'Drži A ali D - proti rampi, da ostaneš na njej'],
-      ['Desna polovica', 'Drsaj za pogled in usmerjanje'],
+      ['A  /  D', 'Drži proti rampi, da ostaneš na njej'],
+      ['Drsanje', 'Kjerkoli drugje: pogled in usmerjanje'],
       ['▲  /  ⤒', 'Drži za hojo naprej  /  drži za skok (bunnyhop)'],
       ['V zraku', 'Drži A ali D in drsaj v isto smer za zavoj - potrebno za 90° obrate'],
       ['☰', 'Meni: trezor nožev, mape, lestvica, nastavitve'],

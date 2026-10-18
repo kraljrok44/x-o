@@ -15,8 +15,8 @@ export class Input {
     this.locked = false;
     this.enabled = false;
     this.onLockChange = () => {};
-    // phones: left quarter = A, second quarter = D, right half = look, plus hold buttons for
-    // forward (▲) and jump (⤒) in the bottom right corner
+    // phones: hold buttons A / D (bottom left) and forward ▲ / jump ⤒ (bottom right);
+    // dragging anywhere else turns the view
     this.touch = { A: new Set(), D: new Set(), fwd: new Set(), jump: new Set(), look: null, x: 0, y: 0 };
     this.onGround = () => true;
     this._touchEvents();
@@ -83,10 +83,7 @@ export class Input {
     const start = (e) => {
       if (!this.active || blocked(e.target)) return;
       for (const t of e.changedTouches) {
-        const w = window.innerWidth;
-        if (t.clientX < w * 0.25) this.touch.A.add(t.identifier);
-        else if (t.clientX < w * 0.5) this.touch.D.add(t.identifier);
-        else if (this.touch.look === null) { this.touch.look = t.identifier; this.touch.x = t.clientX; this.touch.y = t.clientY; }
+        if (this.touch.look === null) { this.touch.look = t.identifier; this.touch.x = t.clientX; this.touch.y = t.clientY; }
       }
       e.preventDefault();
     };
@@ -122,6 +119,8 @@ export class Input {
       el.addEventListener('touchcancel', up);
       el.addEventListener('contextmenu', (e) => e.preventDefault());
     };
+    hold('touch-a', this.touch.A);
+    hold('touch-d', this.touch.D);
     hold('touch-fwd', this.touch.fwd);
     hold('touch-jump', this.touch.jump);
     document.addEventListener('touchstart', start, { passive: false });
