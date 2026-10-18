@@ -30,12 +30,12 @@ const STR = {
     tutTouch: [
       ['Left ¼ / ½', 'Hold A or D - towards the ramp to stay on it'],
       ['Right half', 'Drag to look and steer'],
-      ['Finger on the right', 'Walks forward to the ramp; once the timer runs it also bunny-hops'],
+      ['▲  /  ⤒', 'Hold to walk forward  /  hold to jump (bunny-hop)'],
       ['In the air', 'Hold A or D and drag the same way to turn - needed for 90° corners'],
       ['☰', 'Menu: knife vault, maps, leaderboard, settings'],
     ],
     rotate: 'Turn your phone sideways to surf',
-    lookZone: 'DRAG TO LOOK · HOLD TO WALK',
+    lookZone: 'DRAG TO LOOK',
     tutTitle: 'How to surf', tutStart: 'Start surfing', mouseHint: 'Click to look around with the mouse · Q / E turn',
     tut: [
       ['A / D', 'Hold the strafe key towards the ramp to stay on it'],
@@ -85,12 +85,12 @@ const STR = {
     tutTouch: [
       ['Leva ¼ / ½', 'Drži A ali D - proti rampi, da ostaneš na njej'],
       ['Desna polovica', 'Drsaj za pogled in usmerjanje'],
-      ['Prst na desni', 'Sam hodiš naprej do rampe; ko čas teče, tudi poskakuješ (bunnyhop)'],
+      ['▲  /  ⤒', 'Drži za hojo naprej  /  drži za skok (bunnyhop)'],
       ['V zraku', 'Drži A ali D in drsaj v isto smer za zavoj - potrebno za 90° obrate'],
       ['☰', 'Meni: trezor nožev, mape, lestvica, nastavitve'],
     ],
     rotate: 'Obrni telefon v ležeči položaj',
-    lookZone: 'DRSAJ ZA POGLED · DRŽI ZA HOJO',
+    lookZone: 'DRSAJ ZA POGLED',
     tutTitle: 'Kako surfati', tutStart: 'Začni surfati', mouseHint: 'Klikni za pogled z miško · Q / E obračanje',
     tut: [
       ['A / D', 'Drži stransko tipko proti rampi, da ostaneš na njej'],

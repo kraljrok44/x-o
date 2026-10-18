@@ -15,11 +15,10 @@ export class Input {
     this.locked = false;
     this.enabled = false;
     this.onLockChange = () => {};
-    // phones: left quarter = A, second quarter = D, right half = look; a finger on the look side
-    // also walks forward while on the ground (to reach the ramp) and bunny-hops once the timer runs
-    this.touch = { A: new Set(), D: new Set(), look: null, x: 0, y: 0 };
+    // phones: left quarter = A, second quarter = D, right half = look, plus hold buttons for
+    // forward (▲) and jump (⤒) in the bottom right corner
+    this.touch = { A: new Set(), D: new Set(), fwd: new Set(), jump: new Set(), look: null, x: 0, y: 0 };
     this.onGround = () => true;
-    this.running = () => false;
     this._touchEvents();
 
     window.addEventListener('keydown', (e) => {
@@ -107,9 +106,24 @@ export class Input {
       for (const t of e.changedTouches) {
         this.touch.A.delete(t.identifier);
         this.touch.D.delete(t.identifier);
+        this.touch.fwd.delete(t.identifier);
+        this.touch.jump.delete(t.identifier);
         if (t.identifier === this.touch.look) this.touch.look = null;
       }
     };
+    // hold buttons: each finger on a button counts until it is lifted (wherever it ends)
+    const hold = (id, set) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const sync = () => el.classList.toggle('on', set.size > 0);
+      el.addEventListener('touchstart', (e) => { e.preventDefault(); for (const t of e.changedTouches) set.add(t.identifier); sync(); }, { passive: false });
+      const up = (e) => { for (const t of e.changedTouches) set.delete(t.identifier); sync(); };
+      el.addEventListener('touchend', up);
+      el.addEventListener('touchcancel', up);
+      el.addEventListener('contextmenu', (e) => e.preventDefault());
+    };
+    hold('touch-fwd', this.touch.fwd);
+    hold('touch-jump', this.touch.jump);
     document.addEventListener('touchstart', start, { passive: false });
     document.addEventListener('touchmove', move, { passive: false });
     document.addEventListener('touchend', end);
@@ -128,10 +142,10 @@ export class Input {
   /** Movement intent for this tick. */
   moveAxes() {
     if (!this.active) return { fwd: 0, side: 0, jump: false };
-    const T = this.touch, look = T.look !== null;
-    const fwd = (this.down('KeyW') || this.down('ArrowUp') || (look && this.onGround()) ? 1 : 0) - (this.down('KeyS') || this.down('ArrowDown') ? 1 : 0);
+    const T = this.touch;
+    const fwd = (this.down('KeyW') || this.down('ArrowUp') || T.fwd.size ? 1 : 0) - (this.down('KeyS') || this.down('ArrowDown') ? 1 : 0);
     const side = (this.down('KeyD') || this.down('ArrowRight') || T.D.size ? 1 : 0) - (this.down('KeyA') || this.down('ArrowLeft') || T.A.size ? 1 : 0);
-    return { fwd, side, jump: this.down('Space') || (look && this.running()) };
+    return { fwd, side, jump: this.down('Space') || T.jump.size > 0 };
   }
 
   takeMouseDelta() {
