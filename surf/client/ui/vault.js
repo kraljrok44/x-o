@@ -336,6 +336,9 @@ export class Vault {
     this.last = now;
     const { w, h } = stage3d.fit();
     this.camera.aspect = w / h;
+    // narrow (portrait) stages keep the crate's full width in view by widening the vertical FOV
+    const ref = 1.3, a = w / h;
+    this.camera.fov = a >= ref ? 38 : (2 * Math.atan(Math.tan((38 * Math.PI) / 360) * (ref / a)) * 180) / Math.PI;
     this.camera.updateProjectionMatrix();
     if (this.anim.playing) {
       this.anim.t += dt;
