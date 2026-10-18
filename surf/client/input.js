@@ -15,9 +15,10 @@ export class Input {
     this.locked = false;
     this.enabled = false;
     this.onLockChange = () => {};
-    // phones: a movement joystick in the bottom right corner (W/A/S/D), dragging anywhere else
-    // turns the view; jumping is automatic (autoHop, decided by the game: only while the run is on)
-    this.touch = { stick: null, sx: 0, sy: 0, fwd: 0, side: 0, look: null, x: 0, y: 0, used: false };
+    // phones: strafe buttons A / D bottom left; joystick bottom right: up/down = forward/back,
+    // left/right = turn the view; dragging anywhere else also looks around. Jumping is automatic
+    // (autoHop, decided by the game: only while the run is on)
+    this.touch = { stick: null, sx: 0, sy: 0, fwd: 0, turn: 0, A: new Set(), D: new Set(), look: null, x: 0, y: 0, used: false };
     this.autoHop = () => false;
     this.onGround = () => true;
     this._touchEvents();
@@ -105,6 +106,8 @@ export class Input {
     const end = (e) => {
       for (const t of e.changedTouches) {
         if (t.identifier === this.touch.stick) this._releaseStick();
+        this.touch.A.delete(t.identifier);
+        this.touch.D.delete(t.identifier);
         if (t.identifier === this.touch.look) this.touch.look = null;
       }
     };
@@ -119,12 +122,12 @@ export class Input {
       if (l > R) { dx *= R / l; dy *= R / l; }
       if (knob) knob.style.transform = `translate(${dx}px, ${dy}px)`;
       const nx = dx / R, ny = dy / R;
-      T.side = nx > 0.35 ? 1 : nx < -0.35 ? -1 : 0;
+      T.turn = Math.abs(nx) < 0.15 ? 0 : (nx - Math.sign(nx) * 0.15) / 0.85; // analog turn rate
       T.fwd = ny < -0.35 ? 1 : ny > 0.35 ? -1 : 0;
     };
     const releaseStick = () => {
       const T = this.touch;
-      T.stick = null; T.fwd = 0; T.side = 0;
+      T.stick = null; T.fwd = 0; T.turn = 0;
       if (knob) knob.style.transform = '';
       if (stick) stick.classList.remove('on');
     };
@@ -140,6 +143,19 @@ export class Input {
         setStick(t.clientX, t.clientY);
       }, { passive: false });
     }
+    // strafe buttons: each finger counts until it is lifted (wherever it ends)
+    const hold = (id, set) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const sync = () => el.classList.toggle('on', set.size > 0);
+      el.addEventListener('touchstart', (e) => { e.preventDefault(); this.touch.used = true; for (const t of e.changedTouches) set.add(t.identifier); sync(); }, { passive: false });
+      const up = (e) => { for (const t of e.changedTouches) set.delete(t.identifier); sync(); };
+      el.addEventListener('touchend', up);
+      el.addEventListener('touchcancel', up);
+      el.addEventListener('contextmenu', (e) => e.preventDefault());
+    };
+    hold('touch-a', this.touch.A);
+    hold('touch-d', this.touch.D);
     this._setStick = setStick;
     this._releaseStick = releaseStick;
     document.addEventListener('touchstart', start, { passive: false });
@@ -155,6 +171,8 @@ export class Input {
   keyTurn(dt) {
     if (this.locked || !this.active) return;
     this.yaw += ((this.down('KeyQ') ? 1 : 0) - (this.down('KeyE') ? 1 : 0)) * 2.4 * dt;
+    // joystick left/right turns the view (scaled with the sensitivity setting)
+    if (this.touch.turn) this.yaw -= this.touch.turn * 2.2 * Math.sqrt(settings.sensitivity) * dt;
   }
 
   /** Movement intent for this tick. */
@@ -162,7 +180,7 @@ export class Input {
     if (!this.active) return { fwd: 0, side: 0, jump: false };
     const T = this.touch;
     const fwd = Math.max(-1, Math.min(1, (this.down('KeyW') || this.down('ArrowUp') ? 1 : 0) - (this.down('KeyS') || this.down('ArrowDown') ? 1 : 0) + T.fwd));
-    const side = Math.max(-1, Math.min(1, (this.down('KeyD') || this.down('ArrowRight') ? 1 : 0) - (this.down('KeyA') || this.down('ArrowLeft') ? 1 : 0) + T.side));
+    const side = Math.max(-1, Math.min(1, (this.down('KeyD') || this.down('ArrowRight') ? 1 : 0) - (this.down('KeyA') || this.down('ArrowLeft') ? 1 : 0) + (T.D.size ? 1 : 0) - (T.A.size ? 1 : 0)));
     return { fwd, side, jump: this.down('Space') || (T.used && this.autoHop()) };
   }
 

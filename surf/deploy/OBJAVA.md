@@ -60,8 +60,8 @@ curl -s https://glidezone-rok.duckdns.org/health   # JSON mora vsebovati polje "
    - **Game name:** `FPS Surf` (tako se igra zdaj imenuje v igri)
    - **Game engine:** HTML5
    - **Save progress:** *Yes, linked to a game account on the game's backend…*
-   - ☑ **The game supports mobile devices**. Zdaj podpira telefon: joystick spodaj desno za gibanje,
-     drsanje kjerkoli drugje obrača pogled, skok je samodejen, ko čas teče.
+   - ☑ **The game supports mobile devices**. Zdaj podpira telefon: gumba A in D spodaj levo, joystick
+     spodaj desno (gor = naprej, levo/desno = obračanje), skok je samodejen, ko čas teče.
      **Mobile orientation:** LANDSCAPE.
    - ☑ **Online multiplayer**, **"Online with Friends" Lobby Size:** Min `2`, Max `24`.
      Igra podpira vabila: CrazyGames invite gumb in povezavo (`roomId`). Odprta povezava pelje

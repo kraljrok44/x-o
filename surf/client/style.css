@@ -92,16 +92,20 @@ select option { background: var(--panel-solid); }
 @keyframes pulse { 50% { opacity: .55; } }
 .touch-ui { position: absolute; inset: 0; pointer-events: none; }
 .touch-ui .tz { position: absolute; bottom: 0; height: 46%; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6vh; font: 900 34px var(--font); color: rgba(255,255,255,.28); }
-.touch-ui .tz-look { left: 0; right: 0; width: auto; border-left: 0 !important; justify-content: flex-start; padding-left: 24px; font-size: 13px; letter-spacing: .5px; color: rgba(255,255,255,.3); border-left: 1px dashed rgba(255,255,255,.08); }
+.touch-ui .tz-look { left: 0; right: 0; width: auto; border-left: 0 !important; justify-content: center; padding-left: 0; font-size: 13px; letter-spacing: .5px; color: rgba(255,255,255,.3); border-left: 1px dashed rgba(255,255,255,.08); }
 .touch-ui-btn { position: absolute; right: 12px; top: 12px; pointer-events: auto; width: 46px; height: 46px; border-radius: 12px; border: 1px solid var(--line); background: rgba(10,12,24,.7); color: #fff; font-size: 22px; }
 .rotate-hint { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; background: rgba(5,6,14,.92); font: 800 20px var(--font); }
 body.touch .hud-keys, body.touch #hud-net { display: none; }
-body.touch .tutorial { width: 44vw; left: 12px; right: auto; top: 96px; bottom: auto; transform: none; padding: 10px 12px; }
+body.touch .tutorial { width: 46vw; left: 50%; right: auto; top: 84px; bottom: auto; transform: translateX(-50%); padding: 8px 12px; }
 body.touch .tutorial .ctp-title { font-size: 15px; }
 body.touch .tutorial .tut-list { font-size: 11px; gap: 4px 8px; margin: 6px 0 2px; }
 body.touch .tutorial .tut-list .k { font-size: 10px; padding: 2px 6px; white-space: normal; }
 body.touch .touch-ui .tz { font-size: 26px; }
 body.touch .touch-ui .tz-look { font-size: 10px; }
+.touch-ui .touch-act { top: auto; right: auto; bottom: 22px; width: 84px; height: 84px; border-radius: 50%; font-size: 30px; font-weight: 900; background: rgba(10,12,24,.55); border: 2px solid rgba(255,255,255,.35); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.touch-ui #touch-a { left: calc(20px + env(safe-area-inset-left)); }
+.touch-ui #touch-d { left: calc(118px + env(safe-area-inset-left)); }
+.touch-ui .touch-act.on { background: rgba(0,229,255,.35); border-color: var(--a1); }
 .touch-stick { position: absolute; right: calc(26px + env(safe-area-inset-right)); bottom: 22px; width: 150px; height: 150px; border-radius: 50%; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; background: radial-gradient(circle, rgba(255,255,255,.06) 0%, rgba(10,12,24,.45) 70%); border: 2px solid rgba(255,255,255,.3); }
 .touch-stick .stick-knob { position: absolute; left: 50%; top: 50%; width: 62px; height: 62px; margin: -31px 0 0 -31px; border-radius: 50%; background: rgba(255,255,255,.28); border: 2px solid rgba(255,255,255,.6); }
 .touch-stick.on { border-color: var(--a1); }
