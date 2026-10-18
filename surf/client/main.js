@@ -224,7 +224,6 @@ function renderMenu() {
           <p class="howto">${t('howTo')}</p>
           <p class="howto">${t('jumpHint')}</p>
           <p class="keys-line">${t('controls')}</p>
-          ${isTouchOnly() ? `<p class="warn">${t('desktopOnly')}</p>` : ''}
         </div>
       </div>
     </div>`);
@@ -310,7 +309,6 @@ function renderSettings() {
 
 // ------------------------------------------------------------------ game flow
 async function startGame(mode, spectate, mapId, booting = false) {
-  if (isTouchOnly() && !spectate) { alert(t('desktopOnly')); return; }
   audio.ensure();
   show('#loading', true);
   html('#loading', `<div class="spinner"></div><div>${t('connecting')}</div>`);
@@ -340,14 +338,16 @@ async function startGame(mode, spectate, mapId, booting = false) {
   // play starts at once: the keyboard works immediately, the mouse after one click on the game
   show('#click-to-play', false);
   try { window.focus(); } catch (e) { /* */ }
-  show('#mouse-hint', !game.input.locked && !spectate);
+  const touch = isTouchOnly();
+  show('#mouse-hint', !touch && !game.input.locked && !spectate);
+  show('#touch-ui', touch && !spectate);
   html('#mouse-hint', t('mouseHint'));
   let firstTime = false;
   try { firstTime = !localStorage.getItem('gz.tutorial.v1'); } catch (e) { /* storage blocked */ }
   if (firstTime && !spectate) {
     // first visit: the basic controls in a side card that never blocks play, gone after a while
     html('#tutorial', `<div class="ctp-title">${t('tutTitle')}</div>
-      <div class="tut-list">${t('tut').map(([k, d]) => `<span class="k">${esc(k)}</span><span class="d">${esc(d)}</span>`).join('')}</div>`);
+      <div class="tut-list">${t(touch ? 'tutTouch' : 'tut').map(([k, d]) => `<span class="k">${esc(k)}</span><span class="d">${esc(d)}</span>`).join('')}</div>`);
     const el = $('#tutorial');
     el.classList.remove('fade');
     show(el, true);
@@ -459,6 +459,16 @@ game.on('mapchange', () => {
   }
 });
 
+// phones and tablets: touch zones, a menu button and a landscape hint
+if (isTouchOnly()) {
+  document.body.classList.add('touch');
+  $('.tz-look').textContent = t('lookZone');
+  $('#touch-menu').onclick = () => { audio.ensure(); sdk.gameplayStop(); showPause(true); };
+  const rotate = () => { show('#rotate-hint', innerHeight > innerWidth * 1.1); html('#rotate-hint', `📱↻<br>${t('rotate')}`); };
+  window.addEventListener('resize', rotate);
+  rotate();
+}
+
 // keyboard play is live whenever nothing else (menu, panel, chat input) has the keys
 game.input.canPlay = () => app.state === 'game' && !app.panel && $('#pause').classList.contains('hidden') && !chat.open;
 
@@ -472,7 +482,7 @@ async function boot() {
   account.refresh();
   renderMenu();
   // CrazyGames: the game starts right away - straight into the public server (ESC opens the menu)
-  await startGame('public', isTouchOnly(), undefined, true);
+  await startGame('public', false, undefined, true);
   setInterval(async () => {
     if (app.state !== 'menu' || !app.serverUrl) return;
     const h = await probeServer(app.serverUrl);

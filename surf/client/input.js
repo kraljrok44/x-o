@@ -15,6 +15,11 @@ export class Input {
     this.locked = false;
     this.enabled = false;
     this.onLockChange = () => {};
+    // phones: left quarter = A, second quarter = D, right half = look; a finger on the look side
+    // also walks forward while on the ground (to reach the first ramp) and keeps jumping
+    this.touch = { A: new Set(), D: new Set(), look: null, x: 0, y: 0 };
+    this.onGround = () => true;
+    this._touchEvents();
 
     window.addEventListener('keydown', (e) => {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
@@ -73,6 +78,43 @@ export class Input {
 
   clearPressed() { this.pressed.clear(); }
 
+  _touchEvents() {
+    const blocked = (el) => el && el.closest && el.closest('button, input, select, .panel, .panels, .pause-box, .viewer, .free-crate, #chat-row, .touch-ui-btn');
+    const start = (e) => {
+      if (!this.active || blocked(e.target)) return;
+      for (const t of e.changedTouches) {
+        const w = window.innerWidth;
+        if (t.clientX < w * 0.25) this.touch.A.add(t.identifier);
+        else if (t.clientX < w * 0.5) this.touch.D.add(t.identifier);
+        else if (this.touch.look === null) { this.touch.look = t.identifier; this.touch.x = t.clientX; this.touch.y = t.clientY; }
+      }
+      e.preventDefault();
+    };
+    const move = (e) => {
+      for (const t of e.changedTouches) {
+        if (t.identifier !== this.touch.look) continue;
+        const dx = t.clientX - this.touch.x, dy = t.clientY - this.touch.y;
+        this.touch.x = t.clientX; this.touch.y = t.clientY;
+        const k = settings.sensitivity * 0.0016;
+        this.yaw -= dx * k;
+        this.pitch = Math.max(-1.55, Math.min(1.55, this.pitch - dy * k * (settings.invertY ? -1 : 1)));
+        this.mouseDX += dx * 2; this.mouseDY += dy * 2;
+      }
+      if (this.touch.look !== null) e.preventDefault();
+    };
+    const end = (e) => {
+      for (const t of e.changedTouches) {
+        this.touch.A.delete(t.identifier);
+        this.touch.D.delete(t.identifier);
+        if (t.identifier === this.touch.look) this.touch.look = null;
+      }
+    };
+    document.addEventListener('touchstart', start, { passive: false });
+    document.addEventListener('touchmove', move, { passive: false });
+    document.addEventListener('touchend', end);
+    document.addEventListener('touchcancel', end);
+  }
+
   /** Keyboard play works right away; the mouse needs one click (browsers only lock it on a click). */
   get active() { return this.locked || !!(this.canPlay && this.canPlay()); }
 
@@ -85,9 +127,10 @@ export class Input {
   /** Movement intent for this tick. */
   moveAxes() {
     if (!this.active) return { fwd: 0, side: 0, jump: false };
-    const fwd = (this.down('KeyW') || this.down('ArrowUp') ? 1 : 0) - (this.down('KeyS') || this.down('ArrowDown') ? 1 : 0);
-    const side = (this.down('KeyD') || this.down('ArrowRight') ? 1 : 0) - (this.down('KeyA') || this.down('ArrowLeft') ? 1 : 0);
-    return { fwd, side, jump: this.down('Space') };
+    const T = this.touch, look = T.look !== null;
+    const fwd = (this.down('KeyW') || this.down('ArrowUp') || (look && this.onGround()) ? 1 : 0) - (this.down('KeyS') || this.down('ArrowDown') ? 1 : 0);
+    const side = (this.down('KeyD') || this.down('ArrowRight') || T.D.size ? 1 : 0) - (this.down('KeyA') || this.down('ArrowLeft') || T.A.size ? 1 : 0);
+    return { fwd, side, jump: this.down('Space') || look };
   }
 
   takeMouseDelta() {

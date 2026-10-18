@@ -83,6 +83,21 @@ select option { background: var(--panel-solid); }
 .tutorial .tut-list { margin: 8px 0 6px; gap: 6px 12px; font-size: 13px; }
 .mouse-hint { position: absolute; left: 50%; bottom: 30vh; transform: translateX(-50%); pointer-events: none; padding: 8px 16px; border-radius: 999px; background: rgba(10,12,24,.75); border: 1px solid var(--line); font-weight: 700; animation: pulse 2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .55; } }
+.touch-ui { position: absolute; inset: 0; pointer-events: none; }
+.touch-ui .tz { position: absolute; bottom: 0; height: 46%; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6vh; font: 900 34px var(--font); color: rgba(255,255,255,.28); border-top: 1px dashed rgba(255,255,255,.08); }
+.touch-ui .tz-a { left: 0; width: 25%; border-right: 1px dashed rgba(255,255,255,.08); }
+.touch-ui .tz-d { left: 25%; width: 25%; }
+.touch-ui .tz-look { right: 0; width: 50%; font-size: 13px; letter-spacing: .5px; color: rgba(255,255,255,.3); border-left: 1px dashed rgba(255,255,255,.08); }
+.touch-ui-btn { position: absolute; right: 12px; top: 12px; pointer-events: auto; width: 46px; height: 46px; border-radius: 12px; border: 1px solid var(--line); background: rgba(10,12,24,.7); color: #fff; font-size: 22px; }
+.rotate-hint { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; background: rgba(5,6,14,.92); font: 800 20px var(--font); }
+body.touch .hud-keys, body.touch #hud-net { display: none; }
+body.touch .tutorial { width: 44vw; right: 12px; padding: 10px 12px; }
+body.touch .tutorial .ctp-title { font-size: 15px; }
+body.touch .tutorial .tut-list { font-size: 11px; gap: 4px 8px; margin: 6px 0 2px; }
+body.touch .tutorial .tut-list .k { font-size: 10px; padding: 2px 6px; white-space: normal; }
+body.touch .touch-ui .tz { font-size: 26px; }
+body.touch .touch-ui .tz-look { font-size: 10px; }
+body.touch .hud-feed { top: 66px !important; }
 .tut-box .ctp-title { text-align: center; }
 .tut-list { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 14px 0 18px; }
 .tut-list .k { font: 800 13px var(--mono); background: rgba(255,255,255,.1); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; white-space: nowrap; align-self: center; }

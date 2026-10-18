@@ -109,6 +109,7 @@ export class Game extends Emitter {
 
     this.viewmodel = new ViewModel(r);
     this.input = new Input(canvas);
+    this.input.onGround = () => !!(this.ps && this.ps.onGround);
     this.avatars = new Map();
     this.ghost = new Ghost(this.scene);
     this.showGhost = settings.ghost !== false; // G
@@ -145,7 +146,8 @@ export class Game extends Emitter {
 
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
-    const base = Math.min(window.devicePixelRatio || 1, settings.quality === 'low' ? 0.75 : settings.quality === 'ultra' ? 2 : 1.25);
+    const touch = 'ontouchstart' in window && !matchMedia('(pointer:fine)').matches; // phones: keep the frame rate up
+    const base = Math.min(window.devicePixelRatio || 1, settings.quality === 'low' ? 0.75 : settings.quality === 'ultra' ? 2 : touch ? 1 : 1.25);
     const pr = Math.max(0.5, base * this.dynScale);
     this.renderer.setPixelRatio(pr);
     this.renderer.setSize(w, h, false);
