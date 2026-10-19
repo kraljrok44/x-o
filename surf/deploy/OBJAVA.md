@@ -75,8 +75,26 @@ curl -s https://glidezone-rok.duckdns.org/health   # JSON mora vsebovati polje "
 6. Isti ZIP velja za Basic in Full launch. V Basic launchu se krejti odpirajo brez oglasa,
    v Full launchu samo po ogledanem oglasu.
 
+### Odgovori v koraku QA
+
+| Vprašanje | Odgovor |
+|---|---|
+| First gameplay start implemented correctly | Yes: `gameplayStart` ob prvem možnem gibanju, `gameplayStop` v meniju, pavzi, panelih in med oglasom |
+| Complies to Gameplay requirements | Yes: takojšen začetek, angleščina privzeto, brez tujih oglasov, povezav ali lastne prijave |
+| Runs on all CrazyGames domains | Yes: strežnik sprejme vse domene |
+| Browser checks | Yes, ko igra deluje v Chromu in še enem brskalniku |
+| Device checks: Mobile | Yes, ko jo preizkusiš prek **Show QR** v ležečem položaju |
+| No external ads | Yes |
+| Does not offer external login options | Yes |
+| In-game mention of Terms & Conditions / Privacy Policy | Yes: »Privacy & Terms« v glavnem meniju, pavzi in nastavitvah |
+| Game uses Invite Button correctly | Yes: samo v online sobi, skrije se v meniju in brez povezave |
+| IsInstantMultiplayer is supported for party leader | Yes: najprej klikni **Test**, igra se odpre v sobi »Party XXXXXX« |
+
+Igra spoštuje tudi CrazyGames nastavitev **disableChat** (klepet izgine) in **muteAudio**.
+
 ## Kaj je novo v tej različici
 
+- **Pregled pred objavo:** strežnik ne pade več ob pokvarjenih sporočilih ali napaki diska, igra ne ostane napol povezana, majhna okna in telefoni brez odrezanih menijev, disableChat, slike map v izbiri map.
 - **Igranje s prijatelji:** sobe s povezavo za vabilo in takojšen vstop (zahteva CrazyGames za multiplayer).
 - **Popravek padanja skozi rampe:** igra se ne poveže več na strežnik z drugačnimi mapami.
 - **Novo ime: FPS Surf.**

@@ -5,7 +5,7 @@ import { settings } from './settings.js';
 const STR = {
   en: {
     tagline: 'Multiplayer surf. Hold the ramp, chase the flow.',
-    privacy: 'Privacy & Terms', friends: 'Play with friends', invite: 'Invite friends', copy: 'Copy', inviteCopied: 'Invite link copied, send it to your friends', inviteHint: 'Friends who open this link join your room',
+    partyOpen: 'Your room for friends is open - the invite link is in the menu', privacy: 'Privacy & Terms', friends: 'Play with friends', invite: 'Invite friends', copy: 'Copy', inviteCopied: 'Invite link copied, send it to your friends', inviteHint: 'Friends who open this link join your room',
     play: 'Play online', practice: 'Practice', spectate: 'Spectate', vault: 'Knife Vault', inventory: 'Inventory', settings: 'Settings',
     name: 'Name', server: 'Server', online: 'online', offline: 'offline', players: 'players', connecting: 'Connecting…',
     offlineMode: 'Server unreachable - playing offline (local inventory).',
@@ -61,7 +61,7 @@ const STR = {
   },
   sl: {
     tagline: 'Večigralski surf. Drži rampo, lovi tok.',
-    privacy: 'Zasebnost in pogoji', friends: 'Igraj s prijatelji', invite: 'Povabi prijatelje', copy: 'Kopiraj', inviteCopied: 'Povezava za vabilo je kopirana, pošlji jo prijateljem', inviteHint: 'Prijatelji, ki odprejo to povezavo, pridejo v tvojo sobo',
+    partyOpen: 'Soba za prijatelje je odprta - povezava za vabilo je v meniju', privacy: 'Zasebnost in pogoji', friends: 'Igraj s prijatelji', invite: 'Povabi prijatelje', copy: 'Kopiraj', inviteCopied: 'Povezava za vabilo je kopirana, pošlji jo prijateljem', inviteHint: 'Prijatelji, ki odprejo to povezavo, pridejo v tvojo sobo',
     play: 'Igraj na strežniku', practice: 'Trening', spectate: 'Opazuj', vault: 'Trezor nožev', inventory: 'Inventar', settings: 'Nastavitve',
     name: 'Ime', server: 'Strežnik', online: 'povezan', offline: 'nedosegljiv', players: 'igralcev', connecting: 'Povezujem…',
     offlineMode: 'Strežnik ni dosegljiv - igraš brez povezave (lokalni inventar).',

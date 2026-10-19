@@ -389,6 +389,9 @@ body.touch .hud-feed { top: 66px !important; }
   .lb-boards { flex: none; }
   .lb-board { align-items: center; padding: 7px 10px; line-height: 1.25; }
   #settings > .row { margin-top: 8px; }
+  .set-grid { grid-template-columns: 1fr 1fr; gap: 0 18px; }
+  .set-row input[type=range] { width: 110px; }
+  .set-row b { width: 34px; }
   body:not(.touch) .tutorial { top: 96px; transform: none; width: min(400px, 46vw); padding: 10px 12px; }
   body:not(.touch) .tutorial .ctp-title { font-size: 15px; }
   body:not(.touch) .tutorial .tut-list { font-size: 11px; gap: 4px 8px; margin: 6px 0 2px; }

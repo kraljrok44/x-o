@@ -376,6 +376,7 @@ async function startGame(mode, spectate, mapId, booting = false, room = null) {
     else tr = await new LocalTransport({ voting: mode !== 'practice', map: mapId }).open();
   } catch (e) {
     app.online = false;
+    app.fellBack = true;
     tr = await new LocalTransport({ voting: mode !== 'practice', map: mapId }).open();
   }
   app.playMode = mode;
@@ -408,19 +409,21 @@ async function startGame(mode, spectate, mapId, booting = false, room = null) {
     await offline();
   } else if (res !== 'ok' && app.state === 'game') {
     // server unreachable, closed during the join or refused us: never leave a half-joined game
-    if (app.online) hud.feed(t('serverDown'), 'record');
+    if (app.online) app.fellBack = true;
     app.online = false;
     await offline();
   }
   app.starting = false;
   if (app.state !== 'game') return; // left to the menu while connecting
   if (app.outdated) hud.feed(t('serverOutdated'), 'record');
+  else if (app.fellBack) hud.feed(t('serverDown'), 'record');
+  app.fellBack = false;
   // every online room can be joined through an invite link (CrazyGames invite button + pause menu)
   app.roomCode = app.online && game.net && game.roomCode && mode !== 'practice' ? game.roomCode : null;
   if (app.roomCode) sdk.showInviteButton(app.roomCode);
   else sdk.hideInviteButton();
   sdk.updateRoom(app.roomCode);
-  if (app.roomCode && mode === 'party') hud.feed(`👥 ${t('inviteHint')}: ${t('invite')} (ESC)`, 'pb');
+  if (app.roomCode && mode === 'party') hud.feed(`👥 ${t('partyOpen')} (${isTouchOnly() ? '☰' : 'ESC'})`, 'pb');
   sdk.loadingStop();
   show('#loading', false);
   show('#menu', false);
