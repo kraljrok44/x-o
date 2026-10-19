@@ -83,7 +83,7 @@ export class Input {
   clearPressed() { this.pressed.clear(); }
 
   _touchEvents() {
-    const blocked = (el) => el && el.closest && el.closest('button, input, select, .panel, .panels, .pause-box, .viewer, .free-crate, #chat-row, .touch-ui-btn');
+    const blocked = (el) => el && el.closest && el.closest('button, input, select, .panel, .panels, .pause-box, .viewer, .free-crate, #chat-row, .touch-ui-btn, .hud-vote, .tut-x');
     const start = (e) => {
       if (!this.active || blocked(e.target)) return;
       this.touch.used = true;

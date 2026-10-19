@@ -176,6 +176,8 @@ export class Hud {
       } else show(box, false);
       return;
     }
+    // closed with ✕: stays hidden until the next vote starts
+    if (v.state === 'voting' && this.voteClosedFor === v.endsAt) { show(box, false); return; }
     show(box, true);
     if (v.state === 'changing') {
       html(box, `<div class="vote-title">${t('changing')}</div><div class="vote-result">${esc(mapName(v.map))}</div>`);
@@ -185,9 +187,15 @@ export class Hud {
     const rows = v.options.map((o, i) => {
       const name = o === EXTEND ? t('extend') : mapName(o);
       const won = v.state === 'ended' && v.result === o;
-      return `<div class="vote-row ${v.mine === i ? 'mine' : ''} ${won ? 'won' : ''}"><span class="key">${i + 1}</span><span class="vote-name">${esc(name)}</span><span class="vote-count">${v.counts[i]}</span><div class="vote-bar" style="width:${(v.counts[i] / total) * 100}%"></div></div>`;
+      return `<div class="vote-row ${v.mine === i ? 'mine' : ''} ${won ? 'won' : ''}" data-i="${i}"><span class="key">${i + 1}</span><span class="vote-name">${esc(name)}</span><span class="vote-count">${v.counts[i]}</span><div class="vote-bar" style="width:${(v.counts[i] / total) * 100}%"></div></div>`;
     }).join('');
-    html(box, `<div class="vote-title">${t('voteTitle')} <span id="vote-timer"></span></div>${rows}<div class="vote-hint">${t('voteHint')}</div>`);
+    const touch = document.body.classList.contains('touch');
+    html(box, `<div class="vote-title">${t('voteTitle')} <span id="vote-timer"></span><button class="vote-x" aria-label="Close">✕</button></div>${rows}<div class="vote-hint">${t(touch ? 'voteHintTouch' : 'voteHint')}</div>`);
+    // tap / click a map to vote (phones have no number keys); ✕ hides the panel for this vote
+    box.querySelectorAll('.vote-row').forEach((r) => {
+      r.onclick = (e) => { e.stopPropagation(); if (v.state === 'voting') this.game.castVote(+r.dataset.i); };
+    });
+    box.querySelector('.vote-x').onclick = (e) => { e.stopPropagation(); this.voteClosedFor = v.endsAt; show(box, false); };
     this.renderVoteTimer(v);
   }
 

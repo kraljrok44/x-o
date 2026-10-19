@@ -443,11 +443,12 @@ async function startGame(mode, spectate, mapId, booting = false, room = null) {
   try { firstTime = !localStorage.getItem('gz.tutorial.v1'); } catch (e) { /* storage blocked */ }
   if (firstTime && !spectate) {
     // first visit: the basic controls in a side card that never blocks play, gone after a while
-    html('#tutorial', `<div class="ctp-title">${t('tutTitle')}</div>
+    html('#tutorial', `<button class="tut-x" id="tut-x" aria-label="Close">✕</button><div class="ctp-title">${t('tutTitle')}</div>
       <div class="tut-list">${t(touch ? 'tutTouch' : 'tut').map(([k, d]) => `<span class="k">${esc(k)}</span><span class="d">${esc(d)}</span>`).join('')}</div>`);
     const el = $('#tutorial');
     el.classList.remove('fade');
     show(el, true);
+    $('#tut-x').onclick = (e) => { e.stopPropagation(); show(el, false); };
     setTimeout(() => el.classList.add('fade'), 18000);
     setTimeout(() => show(el, false), 18700);
     try { localStorage.setItem('gz.tutorial.v1', '1'); } catch (e) { /* */ }

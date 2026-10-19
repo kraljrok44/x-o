@@ -158,7 +158,7 @@ body.touch .hud-feed { top: 66px !important; }
 .feed-item.record { border-color: var(--warn); color: var(--warn); }
 .feed-item.pb { border-color: var(--ok); }
 @keyframes feedIn { from { opacity: 0; transform: translateX(20px); } }
-.hud-vote { position: absolute; right: 16px; top: 38%; width: calc(290px * var(--hud-scale)); background: rgba(8,10,18,.78); border: 1px solid rgba(0,229,255,.35); border-radius: 14px; padding: 12px; font-size: calc(14px * var(--hud-scale)); }
+.hud-vote { pointer-events: auto; z-index: 8; position: absolute; right: 16px; top: 38%; width: calc(290px * var(--hud-scale)); background: rgba(8,10,18,.78); border: 1px solid rgba(0,229,255,.35); border-radius: 14px; padding: 12px; font-size: calc(14px * var(--hud-scale)); }
 .vote-title { font-weight: 800; margin-bottom: 8px; display: flex; justify-content: space-between; }
 .vote-row { position: relative; display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 8px; overflow: hidden; margin-bottom: 4px; background: rgba(255,255,255,.04); }
 .vote-row .vote-name { flex: 1; z-index: 1; }
@@ -398,3 +398,10 @@ body.touch .hud-feed { top: 66px !important; }
 }
 .row > .btn { padding-left: 10px; padding-right: 10px; }
 #touch-menu { position: fixed; }
+.vote-row { cursor: pointer; }
+.vote-row:active { filter: brightness(1.3); }
+.vote-x, .tut-x { margin-left: auto; background: rgba(255,255,255,.08); border: 1px solid var(--line); color: #fff; border-radius: 8px; width: 28px; height: 28px; font-size: 14px; cursor: pointer; pointer-events: auto; flex: none; }
+.vote-title { align-items: center; gap: 8px; }
+.tutorial .tut-x { position: absolute; top: 8px; right: 8px; }
+body.touch .hud-vote { top: 70px; width: 240px; padding: 8px; font-size: 13px; }
+body.touch .vote-row { padding-top: 8px; padding-bottom: 8px; }
