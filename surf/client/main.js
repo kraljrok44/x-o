@@ -243,7 +243,7 @@ function renderMenu() {
           <label class="field">${t('name')}
             <input id="m-name" maxlength="${GAME.maxNameLength}" value="${esc(cgName || settings.name)}" ${cgName ? 'disabled' : ''} placeholder="Surfer">
           </label>
-          ${sdk.available && !cgName ? `<button class="btn ghost small" id="m-login">${t('login')}</button>` : ''}
+          ${sdk.canLogin && !cgName ? `<button class="btn ghost small" id="m-login">${t('login')}</button>` : ''}
           ${sensRow()}
           <div class="status">${status}</div>
           <div class="status"><span class="chat-rank">${rankFor(levelFor(account.xp)).short}</span> ${t('level')} ${levelFor(account.xp)} · ${account.xp.toLocaleString()} XP</div>

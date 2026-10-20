@@ -9,6 +9,8 @@ rm -rf release/stage release/*.zip && mkdir -p release/stage/glidezone-server
 node tools/build.mjs --single --out release/stage/single
 (cd release/stage/single && zip -q ../../glidezone-crazygames.zip index.html)
 node tools/build.mjs
+node tools/build.mjs --single --platform gamemonetize --out release/stage/gm
+(cd release/stage/gm && zip -q ../../glidezone-gamemonetize.zip index.html)
 S=release/stage/glidezone-server
 cp -a server shared dist deploy package.json package-lock.json "$S/"
 (cd "$S" && npm ci --omit=dev --no-audit --no-fund --ignore-scripts >/dev/null && find node_modules -type d -empty -delete)

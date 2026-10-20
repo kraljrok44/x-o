@@ -26,9 +26,15 @@ class SDKWrapper {
     this.gameplay = false;
     this.adsDisabled = false; // set once the SDK reports a Basic launch
     this.chatDisabled = false; // CrazyGames setting: no chat for this player
+    this.gm = false; // GameMonetize build: ads through its sdk.showBanner(), no accounts
+    this.gmPause = null;
   }
 
+  /** Accounts only exist on CrazyGames. */
+  get canLogin() { return !!this.cg && !this.gm; }
+
   async init() {
+    if (window.SDK_OPTIONS && !window.CrazyGames) { this._initGameMonetize(); return; }
     const SDK = window.CrazyGames && window.CrazyGames.SDK;
     if (!SDK) return;
     try {
@@ -55,7 +61,18 @@ class SDKWrapper {
     }
   }
 
-  get available() { return !!this.cg; }
+  // GameMonetize: index.html defines SDK_OPTIONS.onEvent, which forwards here. A video ad pauses the
+  // game (mute) and SDK_GAME_START says it is over.
+  _initGameMonetize() {
+    this.gm = true;
+    window.__gmEvent = (a) => {
+      const n = a && a.name;
+      if (n === 'SDK_GAME_PAUSE') { audio.mute(true); this.gmPaused = true; if (this.gmOnPause) this.gmOnPause(); }
+      else if (n === 'SDK_GAME_START') { audio.mute(false); this.gmPaused = false; if (this.gmOnDone) this.gmOnDone(); }
+    };
+  }
+
+  get available() { return !!this.cg || this.gm; }
 
   loadingStart() { try { this.cg && this.cg.game.loadingStart(); } catch (e) { /* */ } }
   loadingStop() { try { this.cg && this.cg.game.loadingStop(); } catch (e) { /* */ } }
@@ -138,6 +155,7 @@ class SDKWrapper {
     if (this.adPlaying) return Promise.resolve('error');
     this.adPlaying = true;
     const done = (r) => { this.adPlaying = false; audio.mute(false); return r; };
+    if (this.gm) return this._gmAd(done);
     if (!this.cg) {
       // the simulated ad exists only for local development; a blocked SDK on a portal = no reward
       if (LOCAL_DEV) return simulatedAd(type).then(done);
@@ -165,6 +183,22 @@ class SDKWrapper {
     });
   }
 }
+
+// GameMonetize has one ad type (showBanner). If an ad starts (SDK_GAME_PAUSE) the reward comes when it
+// ends; if none is available within 4 s the player still gets the reward (nothing was blocked).
+SDKWrapper.prototype._gmAd = function (done) {
+  return new Promise((resolve) => {
+    let started = false, timer = null;
+    const finish = (r) => { clearTimeout(timer); this.gmOnPause = this.gmOnDone = null; audio.mute(false); resolve(done(r)); };
+    this.gmOnPause = () => { started = true; clearTimeout(timer); timer = setTimeout(() => finish('ok'), 180000); };
+    this.gmOnDone = () => finish('ok');
+    timer = setTimeout(() => { if (!started) finish('free'); }, 4000);
+    try {
+      const g = window.sdk;
+      if (g && typeof g.showBanner === 'function') g.showBanner(); else finish('free');
+    } catch (e) { finish('free'); }
+  });
+};
 
 function simulatedAd(type) {
   return new Promise((resolve) => {
