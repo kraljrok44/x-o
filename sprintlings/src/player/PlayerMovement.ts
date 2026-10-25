@@ -68,8 +68,11 @@ export function stepBody(
 
   // --- input ---------------------------------------------------------------
   if (input.jumpPressed && body.jumpGuard <= 0) body.jumpBuffer = cfg.jump.bufferTime;
-  if (input.jumpReleased && body.jumping && body.vy > 0) {
-    body.vy *= cfg.jump.releaseCut;
+  if (body.jumping) body.jumpAge += dt;
+  if (input.jumpReleased && body.jumping && body.vy > 0) body.cutPending = true;
+  if (body.cutPending && body.jumpAge >= cfg.jump.minHold) {
+    if (body.jumping && body.vy > 0) body.vy *= cfg.jump.releaseCut;
+    body.cutPending = false;
     body.jumping = false;
   }
   body.jumpHeld = input.jumpHeld;
@@ -143,6 +146,8 @@ export function stepBody(
     body.jumpBuffer = 0;
     body.jumpGuard = cfg.jump.retriggerGuard;
     body.jumping = true;
+    body.jumpAge = 0;
+    body.cutPending = false;
     world.emit('jump', racer, 0, body);
   }
 

@@ -64,6 +64,10 @@ export interface RacerBody {
   fallLane: number;
   /** Was standing on a pad last tick (edge detection for pad events). */
   onPad: boolean;
+  /** Seconds since the current jump started. */
+  jumpAge: number;
+  /** Jump was released before the minimum hold; cut is applied at minHold. */
+  cutPending: boolean;
 }
 
 export function makeBody(s: number, lane: number, y: number): RacerBody {
@@ -94,6 +98,8 @@ export function makeBody(s: number, lane: number, y: number): RacerBody {
     fallFromS: 0,
     fallLane: 0,
     onPad: false,
+    jumpAge: 0,
+    cutPending: false,
   };
 }
 

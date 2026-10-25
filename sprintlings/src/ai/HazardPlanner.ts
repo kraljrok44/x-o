@@ -39,13 +39,12 @@ class PredictionWorld implements MovementWorld {
   fell = false;
   blocked = 0;
   private sim!: RaceSimulation;
-  private racer = 0;
   private readonly seekers: { s: number; lateral: number; y: number; alive: boolean }[] = [];
 
-  reset(sim: RaceSimulation, racer: number, incoming: readonly SeekerEntity[]): void {
+  reset(sim: RaceSimulation, incoming: readonly SeekerEntity[]): void {
     this.sim = sim;
     this.track = sim.track;
-    this.racer = racer;
+
     this.tick = sim.tick;
     this.countdownTicks = sim.countdownTicks;
     this.incidents = 0;
@@ -175,7 +174,7 @@ export class HazardPlanner {
     const p = res.plan;
     const b = copyBody(r.body, this.scratch);
     const w = this.world;
-    w.reset(sim, racer, incoming);
+    w.reset(sim, incoming);
     const startS = b.s;
     let glimmers = 0;
     let box = 0;

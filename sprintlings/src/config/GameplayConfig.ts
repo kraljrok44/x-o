@@ -34,6 +34,8 @@ export const GameplayConfig = {
     velocity: 10.5,
     /** Releasing jump while rising multiplies vertical velocity by this. */
     releaseCut: 0.55,
+    /** A jump is always held at least this long, so quick taps still clear low hurdles. */
+    minHold: 0.14,
     coyoteTime: 0.1,
     bufferTime: 0.12,
     /** Ignore further jump presses for this long after a jump (anti double-trigger). */
