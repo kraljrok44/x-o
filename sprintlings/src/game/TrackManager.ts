@@ -34,6 +34,13 @@ export const TRACK_RECIPES: Record<string, TrackRecipe & { description: string; 
       { id: 'pendulum_pass' },
       { id: 'boost_run' },
       { id: 'item_row' },
+      { id: 'cactus_patch' },
+      { id: 'rooftops' },
+      { id: 'rest_glade' },
+      { id: 'bridge_jump' },
+      { id: 'spring_hop' },
+      { id: 'item_row' },
+      { id: 'geyser_bog' },
       { id: 'finale_gauntlet' },
       { id: 'finish_line' },
     ],
@@ -57,6 +64,13 @@ export const TRACK_RECIPES: Record<string, TrackRecipe & { description: string; 
       { id: 'stairs' },
       { id: 'high_road' },
       { id: 'item_row' },
+      { id: 'barrel_alley' },
+      { id: 'rest_glade' },
+      { id: 'saw_steps' },
+      { id: 'item_row' },
+      { id: 'cactus_patch' },
+      { id: 'rooftops' },
+      { id: 'boost_run' },
       { id: 'finale_gauntlet' },
       { id: 'finish_line' },
     ],
@@ -80,6 +94,13 @@ export const TRACK_RECIPES: Record<string, TrackRecipe & { description: string; 
       { id: 'pendulum_pass' },
       { id: 'log_hop' },
       { id: 'item_row' },
+      { id: 'rooftops' },
+      { id: 'geyser_bog' },
+      { id: 'rest_glade' },
+      { id: 'barrel_alley' },
+      { id: 'item_row' },
+      { id: 'bridge_jump' },
+      { id: 'spring_hop' },
       { id: 'finale_gauntlet' },
       { id: 'finish_line' },
     ],
@@ -146,7 +167,8 @@ export function remixRecipe(day: string, attempt = 0): TrackRecipe {
   let length = SEGMENT_BY_ID.start_meadow.length;
   let prev: SegmentTemplate = SEGMENT_BY_ID.start_meadow;
   let sinceRest = 0;
-  const target = 330;
+  // ~600 u of course: a 60-90 s race at running speed.
+  const target = 540;
   while (length < target) {
     const candidates = pool.filter((s) => {
       if (!fits(prev, s)) return false;

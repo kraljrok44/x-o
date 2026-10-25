@@ -63,6 +63,8 @@ export const GameplayConfig = {
     hitSpeedFactor: 0.25,
     /** Grace window where the same hazard can't hit the racer again. */
     rehitGuard: 1.1,
+    /** Blinking grace after a stun ends, so a chain of hazards can't lock a racer in place. */
+    recoveryInvuln: 0.9,
   },
 
   fall: {

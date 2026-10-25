@@ -10,6 +10,8 @@ import { enterFall, enterRespawn, finishRespawn } from './PlayerStateMachine';
 
 const cfg = GameplayConfig;
 const hb = cfg.hitbox;
+/** How far below a ledge top an airborne racer can still be lifted onto it. */
+const LEDGE = 0.55;
 
 /** Scratch object reused by every step (the simulation is single threaded). */
 const contact: ContactResult = makeContactResult();
@@ -97,11 +99,21 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
 
   const prevX = body.x;
   const prevY = body.y;
+  let ledgeTop = Number.NaN;
   const nx = body.x + body.speed * dt;
-  // Terrain faces (steps, island sides) block forward motion until you jump up.
-  if (track.solidAt(nx + hb.halfWidth, body.y)) {
-    body.blocked = true;
-    body.speed = Math.min(body.speed, 2.5);
+  // Terrain faces (steps, island sides) block forward motion until you jump
+  // up. In the air a face whose top is within LEDGE of the feet is not a
+  // wall: the racer is lifted onto the ledge below instead of bonking.
+  const front = nx + hb.halfWidth;
+  if (track.solidAt(front, body.y)) {
+    const top = track.solidTop(front);
+    if (!body.grounded && body.vy <= 4 && top - body.y <= LEDGE && !track.solidAt(front, top)) {
+      body.x = nx;
+      ledgeTop = top;
+    } else {
+      body.blocked = true;
+      body.speed = Math.min(body.speed, 2.5);
+    }
   } else body.x = nx;
 
   // --- vertical ----------------------------------------------------------------
@@ -139,10 +151,19 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
     const vyBefore = body.vy;
     body.vy = Math.max(cfg.jump.terminalVelocity, body.vy - cfg.jump.gravity * gravityScale * dt);
     body.y += body.vy * dt;
+    // Ledge assist: pop up onto a solid edge caught just below its top.
+    if (!Number.isNaN(ledgeTop) && body.y < ledgeTop) {
+      body.y = ledgeTop;
+      body.vy = Math.min(body.vy, 0);
+    }
     if (body.vy <= 0) {
-      // Land on the highest surface crossed between last tick and now.
+      // Land on the highest surface crossed between last tick and now. Solid
+      // ground just above the feet (a step corner) also counts, so a racer
+      // can never end up inside terrain and drop through it.
       const ignore = body.dropTimer > 0 ? body.dropId : -1;
-      const g = track.groundBelow(body.x, prevY + 0.02, ignore, true);
+      let g = track.groundBelow(body.x, prevY + 0.02, ignore, true);
+      const gSolid = track.groundBelow(body.x, Math.max(prevY, body.y) + LEDGE, -1, false);
+      if (!Number.isNaN(gSolid) && (Number.isNaN(g) || gSolid > g)) g = gSolid;
       if (!Number.isNaN(g) && body.y <= g) {
         body.y = g;
         body.vy = 0;

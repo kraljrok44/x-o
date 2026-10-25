@@ -37,7 +37,7 @@ describe('server races', () => {
     expect(start.status).toBe(200);
     const ticket = start.json.ticket;
     const local = play(ticket);
-    api.clock.t += 60_000;
+    api.clock.t += 120_000;
     const r = await api.call<{ result: { outcome: { place: number }; breakdown: { coins: number } }; profile: PlayerProfile }>('POST', '/api/race/finish', { raceId: ticket.raceId, log: local.log }, token);
     expect(r.status).toBe(200);
     expect(r.json.result.outcome.place).toBe(local.place);

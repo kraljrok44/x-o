@@ -23,7 +23,7 @@ for (const seg of SEGMENTS) {
   for (const shift of timed ? SHIFTS : [0]) {
     const track = buildTrack({ id: 'chk', name: 'chk', biome: 'forest', seed: 3, segments: [{ id: 'start_meadow' }, { id: 'rest_glade' }, { id: seg.id }, { id: 'rest_glade' }, { id: 'finish_line' }] });
     for (const h of track.data.hazards) if ('phase' in h) h.phase += shift;
-    for (const c of shift === 0 ? chars : chars.slice(0, 1)) {
+    for (const c of shift === 0 || process.env.ALLCHARS ? chars : chars.slice(0, 1)) {
       const sim = new RaceSimulation({ track, seed: 1, racers: [{ id: 's', name: 's', characterId: c, isPlayer: false, difficulty: 'perfect' }] });
       while (sim.phase !== 'done') {
         for (const e of sim.step([])) {

@@ -7,14 +7,15 @@ import { GameplayConfig } from '../../src/config/GameplayConfig';
 
 describe('tracks', () => {
   for (const id of TRACK_IDS) {
-    it(`${id} is passable by the solver and within the target duration`, () => {
+    it(`${id} is passable by the solver and within the target duration`, { timeout: 60000 }, () => {
       const track = getTrack(id);
       const report = validateTrack(track);
       expect(report.problems).toEqual([]);
-      expect(track.length).toBeGreaterThanOrEqual(300);
-      expect(track.length).toBeLessThanOrEqual(450);
-      expect(report.solverTime!).toBeGreaterThan(35);
-      expect(report.solverTime!).toBeLessThan(55);
+      expect(track.length).toBeGreaterThanOrEqual(550);
+      expect(track.length).toBeLessThanOrEqual(750);
+      // A race should last between one minute and 90 seconds.
+      expect(report.solverTime!).toBeGreaterThan(60);
+      expect(report.solverTime!).toBeLessThan(90);
     });
   }
 
@@ -32,7 +33,8 @@ describe('tracks', () => {
       const day = new Date(Date.UTC(2026, 5, 1) + i * 86400000).toISOString().slice(0, 10);
       const track = getValidatedRemix(day);
       expect(validateTrack(track, { characters: ['kip'] }).ok).toBe(true);
-      expect(track.length / GameplayConfig.movement.baseSpeed).toBeLessThan(55);
+      expect(track.length / GameplayConfig.movement.baseSpeed).toBeGreaterThan(55);
+      expect(track.length / GameplayConfig.movement.baseSpeed).toBeLessThan(85);
     }
   });
 

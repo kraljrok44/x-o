@@ -110,6 +110,22 @@ describe('collisions', () => {
     expect(body.y).toBeCloseTo(1.2, 5);
   });
 
+  it('a jump that catches a step just below its top climbs onto it instead of falling through', () => {
+    // Jump timings that clip the corner of a 1.2 u step must never drop the racer through the ground.
+    for (let start = 1; start < 8; start += 0.25) {
+      const sim = solo((c) => c.run(20).step(1.2));
+      const body = sim.racers[0].body;
+      let pressed = -1;
+      const events = run(sim, 260, (t) => {
+        if (pressed < 0 && body.x >= start + 10) pressed = t;
+        return input({ jumpHeld: pressed >= 0 && t - pressed < 40 });
+      });
+      expect(events).not.toContain('fall');
+      // Either on top of the step, or stopped at its foot: never inside it.
+      expect(body.y > 1.19 || (body.y > -1e-6 && body.x < 20)).toBe(true);
+    }
+  });
+
   it('walks up small steps without jumping', () => {
     const sim = solo((c) => c.run(20).step(0.25).run(5).ramp(6, 1.5));
     const body = sim.racers[0].body;
@@ -130,6 +146,15 @@ describe('collisions', () => {
     expect(events).toContain('drop');
     expect(events).toContain('land');
     expect(body.y).toBeCloseTo(0, 5);
+  });
+
+  it('after a stun the racer gets a short grace period, so repeated hazards cannot chain-stun', () => {
+    const sim = solo((c) => c.run(60).boulder(30, 0, 1.2, 8));
+    const events = run(sim, 600);
+    const hits = events.filter((e) => e === 'hit').length;
+    expect(hits).toBeGreaterThan(0);
+    expect(hits).toBeLessThanOrEqual(2);
+    expect(sim.racers[0].body.x).toBeGreaterThan(45);
   });
 
   it('a shield absorbs one hit', () => {

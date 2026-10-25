@@ -28,6 +28,7 @@ export function applyHit(
   }
   const scale = fromObstacle ? mods.obstacleStunScale : 1;
   body.stun = Math.max(body.stun, baseStun * scale);
+  body.invuln = Math.max(body.invuln, body.stun + GameplayConfig.stun.recoveryInvuln);
   body.speed *= GameplayConfig.stun.hitSpeedFactor;
   body.dash = 0;
   body.padBoost = 0;

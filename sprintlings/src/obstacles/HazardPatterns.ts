@@ -238,6 +238,81 @@ export const SEGMENTS: SegmentTemplate[] = [
       c.gap(3.5, 0.6).run(20.5).saw(41, { lift: 0.05 }).log(50, 0.8);
     },
   }),
+  seg({
+    id: 'cactus_patch',
+    length: 34,
+    difficulty: 1,
+    tags: ['easy'],
+    pickupRule: 'The plank above the cactus patch carries the glimmers.',
+    build(c) {
+      c.run(34).spikes(9, 0.9).spikes(22, 0.9).platform(5, 24, PLAT);
+      c.glimmerLine(7, 27, PLAT + 0.6, 1.6);
+    },
+  }),
+  seg({
+    id: 'rooftops',
+    length: 42,
+    difficulty: 2,
+    tags: ['medium'],
+    pickupRule: 'Glimmers float over each rooftop.',
+    build(c) {
+      c.run(6).gap(2.5, 0.6).run(7).gap(2.5, 0.6).run(7).gap(3, -0.6).run(6).ramp(4, -0.6).run(4);
+      c.glimmerLine(9.5, 14.5, 1.2, 1.25, c.level + 0.6).glimmerLine(19, 24, 1.2, 1.25, c.level + 1.2);
+    },
+  }),
+  seg({
+    id: 'bridge_jump',
+    length: 36,
+    difficulty: 2,
+    tags: ['medium'],
+    pickupRule: 'A box waits on the mesa top; the pit below is the price of a late jump.',
+    build(c) {
+      c.run(8).gap(16).run(12).island(7, 14, 1.2);
+      c.glimmerArc(4.2, 4).box(15, 2.1);
+    },
+  }),
+  seg({
+    id: 'barrel_alley',
+    length: 44,
+    difficulty: 3,
+    tags: ['hard'],
+    pickupRule: 'The high plank dodges the rolling barrels.',
+    build(c) {
+      c.run(44).boulder(30, 0).boulder(30, 1.6).platform(8, 26, PLAT);
+      c.glimmerLine(10, 32, PLAT + 0.6, 1.6);
+    },
+  }),
+  seg({
+    id: 'geyser_bog',
+    length: 38,
+    difficulty: 2,
+    tags: ['medium'],
+    build(c) {
+      c.run(38).mud(5, 33).flame(12, 0).flame(24, 1.1).glimmerLine(4, 34, 0.6, 2);
+    },
+  }),
+  seg({
+    id: 'saw_steps',
+    length: 40,
+    difficulty: 3,
+    tags: ['hard'],
+    build(c) {
+      c.run(8).step(0.9).run(10).step(0.9).run(10).ramp(6, -1.8).run(6);
+      c.saw(14, { lift: 0.05 }).saw(24, { lift: 0.05 });
+      c.glimmerArc(11.5, 4, undefined, 0.9).glimmerArc(21.5, 4, undefined, 1.8);
+    },
+  }),
+  seg({
+    id: 'spring_hop',
+    length: 40,
+    difficulty: 2,
+    tags: ['medium'],
+    pickupRule: 'Glimmers trace both spring arcs.',
+    build(c) {
+      c.run(8).pad('spring', 6.8).gap(9).run(6).pad('spring', 22.3).gap(9).run(8);
+      c.glimmerArc(6.8, 6, 16).glimmerArc(22.3, 6, 16);
+    },
+  }),
 ];
 
 export const SEGMENT_BY_ID: Record<string, SegmentTemplate> = Object.fromEntries(SEGMENTS.map((s) => [s.id, s]));
