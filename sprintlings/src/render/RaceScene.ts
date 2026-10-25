@@ -85,6 +85,12 @@ export class RaceScene {
     const me = this.views[this.localIndex];
     const body = me.racer.body;
     const s = me.interpolatedS(alpha);
+    for (const v of this.views) {
+      if (v === me) continue;
+      const vs = v.interpolatedS(alpha);
+      const blocking = body.phase !== 'finished' && vs > s - 6.2 && vs < s - 0.4 && Math.abs(v.racer.body.lateral - body.lateral) < 1.7;
+      v.setGhost(blocking ? 0.28 : 1, dt);
+    }
     this.trackView.update(Math.max(0, t), dt, this.sim.itemBoxReadyAt, s);
     // Camera follows the ground-ish height so jumps feel big but stay readable.
     const groundY = this.sim.track.groundAt(s, body.lateral) ?? this.sim.track.baseline(s);

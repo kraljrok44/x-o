@@ -39,6 +39,10 @@ export class RacerView {
   /** Visual-only sideways nudge to avoid overlapping models. */
   nudge = 0;
   readonly worldPos = new THREE.Vector3();
+  /** Per-racer material copies so this racer can turn see-through when it blocks the camera. */
+  private readonly fadeMats: THREE.Material[] = [];
+  private readonly outlines: THREE.Object3D[] = [];
+  private ghost = 1;
 
   constructor(
     readonly racer: Racer,
@@ -49,6 +53,25 @@ export class RacerView {
     this.root.add(this.rig.root);
     this.cosmeticParts = applyCosmetics(this.rig, racer.cosmetics, quality !== 'low');
     this.animator = new PlayerAnimator(this.rig);
+    if (!isLocal) {
+      const copies = new Map<THREE.Material, THREE.Material>();
+      this.rig.root.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        if (o.userData.isOutline) {
+          this.outlines.push(o);
+          return;
+        }
+        const src = m.material as THREE.Material;
+        let copy = copies.get(src);
+        if (!copy) {
+          copy = src.clone();
+          copies.set(src, copy);
+          this.fadeMats.push(copy);
+        }
+        m.material = copy;
+      });
+    }
     if (racer.cosmetics.emote) this.animator.setEmote(racer.cosmetics.emote);
 
     const shieldMat = new THREE.ShaderMaterial({
@@ -107,6 +130,20 @@ export class RacerView {
   /** Blob shadow lives in world space so it can sit on the ground under jumps. */
   get shadow(): THREE.Mesh {
     return this.blob;
+  }
+
+  /** 1 = opaque, lower = see-through (used when standing between camera and player). */
+  setGhost(target: number, dt: number): void {
+    const next = this.ghost + (target - this.ghost) * Math.min(1, dt * 10);
+    if (Math.abs(next - this.ghost) < 0.002) return;
+    this.ghost = next;
+    const transparent = next < 0.98;
+    for (const m of this.fadeMats) {
+      m.transparent = transparent;
+      m.opacity = next;
+      m.depthWrite = !transparent;
+    }
+    for (const o of this.outlines) o.visible = !transparent;
   }
 
   snapshot(body: RacerBody): void {

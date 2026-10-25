@@ -78,7 +78,7 @@ export class EffectsSystem {
         this.glow.burst(p.x, p.y + 0.8, p.z, 14, 6, '#ffe066', 0.45, 0.45, 6);
         if (isLocal) this.shake = Math.max(this.shake, e.type === 'bonk' ? 0.5 : 0.35);
         views[e.racer]?.animator.onHit();
-        if (this.debris) this.debris.spawn(p.clone().setY(p.y + 0.5), p.y, [this.theme.hazard.primary, this.theme.groundSide], 4, 4);
+        if (this.debris && isLocal) this.debris.spawn(p.clone().setY(p.y + 0.5), p.y, [this.theme.hazard.primary, this.theme.groundSide], 4, 3.5);
         break;
       case 'seekerHit':
         this.glow.burst(p.x, p.y + 0.6, p.z, 26, 8, ABILITIES.seeker.color, 0.6, 0.55, 4);
@@ -99,7 +99,7 @@ export class EffectsSystem {
         const g = this.sim.track.groundAtLane(box.s, box.lane) ?? 0;
         const bp = this.at(box.s, laneToLateral(box.lane), g + box.lift + 0.35);
         this.glow.burst(bp.x, bp.y, bp.z, 26, 6, '#ff9bf0', 0.55, 0.5, 2);
-        if (this.debris) this.debris.spawn(bp.clone(), g, ['#ff7ad9', '#9b6bff', '#4cc9ff'], 6, 5);
+        if (this.debris && isLocal) this.debris.spawn(bp.clone(), g, ['#ff7ad9', '#9b6bff', '#4cc9ff'], 5, 3.5);
         break;
       }
       case 'glimmer': {

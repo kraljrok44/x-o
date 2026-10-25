@@ -50,7 +50,7 @@ const START_SLOTS: { lane: number; back: number }[] = [
   { lane: 0, back: 0 },
   { lane: -1, back: 1.2 },
   { lane: 1, back: 1.2 },
-  { lane: 0, back: 2.6 },
+  { lane: -1, back: 2.8 },
 ];
 
 /**

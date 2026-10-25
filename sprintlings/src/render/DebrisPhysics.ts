@@ -20,7 +20,7 @@ export class DebrisPhysics {
   private rapier: RapierModule | null = null;
   private readonly shards: Shard[] = [];
   private readonly floors: { body: import('@dimforge/rapier3d-compat').RigidBody; life: number }[] = [];
-  private readonly geometry = new THREE.BoxGeometry(0.22, 0.22, 0.22);
+  private readonly geometry = new THREE.BoxGeometry(0.12, 0.12, 0.12);
   private cursor = 0;
 
   constructor(
@@ -71,12 +71,12 @@ export class DebrisPhysics {
           .setLinvel((Math.random() - 0.5) * power, power * (0.6 + Math.random() * 0.6), (Math.random() - 0.5) * power)
           .setAngvel({ x: Math.random() * 10, y: Math.random() * 10, z: Math.random() * 10 }),
       );
-      world.createCollider(R.ColliderDesc.cuboid(0.11, 0.11, 0.11).setRestitution(0.45).setDensity(0.6), body);
+      world.createCollider(R.ColliderDesc.cuboid(0.06, 0.06, 0.06).setRestitution(0.45).setDensity(0.6), body);
       shard.body = body;
       shard.life = 2.2;
       shard.mesh.material = toon(colors[i % colors.length]);
       shard.mesh.visible = true;
-      shard.mesh.scale.setScalar(0.7 + Math.random() * 0.8);
+      shard.mesh.scale.setScalar(0.6 + Math.random() * 0.6);
     }
   }
 

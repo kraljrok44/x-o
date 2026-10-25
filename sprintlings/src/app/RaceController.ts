@@ -1,4 +1,5 @@
 import { TICK_DT } from '../config/GameplayConfig';
+import { AIController } from '../ai/AIController';
 import type { AbilityId } from '../abilities/AbilityDefinition';
 import type { SfxId } from '../audio/AudioManager';
 import type { RaceSettlement } from '../economy/EconomyService';
@@ -38,6 +39,7 @@ export class RaceController {
   private readonly tutorial: boolean;
   private pauseModal: HTMLElement | null = null;
   private settled = false;
+  private autopilot: AIController | null = null;
   onFinished: ((summary: RaceResultSummary, settlement: Promise<RaceSettlement>) => void) | null = null;
   onQuit: (() => void) | null = null;
   onRestart: (() => void) | null = null;
@@ -291,8 +293,25 @@ export class RaceController {
         }
       }
     }
-    if (!hint && r.item) hint = `${t('Grab a Rune Box, then use it!')} (${t('E / right click')})`;
+    if (!hint && r.item) hint = `${t('Use your ability!')} (${t('E / right click')})`;
     this.hud.setHint(hint);
+  }
+
+  /**
+   * Test helper (used by the end-to-end tests, where software rendering is
+   * slow): simulates `ticks` ticks without rendering, driving the player with
+   * an autopilot that produces ordinary inputs. Inputs are recorded, so the
+   * authority's verification still applies.
+   */
+  fastForward(ticks: number, skill: 'rookie' | 'perfect' = 'perfect'): void {
+    this.autopilot ??= new AIController(0, skill, 12345);
+    for (let i = 0; i < ticks && this.phase === 'racing' && this.sim.phase !== 'done'; i++) {
+      const input = this.sim.phase === 'countdown' ? this.autopilot.decideCountdown(this.sim) : this.autopilot.decide(this.sim);
+      this.recorder.record(this.sim.tick, input);
+      const events = this.sim.step([input]);
+      this.scene.onTick(events);
+      this.handleEvents(events);
+    }
   }
 
   dispose(): void {

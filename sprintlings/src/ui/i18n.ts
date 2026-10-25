@@ -159,6 +159,7 @@ const SL: Record<string, string> = {
   'Jump!': 'Skoči!',
   'Switch lanes!': 'Zamenjaj pas!',
   'Grab a Rune Box, then use it!': 'Poberi škatlo z runo in jo uporabi!',
+  'Use your ability!': 'Uporabi sposobnost!',
   'Hold jump to jump higher': 'Drži skok za višji skok',
   'Press jump right at GO for a start boost!': 'Pritisni skok točno ob startu za pospešek!',
   'Space / W / ↑ or tap': 'Preslednica / W / ↑ ali tapni',

@@ -110,7 +110,7 @@ export class MenuScene {
     this.emoteTime = Math.max(0, this.emoteTime - dt);
     this.dragYaw += this.yawVel;
     this.yawVel *= Math.exp(-dt * 4);
-    this.holder.rotation.y = Math.sin(this.time * 0.4) * 0.35 + this.dragYaw;
+    this.holder.rotation.y = Math.PI + Math.sin(this.time * 0.4) * 0.35 + this.dragYaw;
     this.stage.position.set(this.offsetX, Math.sin(this.time * 0.8) * 0.08, 0);
     const portrait = this.gr.aspect < 1;
     this.camera.position.set(0, portrait ? 2.6 : 2.2, portrait ? 9.5 : 7.8);

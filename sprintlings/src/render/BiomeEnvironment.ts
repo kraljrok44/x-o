@@ -363,11 +363,13 @@ function sceneryKinds(biome: string, th: BiomeTheme): SceneryKind[] {
         parts: [{ geometry: translated(new THREE.DodecahedronGeometry(0.8, 0), 0, 0.5, 0), material: toon(p[2]) }],
       },
       {
+        // Hoodoo: stacked sandstone rocks.
         minScale: 0.6,
-        maxScale: 1.1,
+        maxScale: 1.3,
         parts: [
-          { geometry: translated(new THREE.CylinderGeometry(0.07, 0.12, 1.6, 5), 0, 0.8, 0), material: toon(p[5]) },
-          { geometry: translated(new THREE.CylinderGeometry(0.04, 0.06, 0.8, 5).rotateZ(0.8), 0.3, 1.3, 0), material: toon(p[5]) },
+          { geometry: translated(new THREE.CylinderGeometry(0.45, 0.6, 1.0, 7), 0, 0.5, 0), material: toon(p[1]) },
+          { geometry: translated(new THREE.CylinderGeometry(0.32, 0.42, 0.8, 7), 0, 1.4, 0), material: toon(p[0]) },
+          { geometry: translated(new THREE.CylinderGeometry(0.55, 0.3, 0.35, 7), 0, 1.95, 0), material: toon(p[2]) },
         ],
       },
     ];

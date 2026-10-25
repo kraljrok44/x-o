@@ -61,7 +61,7 @@ export class GameRenderer {
     r.toneMapping = THREE.ACESFilmicToneMapping;
     r.toneMappingExposure = 1.05;
     r.shadowMap.enabled = this.quality !== 'low';
-    r.shadowMap.type = THREE.PCFSoftShadowMap;
+    r.shadowMap.type = THREE.PCFShadowMap;
     r.domElement.id = 'game-canvas';
     r.domElement.addEventListener('webglcontextlost', (e) => {
       e.preventDefault();

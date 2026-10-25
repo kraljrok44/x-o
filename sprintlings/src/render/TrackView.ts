@@ -153,16 +153,16 @@ export class TrackView {
     const postMat = toon(finish ? '#ffffff' : color);
     const span = LANE_W * 3 + 1.4;
     for (const side of [-1, 1]) {
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 5, 10), postMat);
-      post.position.set((side * span) / 2, 2.5, 0);
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 7, 10), postMat);
+      post.position.set((side * span) / 2, 3.5, 0);
       post.castShadow = true;
       g.add(post);
       const flag = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.9, 4), toon(finish ? '#ff4f6a' : '#4cc9ff'));
-      flag.position.set((side * span) / 2, 5.3, 0);
+      flag.position.set((side * span) / 2, 7.3, 0);
       g.add(flag);
     }
-    const banner = new THREE.Mesh(new THREE.BoxGeometry(span, 0.9, 0.2), finish ? new THREE.MeshBasicMaterial({ map: checker }) : toon(color));
-    banner.position.y = 4.6;
+    const banner = new THREE.Mesh(new THREE.BoxGeometry(span, 0.8, 0.2), finish ? new THREE.MeshBasicMaterial({ map: checker }) : toon(color));
+    banner.position.y = 6.6;
     banner.castShadow = true;
     g.add(banner);
     return g;
@@ -523,7 +523,7 @@ export class TrackView {
   private buildItemBoxes(): void {
     const tex = runeTexture();
     const mat = new THREE.MeshToonMaterial({ map: tex, emissive: new THREE.Color('#ffffff'), emissiveMap: tex, emissiveIntensity: 0.55, gradientMap: toon('#fff').gradientMap });
-    const geom = new THREE.BoxGeometry(0.75, 0.75, 0.75);
+    const geom = new THREE.BoxGeometry(0.66, 0.66, 0.66);
     const halo = new THREE.SpriteMaterial({ map: glowTexture(), color: new THREE.Color('#ffd9ff'), transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
     this.track.data.itemBoxes.forEach((box, index) => {
       const root = new THREE.Group();
