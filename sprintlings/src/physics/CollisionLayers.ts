@@ -3,13 +3,13 @@
  * body solver) so layers are only used to decide which pairs are tested:
  *
  *   RACER    vs STATIC_HAZARD, DYNAMIC_HAZARD, PICKUP, TERRAIN_ZONE
- *   PROJECTILE vs RACER, STATIC_HAZARD (walls destroy seekers)
- *   RACER    vs RACER  -> never: racers ghost through each other so lane
- *                         changes never cause unpredictable shoves. The
- *                         renderer nudges overlapping models apart instead.
+ *   PROJECTILE vs RACER, STATIC_HAZARD (terrain faces destroy seekers)
+ *   RACER    vs RACER  -> never: racers run through each other (as in most
+ *                         side-view party racers) so nobody gets shoved
+ *                         into a pit by a rival they could not avoid.
  *
- * Cosmetic debris (render/DebrisPhysics.ts) lives in its own Rapier world on
- * the DEBRIS layer and never feeds back into the race.
+ * Purely visual particles (render/Particles.ts) use the DEBRIS layer and
+ * never feed back into the race.
  */
 export const Layer = {
   RACER: 1 << 0,

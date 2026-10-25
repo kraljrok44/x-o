@@ -132,7 +132,7 @@ export function settingsScreen(ctx: AppContext, params: { from?: 'race' } = {}):
           },
           t('Reset to defaults'),
         ),
-        h('p', { class: 'small muted' }, 'Mouse: left click = jump, right click = ability. Gamepad: A = jump, D-pad/stick = lanes, X/RB = ability, Start = pause.'),
+        h('p', { class: 'small muted' }, t('Mouse: left click = jump, right click = ability. Gamepad: A = jump, D-pad down / stick down = drop, X/RB = ability, Start = pause. Touch: tap = jump, swipe down = drop, swipe forward = ability.')),
       ),
       h(
         'div',

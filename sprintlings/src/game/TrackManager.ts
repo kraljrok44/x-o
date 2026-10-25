@@ -21,19 +21,19 @@ export const TRACK_RECIPES: Record<string, TrackRecipe & { description: string; 
     biome: 'forest',
     seed: 1101,
     unlockLevel: 1,
-    description: 'Sunlit forest trails, bog crossings and a swinging acorn.',
+    description: 'Sunny jungle trails, logs, a bog with a treetop shortcut and a swinging spike ball.',
     segments: [
       { id: 'start_meadow' },
-      { id: 'hurdle_trio' },
-      { id: 'bog_crossing' },
-      { id: 'item_alley' },
-      { id: 'wall_slalom' },
-      { id: 'boost_streak', mirror: true },
+      { id: 'log_hop' },
+      { id: 'mud_bog' },
+      { id: 'item_row' },
       { id: 'gap_hop' },
+      { id: 'high_road' },
+      { id: 'step_up' },
       { id: 'rest_glade' },
-      { id: 'pendulum_gate' },
-      { id: 'ledge_terrace' },
-      { id: 'item_alley' },
+      { id: 'pendulum_pass' },
+      { id: 'boost_run' },
+      { id: 'item_row' },
       { id: 'finale_gauntlet' },
       { id: 'finish_line' },
     ],
@@ -44,20 +44,20 @@ export const TRACK_RECIPES: Record<string, TrackRecipe & { description: string; 
     biome: 'canyon',
     seed: 2202,
     unlockLevel: 2,
-    description: 'Fire vents, tumbling boulders and a bounce over the chasm.',
+    description: 'Fire vents, tumbling boulders, stone stairs and a spring over the chasm.',
     segments: [
       { id: 'start_meadow' },
-      { id: 'log_steps', mirror: true },
-      { id: 'gap_hop' },
-      { id: 'boulder_chute' },
-      { id: 'item_alley' },
+      { id: 'spike_strip' },
+      { id: 'double_gap' },
+      { id: 'boulder_roll' },
+      { id: 'item_row' },
       { id: 'vent_row' },
-      { id: 'bounce_chasm' },
+      { id: 'spring_chasm' },
       { id: 'rest_glade' },
-      { id: 'snake_walls' },
-      { id: 'gap_bridge', mirror: true },
-      { id: 'item_alley' },
-      { id: 'finale_gauntlet', mirror: true },
+      { id: 'stairs' },
+      { id: 'high_road' },
+      { id: 'item_row' },
+      { id: 'finale_gauntlet' },
       { id: 'finish_line' },
     ],
   },
@@ -67,20 +67,20 @@ export const TRACK_RECIPES: Record<string, TrackRecipe & { description: string; 
     biome: 'crystal',
     seed: 3303,
     unlockLevel: 4,
-    description: 'Frosted crystal paths, zigzag chasms and twin prism pendulums.',
+    description: 'Crystal crushers, saw-blade dips and floating isles over a glowing abyss.',
     segments: [
       { id: 'start_meadow' },
-      { id: 'spike_garden' },
-      { id: 'frost_run' },
-      { id: 'item_alley' },
-      { id: 'zigzag_gaps' },
-      { id: 'twin_pendulums' },
+      { id: 'saw_dip' },
+      { id: 'crusher_alley' },
+      { id: 'item_row' },
+      { id: 'floating_isles' },
+      { id: 'spring_chasm' },
       { id: 'rest_glade' },
-      { id: 'gap_bridge' },
-      { id: 'boost_streak' },
-      { id: 'hurdle_trio', mirror: true },
-      { id: 'item_alley' },
-      { id: 'finale_gauntlet', mirror: true },
+      { id: 'high_road' },
+      { id: 'pendulum_pass' },
+      { id: 'log_hop' },
+      { id: 'item_row' },
+      { id: 'finale_gauntlet' },
       { id: 'finish_line' },
     ],
   },
@@ -155,12 +155,12 @@ export function remixRecipe(day: string, attempt = 0): TrackRecipe {
       return true;
     });
     const next = rng.pick(candidates);
-    out.push({ id: next.id, mirror: rng.chance(0.5) });
+    out.push({ id: next.id });
     length += next.length;
     sinceRest = next.tags.includes('rest') ? 0 : sinceRest + 1;
     prev = next;
   }
-  if (!fits(prev, SEGMENT_BY_ID.finale_gauntlet)) out.push({ id: 'item_alley' });
-  out.push({ id: 'finale_gauntlet', mirror: rng.chance(0.5) }, { id: 'finish_line' });
+  if (!fits(prev, SEGMENT_BY_ID.finale_gauntlet)) out.push({ id: 'item_row' });
+  out.push({ id: 'finale_gauntlet' }, { id: 'finish_line' });
   return { id: `remix_${day}_${attempt}`, name: 'Daily Remix', biome: remixBiome(day), seed, segments: out };
 }

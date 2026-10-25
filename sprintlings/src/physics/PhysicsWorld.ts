@@ -12,8 +12,8 @@ export interface MovementWorld {
   /** Race clock in seconds (0 at "GO"). Timed hazards depend on it. */
   readonly time: number;
   emit(type: RaceEventType, racer: number, value: number, body: RacerBody): void;
-  /** True when (s, lateral) lies in an active sap puddle not owned by `racer`. */
-  inSap(racer: number, s: number, lateral: number): boolean;
+  /** True when x lies in an active sap puddle (at ground height y) not owned by `racer`. */
+  inSap(racer: number, x: number, y: number): boolean;
   /** Id of a snare overlapping the racer (consumed by the real world), or -1. */
   touchSnare(racer: number, body: RacerBody): number;
 }
@@ -23,10 +23,11 @@ export interface BodyInput {
   jumpPressed: boolean;
   jumpReleased: boolean;
   jumpHeld: boolean;
-  left: boolean;
-  right: boolean;
+  /** Down was pressed this tick (drop through a platform). */
+  downPressed: boolean;
+  downHeld: boolean;
 }
 
 export function makeBodyInput(): BodyInput {
-  return { jumpPressed: false, jumpReleased: false, jumpHeld: false, left: false, right: false };
+  return { jumpPressed: false, jumpReleased: false, jumpHeld: false, downPressed: false, downHeld: false };
 }

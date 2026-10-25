@@ -101,7 +101,7 @@ export class MatchmakingService {
         accountId: c.accountId!,
         setup: { id: profile.id, name: profile.name, characterId: profile.loadout.characterId, isPlayer: true, cosmetics: visibleLoadout(profile), variantId: profile.loadout.variants[profile.loadout.characterId] ?? null },
         send: (m) => this.send(c, m),
-        input: { jumpHeld: false, left: false, right: false, use: false },
+        input: { jumpHeld: false, down: false, use: false },
         connected: true,
       };
       players.push(player);

@@ -24,8 +24,8 @@ describe('shared utilities', () => {
   });
 
   it('input bits encode all actions', () => {
-    expect(encodeInput({ jumpHeld: true, left: true, right: true, use: true })).toBe(15);
-    expect(encodeInput({ jumpHeld: false, left: false, right: false, use: false })).toBe(0);
+    expect(encodeInput({ jumpHeld: true, down: true, use: true })).toBe(11);
+    expect(encodeInput({ jumpHeld: false, down: false, use: false })).toBe(0);
   });
 
   it('level curve is consistent', () => {

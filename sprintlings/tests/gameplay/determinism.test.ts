@@ -11,14 +11,17 @@ function racers() {
   return [human('me', 'moss'), bot('a', 'rookie', 'kip'), bot('b', 'racer', 'pebble'), bot('c', 'ace', 'lumi')];
 }
 
-/** A scripted "player": jumps periodically and changes lanes at random. */
+/** A scripted "player": jumps periodically, drops down and fires abilities at random. */
 function scripted(seed: number) {
   const rng = new Rng(seed);
   let hold = 0;
+  let down = 0;
   return (): TickInput => {
     if (hold > 0) hold--;
     else if (rng.chance(0.03)) hold = 30;
-    return { jumpHeld: hold > 0, left: rng.chance(0.01), right: rng.chance(0.01), use: rng.chance(0.01) };
+    if (down > 0) down--;
+    else if (rng.chance(0.01)) down = 5;
+    return { jumpHeld: hold > 0, down: down > 0, use: rng.chance(0.01) };
   };
 }
 
@@ -54,6 +57,7 @@ describe('determinism and replays', () => {
   it('rejects malformed input logs', () => {
     expect(validateInputLog([[5, 1], [3, 0]], 1000)).toBe(false);
     expect(validateInputLog([[5, 99]], 1000)).toBe(false);
+    expect(validateInputLog([[5, 4]], 1000)).toBe(false);
     expect(validateInputLog('nope', 1000)).toBe(false);
     expect(validateInputLog([[2000, 1]], 1000)).toBe(false);
   });

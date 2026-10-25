@@ -32,22 +32,16 @@ export function applyHit(
   body.dash = 0;
   body.padBoost = 0;
   body.jumpBuffer = 0;
+  body.vy = Math.min(body.vy, 2);
   return 'stunned';
 }
 
 /** Speed multiplier from terrain / sap, after the Steady Feet passive and shields. */
 export function terrainSpeedFactor(terrain: number, body: RacerBody, mods: PassiveModifiers): number {
   if (terrain === 0) return 1;
-  if (terrain === 3) return GameplayConfig.ice.speedBonus;
   if (body.shield > 0) return 1;
   const base = terrain === 1 ? GameplayConfig.slow.mudFactor : GameplayConfig.slow.sapFactor;
   return 1 - (1 - base) * mods.terrainEffectScale;
-}
-
-export function lateralGrip(terrain: number, mods: PassiveModifiers): number {
-  if (terrain !== 3) return 1;
-  const div = 1 + (GameplayConfig.ice.gripDivisor - 1) * mods.terrainEffectScale;
-  return 1 / div;
 }
 
 /** Ticks down every timed status on a body. */
@@ -61,4 +55,5 @@ export function tickStatuses(body: RacerBody, dt: number): void {
   if (body.coyote > 0) body.coyote = Math.max(0, body.coyote - dt);
   if (body.jumpBuffer > 0) body.jumpBuffer = Math.max(0, body.jumpBuffer - dt);
   if (body.jumpGuard > 0) body.jumpGuard = Math.max(0, body.jumpGuard - dt);
+  if (body.dropTimer > 0) body.dropTimer = Math.max(0, body.dropTimer - dt);
 }

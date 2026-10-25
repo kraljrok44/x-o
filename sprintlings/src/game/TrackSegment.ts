@@ -1,24 +1,19 @@
 import type { Rng } from '../shared/Rng';
-import {
-  ALL_LANES,
-  laneBit,
-  mirrorMask,
-  type Hazard,
-  type LaneMask,
-} from '../obstacles/ObstacleBase';
-import type { Biome, GlimmerDef, GroundSpan, ItemBoxDef } from './Track';
 import { GameplayConfig } from '../config/GameplayConfig';
+import type { Hazard } from '../obstacles/ObstacleBase';
+import type { Biome, GlimmerDef, GroundPiece, ItemBoxDef } from './Track';
 
 /** Tags used to restrict which segments may follow each other. */
 export type SegmentTag = 'start' | 'rest' | 'easy' | 'medium' | 'hard' | 'finale' | 'finish';
 
 /**
- * A hand-authored, reusable piece of track. Positions inside `build` are
- * relative to the segment start (0 .. length) and written for the un-mirrored
- * layout; the context mirrors lanes automatically.
+ * A hand-authored, reusable piece of course. The builder walks forward with
+ * a cursor: run / ramp / gap / step lay the ground; hazards and pickups are
+ * placed at segment-relative x (dx) and sit on the ground there.
  */
 export interface SegmentTemplate {
   id: string;
+  /** Length is the sum of the ground commands; declared for the assembler. */
   length: number;
   /** 0 (rest) .. 5 (finale). */
   difficulty: number;
@@ -29,188 +24,173 @@ export interface SegmentTemplate {
   allowedBefore: SegmentTag[];
   /** Hazard-free distance guaranteed at the start of the segment. */
   minSafeLeadIn: number;
-  /** Whether the builder may add gentle hills over this segment. */
-  hilly: boolean;
-  biomes?: Biome[];
   /** Rules for pickups placed by this segment, documented for designers. */
   pickupRule: string;
   build(ctx: SegmentContext): void;
 }
 
 export interface TrackDraft {
+  pieces: GroundPiece[];
   hazards: Hazard[];
-  gaps: { s0: number; s1: number; lanes: LaneMask }[];
-  ledges: { s0: number; s1: number; lanes: LaneMask; raise: number }[];
   itemBoxes: ItemBoxDef[];
   glimmers: GlimmerDef[];
   nextId: number;
+  /** Current ground height where the next segment starts. */
+  level: number;
 }
 
 export function emptyDraft(): TrackDraft {
-  return { hazards: [], gaps: [], ledges: [], itemBoxes: [], glimmers: [], nextId: 1 };
+  return { pieces: [], hazards: [], itemBoxes: [], glimmers: [], nextId: 1, level: 0 };
 }
-
-const L = (lane: number, mirror: boolean): number => (mirror ? -lane : lane);
 
 /** Helper API handed to SegmentTemplate.build. */
 export class SegmentContext {
+  /** Cursor (segment relative) where the next ground command starts. */
+  cursor = 0;
+
   constructor(
     readonly draft: TrackDraft,
-    readonly s0: number,
-    readonly mirror: boolean,
+    readonly x0: number,
     readonly rng: Rng,
     readonly biome: Biome,
   ) {}
 
-  private m(mask: LaneMask): LaneMask {
-    return this.mirror ? mirrorMask(mask) : mask;
+  get level(): number {
+    return this.draft.level;
   }
 
   private id(): number {
     return this.draft.nextId++;
   }
 
-  hurdle(ds: number, lanes: LaneMask, height = 0.85): void {
-    this.draft.hazards.push({ id: this.id(), kind: 'hurdle', s: this.s0 + ds, lanes: this.m(lanes), halfDepth: 0.3, height });
+  private piece(dx0: number, dx1: number, y0: number, y1: number, oneWay: boolean): void {
+    this.draft.pieces.push({ id: this.id(), x0: this.x0 + dx0, x1: this.x0 + dx1, y0, y1, oneWay });
   }
 
-  wall(ds: number, lanes: LaneMask, halfDepth = 0.55): void {
-    if (lanes === ALL_LANES) throw new Error('A wall may never block every lane.');
-    this.draft.hazards.push({ id: this.id(), kind: 'wall', s: this.s0 + ds, lanes: this.m(lanes), halfDepth, height: 3.2 });
+  // --- ground ------------------------------------------------------------------
+
+  /** Flat ground at the current level. */
+  run(len: number): this {
+    this.piece(this.cursor, this.cursor + len, this.level, this.level, false);
+    this.cursor += len;
+    return this;
   }
 
-  spikes(ds: number, lanes: LaneMask, phase = 0, period = 2.4, activeTime = 0.9): void {
+  /** Slope to a new level (keep |rise / len| <= 0.5). */
+  ramp(len: number, rise: number): this {
+    if (Math.abs(rise / len) > 0.55) throw new Error('ramp too steep');
+    this.piece(this.cursor, this.cursor + len, this.level, this.level + rise, false);
+    this.draft.level += rise;
+    this.cursor += len;
+    return this;
+  }
+
+  /** No ground (a pit). The next ground starts at the current level + `rise`. */
+  gap(len: number, rise = 0): this {
+    this.cursor += len;
+    this.draft.level += rise;
+    return this;
+  }
+
+  /** Sudden change of level (a ledge face you must jump up, or a drop). */
+  step(rise: number): this {
+    this.draft.level += rise;
+    return this;
+  }
+
+  /** One-way floating platform `lift` above the current level, from dx for len. */
+  platform(dx: number, len: number, lift: number): this {
+    this.piece(dx, dx + len, this.level + lift, this.level + lift, true);
+    return this;
+  }
+
+  /** Solid floating island (blocks from the side, e.g. pillars between pits). */
+  island(dx: number, len: number, lift: number): this {
+    this.piece(dx, dx + len, this.level + lift, this.level + lift, false);
+    return this;
+  }
+
+  // --- hazards -------------------------------------------------------------------
+
+  log(dx: number, height = 0.7, halfWidth = 0.35): this {
+    this.draft.hazards.push({ id: this.id(), kind: 'log', x: this.x0 + dx, y: 0, halfWidth, height });
+    return this;
+  }
+
+  spikes(dx: number, halfWidth = 0.6, height = 0.55): this {
+    this.draft.hazards.push({ id: this.id(), kind: 'spikes', x: this.x0 + dx, y: 0, halfWidth, height });
+    return this;
+  }
+
+  saw(dx: number, opts: Partial<{ lift: number; radius: number; axis: 'none' | 'x' | 'y'; amplitude: number; period: number; phase: number }> = {}): this {
     this.draft.hazards.push({
       id: this.id(),
-      kind: 'spikes',
-      s: this.s0 + ds,
-      lanes: this.m(lanes),
-      halfDepth: 0.6,
-      height: 0.8,
-      period,
-      activeTime,
-      warnTime: 0.6,
-      phase,
+      kind: 'saw',
+      x: this.x0 + dx,
+      y: 0,
+      lift: opts.lift ?? 0.1,
+      radius: opts.radius ?? 0.6,
+      axis: opts.axis ?? 'none',
+      amplitude: opts.amplitude ?? 0,
+      period: opts.period ?? 2.4,
+      phase: opts.phase ?? 0,
     });
+    return this;
   }
 
-  flame(ds: number, lanes: LaneMask, phase = 0, period = 2.2, activeTime = 0.8): void {
-    this.draft.hazards.push({
-      id: this.id(),
-      kind: 'flame',
-      s: this.s0 + ds,
-      lanes: this.m(lanes),
-      halfDepth: 0.5,
-      height: 4,
-      period,
-      activeTime,
-      warnTime: 0.55,
-      phase,
-    });
+  crusher(dx: number, phase = 0, period = 2.6): this {
+    this.draft.hazards.push({ id: this.id(), kind: 'crusher', x: this.x0 + dx, y: 0, halfWidth: 0.75, raisedLift: 3.5, period, downTime: 0.55, warnTime: 0.5, phase });
+    return this;
   }
 
-  pendulum(ds: number, phase = 0, period = 2.8): void {
-    this.draft.hazards.push({
-      id: this.id(),
-      kind: 'pendulum',
-      s: this.s0 + ds,
-      lanes: ALL_LANES,
-      halfDepth: 0.45,
-      halfWidth: 0.85,
-      height: 0.25,
-      amplitude: GameplayConfig.lanes.width,
-      period,
-      phase: this.mirror ? phase + period / 2 : phase,
-    });
+  flame(dx: number, phase = 0, period = 2.2, activeTime = 0.8): this {
+    this.draft.hazards.push({ id: this.id(), kind: 'flame', x: this.x0 + dx, y: 0, halfWidth: 0.45, height: 1.5, period, activeTime, warnTime: 0.55, phase });
+    return this;
   }
 
-  boulder(ds: number, lane: number, phase = 0, period = 3.2, speed = 6): void {
-    this.draft.hazards.push({
-      id: this.id(),
-      kind: 'boulder',
-      s: this.s0 + ds,
-      lanes: laneBit(L(lane, this.mirror)),
-      radius: 0.55,
-      travel: 9,
-      speed,
-      period,
-      phase,
-    });
+  pendulum(dx: number, phase = 0, period = 2.6): this {
+    this.draft.hazards.push({ id: this.id(), kind: 'pendulum', x: this.x0 + dx, y: 0, pivotLift: 5.2, length: 4.3, amplitude: 1.0, radius: 0.55, period, phase });
+    return this;
   }
 
-  zone(kind: 'mud' | 'ice', ds0: number, ds1: number, lanes: LaneMask): void {
-    this.draft.hazards.push({
-      id: this.id(),
-      kind,
-      s: this.s0 + (ds0 + ds1) / 2,
-      lanes: this.m(lanes),
-      halfDepth: (ds1 - ds0) / 2,
-    });
+  boulder(dx: number, phase = 0, period = 3.2, speed = 6): this {
+    this.draft.hazards.push({ id: this.id(), kind: 'boulder', x: this.x0 + dx, y: 0, radius: 0.5, travel: 9, speed, period, phase });
+    return this;
   }
 
-  pad(kind: 'boostPad' | 'bouncePad', ds: number, lanes: LaneMask): void {
-    this.draft.hazards.push({ id: this.id(), kind, s: this.s0 + ds, lanes: this.m(lanes), halfDepth: 0.7 });
+  mud(dx0: number, dx1: number): this {
+    this.draft.hazards.push({ id: this.id(), kind: 'mud', x: this.x0 + (dx0 + dx1) / 2, y: 0, halfWidth: (dx1 - dx0) / 2 });
+    return this;
   }
 
-  gap(ds0: number, ds1: number, lanes: LaneMask): void {
-    this.draft.gaps.push({ s0: this.s0 + ds0, s1: this.s0 + ds1, lanes: this.m(lanes) });
+  pad(kind: 'boostPad' | 'spring', dx: number): this {
+    this.draft.hazards.push({ id: this.id(), kind, x: this.x0 + dx, y: 0, halfWidth: kind === 'spring' ? 0.45 : 0.8 });
+    return this;
   }
 
-  ledge(ds0: number, ds1: number, lanes: LaneMask, raise = 1.2): void {
-    this.draft.ledges.push({ s0: this.s0 + ds0, s1: this.s0 + ds1, lanes: this.m(lanes), raise });
+  // --- pickups -------------------------------------------------------------------
+
+  /** Rune Box `lift` above the ground level at the segment's current level. */
+  box(dx: number, lift = 0.9, atLevel = this.level): this {
+    this.draft.itemBoxes.push({ id: this.id(), x: this.x0 + dx, y: atLevel + lift });
+    return this;
   }
 
-  itemBoxes(ds: number, lanes: LaneMask, lift = 0.9): void {
-    for (let lane = -1; lane <= 1; lane++) {
-      if ((lanes & laneBit(lane)) === 0) continue;
-      this.draft.itemBoxes.push({ id: this.id(), s: this.s0 + ds, lane: L(lane, this.mirror), lift });
-    }
+  glimmerLine(dx0: number, dx1: number, lift = 0.6, spacing = 1.4, atLevel = this.level): this {
+    for (let dx = dx0; dx <= dx1 + 1e-6; dx += spacing) this.draft.glimmers.push({ id: this.id(), x: this.x0 + dx, y: atLevel + lift });
+    return this;
   }
 
-  glimmerLine(ds0: number, ds1: number, lane: number, spacing = 1.6, lift = 0.7): void {
-    for (let ds = ds0; ds <= ds1 + 1e-6; ds += spacing) {
-      this.draft.glimmers.push({ id: this.id(), s: this.s0 + ds, lane: L(lane, this.mirror), lift });
-    }
-  }
-
-  /** Glimmers along the arc of a full jump taken at `takeoff`. */
-  glimmerArc(takeoff: number, lane: number, count = 5, baseLift = 0.7, velocity: number = GameplayConfig.jump.velocity): void {
+  /** Glimmers along the arc of a jump taken at `takeoff`. */
+  glimmerArc(takeoff: number, count = 5, velocity: number = GameplayConfig.jump.velocity, atLevel = this.level): this {
     const g = GameplayConfig.jump.gravity;
     const speed = GameplayConfig.movement.baseSpeed;
     const air = (2 * velocity) / g;
     for (let i = 1; i <= count; i++) {
       const t = (air * i) / (count + 1);
       const y = velocity * t - 0.5 * g * t * t;
-      this.draft.glimmers.push({ id: this.id(), s: this.s0 + takeoff + speed * t, lane: L(lane, this.mirror), lift: baseLift + y });
+      this.draft.glimmers.push({ id: this.id(), x: this.x0 + takeoff + speed * t, y: atLevel + 0.55 + y });
     }
+    return this;
   }
-}
-
-/** Turns the draft's gap/ledge lists into per-lane ground spans covering [0, length]. */
-export function buildLaneGround(draft: TrackDraft, length: number): [GroundSpan[], GroundSpan[], GroundSpan[]] {
-  const result: [GroundSpan[], GroundSpan[], GroundSpan[]] = [[], [], []];
-  const end = length + 30; // run-out after the finish line
-  for (let lane = -1; lane <= 1; lane++) {
-    const bit = laneBit(lane);
-    // Collect boundaries.
-    const cuts = new Set<number>([-10, end]);
-    for (const g of draft.gaps) if (g.lanes & bit) (cuts.add(g.s0), cuts.add(g.s1));
-    for (const l of draft.ledges) if (l.lanes & bit) (cuts.add(l.s0), cuts.add(l.s1));
-    const points = [...cuts].sort((a, b) => a - b);
-    const spans: GroundSpan[] = [];
-    for (let i = 0; i < points.length - 1; i++) {
-      const a = points[i];
-      const b = points[i + 1];
-      const mid = (a + b) / 2;
-      const inGap = draft.gaps.some((g) => g.lanes & bit && mid > g.s0 && mid < g.s1);
-      if (inGap) continue;
-      let raise = 0;
-      for (const l of draft.ledges) if (l.lanes & bit && mid > l.s0 && mid < l.s1) raise = Math.max(raise, l.raise);
-      const prev = spans[spans.length - 1];
-      if (prev && Math.abs(prev.s1 - a) < 1e-6 && prev.raise === raise) prev.s1 = b;
-      else spans.push({ s0: a, s1: b, raise });
-    }
-    result[lane + 1] = spans;
-  }
-  return result;
 }

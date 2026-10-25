@@ -1,11 +1,11 @@
-import { GameplayConfig, laneToLateral } from '../config/GameplayConfig';
-import { laneOfLateral, type Track } from '../game/Track';
+import { GameplayConfig } from '../config/GameplayConfig';
+import type { Track } from '../game/Track';
 import type { RacerBody, RacerPhase } from '../game/RaceState';
 
 /**
  * Racer phase transitions:
  *
- *   grid --GO--> run --fell off--> fall --timer--> respawn --timer--> run
+ *   grid --GO--> run --fell into a pit--> fall --timer--> respawn --timer--> run
  *    run --crossed line--> finished
  *
  * Stun, shield, dash etc. are timed statuses layered on top of `run`
@@ -36,8 +36,7 @@ export function startRunning(body: RacerBody): void {
 export function enterFall(body: RacerBody): void {
   transition(body, 'fall');
   body.phaseTimer = GameplayConfig.fall.fallDuration;
-  body.fallFromS = body.s;
-  body.fallLane = laneOfLateral(body.lateral);
+  body.fallFromX = body.x;
   body.dash = 0;
   body.padBoost = 0;
   body.stun = 0;
@@ -46,16 +45,15 @@ export function enterFall(body: RacerBody): void {
 
 export function enterRespawn(body: RacerBody, track: Track): void {
   transition(body, 'respawn');
-  const spot = track.findRespawn(body.fallFromS, body.fallLane);
-  body.s = spot.s;
-  body.targetLane = spot.lane;
-  body.lateral = laneToLateral(spot.lane);
-  body.latVel = 0;
-  body.y = track.groundAtLane(spot.s, spot.lane) ?? track.baseline(spot.s);
+  const spot = track.findRespawn(body.fallFromX);
+  body.x = spot.x;
+  body.y = spot.y;
   body.vy = 0;
   body.speed = 0;
   body.grounded = true;
   body.jumping = false;
+  body.pieceId = -1;
+  body.dropTimer = 0;
   body.phaseTimer = GameplayConfig.fall.respawnDelay;
   body.terrain = 0;
 }

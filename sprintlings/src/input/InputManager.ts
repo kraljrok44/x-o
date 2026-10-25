@@ -1,21 +1,19 @@
 import type { TickInput } from '../game/RaceState';
 
-export type InputAction = 'jump' | 'left' | 'right' | 'ability' | 'pause';
+export type InputAction = 'jump' | 'down' | 'ability' | 'pause';
 
 export type KeyBindings = Record<InputAction, string[]>;
 
 export const DEFAULT_BINDINGS: KeyBindings = {
   jump: ['Space', 'KeyW', 'ArrowUp'],
-  left: ['KeyA', 'ArrowLeft'],
-  right: ['KeyD', 'ArrowRight'],
-  ability: ['KeyE', 'ShiftLeft'],
+  down: ['KeyS', 'ArrowDown'],
+  ability: ['KeyE', 'ShiftLeft', 'KeyD', 'ArrowRight'],
   pause: ['Escape', 'KeyP'],
 };
 
 export const ACTION_LABELS: Record<InputAction, string> = {
   jump: 'Jump',
-  left: 'Lane left',
-  right: 'Lane right',
+  down: 'Drop down',
   ability: 'Use ability',
   pause: 'Pause',
 };
@@ -49,8 +47,11 @@ export class InputManager {
   private bindings: KeyBindings = { ...DEFAULT_BINDINGS };
   private codeToAction = new Map<string, InputAction>();
   private jumpSources = new Set<string>();
-  private latched = { left: false, right: false, use: false, jumpTap: false };
-  private readonly out: TickInput = { jumpHeld: false, left: false, right: false, use: false };
+  private downSources = new Set<string>();
+  /** Ticks a swipe-down keeps "down" held (long enough to drop through a platform). */
+  private downPulse = 0;
+  private latched = { use: false, jumpTap: false, downTap: false };
+  private readonly out: TickInput = { jumpHeld: false, down: false, use: false };
   enabled = false;
   onPause: (() => void) | null = null;
   /** Called on any input so the app can unlock audio etc. */
@@ -97,6 +98,7 @@ export class InputManager {
 
   private releaseAll(): void {
     this.jumpSources.clear();
+    this.downSources.clear();
   }
 
   private handle(code: string, down: boolean): boolean {
@@ -114,9 +116,14 @@ export class InputManager {
       } else this.jumpSources.delete(code);
       return true;
     }
+    if (action === 'down') {
+      if (down) {
+        this.downSources.add(code);
+        this.latched.downTap = true;
+      } else this.downSources.delete(code);
+      return true;
+    }
     if (!down) return true;
-    if (action === 'left') this.latched.left = true;
-    if (action === 'right') this.latched.right = true;
     if (action === 'ability') this.latched.use = true;
     return true;
   }
@@ -180,9 +187,13 @@ export class InputManager {
       const dx = t.clientX - st.x;
       const dy = t.clientY - st.y;
       const min = Math.max(24, Math.min(window.innerWidth, window.innerHeight) * 0.05);
-      if (Math.abs(dx) > min && Math.abs(dx) > Math.abs(dy)) {
-        if (dx < 0) this.latched.left = true;
-        else this.latched.right = true;
+      if (dy > min && Math.abs(dy) > Math.abs(dx)) {
+        this.latched.downTap = true;
+        this.downPulse = 8;
+        st.handled = true;
+      } else if (dx > min * 1.5 && Math.abs(dx) > Math.abs(dy)) {
+        // Swipe forward fires the ability.
+        this.latched.use = true;
         st.handled = true;
       } else if (dy < -min && Math.abs(dy) > Math.abs(dx)) {
         this.latched.jumpTap = true;
@@ -206,7 +217,7 @@ export class InputManager {
   }
 
   /** Wires an on-screen touch button (instant response on touchstart). */
-  bindTouchButton(el: HTMLElement, action: 'jump' | 'left' | 'right' | 'ability'): void {
+  bindTouchButton(el: HTMLElement, action: 'jump' | 'down' | 'ability'): void {
     const id = `btn_${action}_${Math.random().toString(36).slice(2, 6)}`;
     const down = (e: Event) => {
       e.preventDefault();
@@ -217,15 +228,17 @@ export class InputManager {
       if (action === 'jump') {
         this.latched.jumpTap = true;
         this.jumpSources.add(id);
-      } else if (action === 'left') this.latched.left = true;
-      else if (action === 'right') this.latched.right = true;
-      else this.latched.use = true;
+      } else if (action === 'down') {
+        this.latched.downTap = true;
+        this.downSources.add(id);
+      } else this.latched.use = true;
     };
     const up = (e: Event) => {
       e.preventDefault();
       e.stopPropagation();
       el.classList.remove('pressed');
       this.jumpSources.delete(id);
+      this.downSources.delete(id);
     };
     el.addEventListener('touchstart', down, { passive: false });
     el.addEventListener('touchend', up, { passive: false });
@@ -240,16 +253,18 @@ export class InputManager {
     const pad = pads && Array.from(pads).find((p) => p && p.connected);
     if (!pad) return;
     const b = (i: number) => !!pad.buttons[i]?.pressed;
-    const now = [b(0), b(14) || pad.axes[0] < -0.6, b(15) || pad.axes[0] > 0.6, b(2) || b(5) || b(1), b(9)];
+    const now = [b(0), b(13) || pad.axes[1] > 0.6, b(2) || b(5) || b(1), b(9)];
     const edge = (i: number) => now[i] && !this.padPrev[i];
     if (now[0]) {
       if (!this.jumpSources.has('pad')) this.latched.jumpTap = true;
       this.jumpSources.add('pad');
     } else this.jumpSources.delete('pad');
-    if (edge(1)) this.latched.left = true;
-    if (edge(2)) this.latched.right = true;
-    if (edge(3)) this.latched.use = true;
-    if (edge(4)) this.onPause?.();
+    if (now[1]) {
+      if (!this.downSources.has('pad')) this.latched.downTap = true;
+      this.downSources.add('pad');
+    } else this.downSources.delete('pad');
+    if (edge(2)) this.latched.use = true;
+    if (edge(3)) this.onPause?.();
     this.padPrev = now;
   }
 
@@ -258,22 +273,25 @@ export class InputManager {
     this.pollGamepad();
     const o = this.out;
     if (!this.enabled) {
-      o.jumpHeld = o.left = o.right = o.use = false;
-      this.latched.left = this.latched.right = this.latched.use = this.latched.jumpTap = false;
+      o.jumpHeld = o.down = o.use = false;
+      this.latched.use = this.latched.jumpTap = this.latched.downTap = false;
+      this.downPulse = 0;
       return o;
     }
     // A tap released before the tick still counts as one tick of holding.
     o.jumpHeld = this.jumpSources.size > 0 || this.latched.jumpTap;
-    o.left = this.latched.left;
-    o.right = this.latched.right;
+    o.down = this.downSources.size > 0 || this.latched.downTap || this.downPulse > 0;
+    if (this.downPulse > 0) this.downPulse--;
     o.use = this.latched.use;
-    this.latched.left = this.latched.right = this.latched.use = this.latched.jumpTap = false;
+    this.latched.use = this.latched.jumpTap = this.latched.downTap = false;
     return o;
   }
 
   /** Clears held state, e.g. when a race starts or resumes. */
   reset(): void {
     this.jumpSources.clear();
-    this.latched = { left: false, right: false, use: false, jumpTap: false };
+    this.downSources.clear();
+    this.downPulse = 0;
+    this.latched = { use: false, jumpTap: false, downTap: false };
   }
 }

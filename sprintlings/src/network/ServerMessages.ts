@@ -21,8 +21,8 @@ export interface RoomInfo {
   yourIndex: number;
 }
 
-/** Compact racer state: [s, lateral, y, phaseCode, stun>0, item index or -1, finishTime or -1]. */
-export type RacerSnap = [number, number, number, number, number, number, number];
+/** Compact racer state: [x, y, phaseCode, stun>0, item index or -1, finishTime or -1]. */
+export type RacerSnap = [number, number, number, number, number, number];
 
 export type ServerMessage =
   | { t: 'welcome'; accountId: string }

@@ -6,7 +6,7 @@ import { t } from './i18n';
 import { topbar } from './Topbar';
 import type { Screen } from './UIRoot';
 
-/** Wide screens show the 3D stage on the left and panels on the right. */
+/** Wide screens show the monster stage on the left and panels on the right. */
 export function sidePanelLayout(ctx: AppContext, content: HTMLElement): HTMLElement {
   const wide = ctx.renderer.aspect > 1.15;
   ctx.menu.offsetX = wide ? -1.9 : 0;
@@ -18,7 +18,7 @@ export function sidePanelLayout(ctx: AppContext, content: HTMLElement): HTMLElem
 }
 
 export function characterSelect(ctx: AppContext): Screen {
-  const bar = topbar(ctx, { back: () => ctx.go('menu'), title: t('Choose your critter') });
+  const bar = topbar(ctx, { back: () => ctx.go('menu'), title: t('Choose your monster') });
   let selected: CharacterId = ctx.authority.profile.loadout.characterId;
   const grid = h('div', { class: 'grid', style: 'grid-template-columns:repeat(3,minmax(0,1fr))' });
   const detail = h('div', { class: 'panel', style: 'padding:14px;margin-top:12px' });
@@ -96,7 +96,7 @@ export function characterSelect(ctx: AppContext): Screen {
       h('div', { class: 'row row--between' }, h('h2', { class: 'panel__title' }, c.name), h('span', { class: 'chip' }, c.species)),
       h('p', { class: 'muted', style: 'margin:4px 0 10px' }, c.tagline),
       h('div', { class: 'list-item' }, h('div', { style: 'font-size:28px' }, '✨'), h('div', { class: 'list-item__body' }, h('div', { class: 'list-item__title' }, `${t('Passive')}: ${passive.name}`), h('div', { class: 'small muted' }, passive.description))),
-      h('p', { class: 'small muted' }, 'All critters share the same speed and jump. Passives are small, situational perks.'),
+      h('p', { class: 'small muted' }, t('All monsters share the same speed and jump. Passives are small, situational perks.')),
       actions,
     );
   };

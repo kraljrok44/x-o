@@ -1,11 +1,9 @@
-import { GameplayConfig, laneToLateral } from '../config/GameplayConfig';
-import { approach, clamp } from '../shared/math';
-import { applyHit, lateralGrip, terrainSpeedFactor, tickStatuses } from '../abilities/StatusEffectSystem';
+import { GameplayConfig } from '../config/GameplayConfig';
+import { approach } from '../shared/math';
+import { applyHit, terrainSpeedFactor, tickStatuses } from '../abilities/StatusEffectSystem';
 import { makeContactResult, resolveHazardContacts, stunFor, type ContactResult } from '../physics/CollisionResolver';
-import { hasFallenOut } from '../physics/GroundDetection';
+import { groundUnder, hasFallenOut } from '../physics/GroundDetection';
 import type { BodyInput, MovementWorld } from '../physics/PhysicsWorld';
-import { laneOfLateral } from '../game/Track';
-import { maskHasLane } from '../obstacles/ObstacleBase';
 import type { RacerBody } from '../game/RaceState';
 import type { PassiveModifiers } from './CharacterAbilities';
 import { enterFall, enterRespawn, finishRespawn } from './PlayerStateMachine';
@@ -13,7 +11,7 @@ import { enterFall, enterRespawn, finishRespawn } from './PlayerStateMachine';
 const cfg = GameplayConfig;
 const hb = cfg.hitbox;
 
-/** Scratch objects reused by every step (the simulation is single threaded). */
+/** Scratch object reused by every step (the simulation is single threaded). */
 const contact: ContactResult = makeContactResult();
 
 /**
@@ -21,27 +19,23 @@ const contact: ContactResult = makeContactResult();
  * for movement; the race, the AI planner and the server re-simulation all
  * call it.
  */
-export function stepBody(
-  body: RacerBody,
-  input: BodyInput,
-  mods: PassiveModifiers,
-  world: MovementWorld,
-  racer: number,
-  dt: number,
-): void {
+export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifiers, world: MovementWorld, racer: number, dt: number): void {
   tickStatuses(body, dt);
   const track = world.track;
+  body.blocked = false;
 
   switch (body.phase) {
     case 'grid':
       return;
     case 'finished': {
-      body.speed = approach(body.speed, cfg.movement.baseSpeed * 0.45, cfg.movement.decel * 0.25 * dt);
-      body.s += body.speed * dt;
-      body.vy -= cfg.jump.gravity * dt;
+      body.speed = approach(body.speed, cfg.movement.baseSpeed * 0.4, cfg.movement.decel * 0.25 * dt);
+      const nx = body.x + body.speed * dt;
+      if (!track.solidAt(nx + hb.halfWidth, body.y)) body.x = nx;
+      body.vy = Math.max(cfg.jump.terminalVelocity, body.vy - cfg.jump.gravity * dt);
+      const prevY = body.y;
       body.y += body.vy * dt;
-      const g = track.groundAt(body.s, body.lateral) ?? track.baseline(body.s);
-      if (body.y <= g) {
+      const g = track.groundBelow(body.x, prevY + cfg.jump.stepUp, -1, true);
+      if (!Number.isNaN(g) && body.y <= g) {
         body.y = g;
         body.vy = 0;
         body.grounded = true;
@@ -52,7 +46,7 @@ export function stepBody(
       body.phaseTimer -= dt;
       body.vy = Math.max(cfg.jump.terminalVelocity, body.vy - cfg.jump.gravity * dt);
       body.y += body.vy * dt;
-      body.s += body.speed * 0.4 * dt;
+      body.x += body.speed * 0.3 * dt;
       if (body.phaseTimer <= 0) {
         enterRespawn(body, track);
         world.emit('respawn', racer, 0, body);
@@ -66,7 +60,7 @@ export function stepBody(
       break;
   }
 
-  // --- input ---------------------------------------------------------------
+  // --- input -------------------------------------------------------------------
   if (input.jumpPressed && body.jumpGuard <= 0) body.jumpBuffer = cfg.jump.bufferTime;
   if (body.jumping) body.jumpAge += dt;
   if (input.jumpReleased && body.jumping && body.vy > 0) body.cutPending = true;
@@ -76,18 +70,20 @@ export function stepBody(
     body.jumping = false;
   }
   body.jumpHeld = input.jumpHeld;
-  // Lane input is accepted while stunned (at reduced lateral speed) so a
-  // player can sidestep right after bonking a wall.
-  if (input.left && body.targetLane > -1) {
-    body.targetLane -= 1;
-    world.emit('laneChange', racer, -1, body);
-  }
-  if (input.right && body.targetLane < 1) {
-    body.targetLane += 1;
-    world.emit('laneChange', racer, 1, body);
+  body.downHeld = input.downHeld;
+
+  // Drop through the one-way platform underfoot.
+  if (input.downPressed && body.grounded && body.pieceId >= 0 && track.isOneWay(body.pieceId)) {
+    body.dropId = body.pieceId;
+    body.dropTimer = cfg.jump.dropThroughTime;
+    body.grounded = false;
+    body.coyote = 0;
+    body.vy = -1;
+    body.pieceId = -1;
+    world.emit('drop', racer, body.dropId, body);
   }
 
-  // --- forward speed -------------------------------------------------------
+  // --- forward speed -----------------------------------------------------------
   let target: number;
   if (body.stun > 0) target = 0.8;
   else {
@@ -99,44 +95,28 @@ export function stepBody(
   }
   body.speed = approach(body.speed, target, (body.speed < target ? cfg.movement.accel : cfg.movement.decel) * dt);
 
-  const prevS = body.s;
-  const prevLat = body.lateral;
+  const prevX = body.x;
   const prevY = body.y;
-  body.s += body.speed * dt;
+  const nx = body.x + body.speed * dt;
+  // Terrain faces (steps, island sides) block forward motion until you jump up.
+  if (track.solidAt(nx + hb.halfWidth, body.y)) {
+    body.blocked = true;
+    body.speed = Math.min(body.speed, 2.5);
+  } else body.x = nx;
 
-  // --- lateral -------------------------------------------------------------
-  const targetLat = laneToLateral(body.targetLane);
-  const grip = lateralGrip(body.terrain, mods);
-  const maxLat = body.stun > 0 ? cfg.lanes.switchSpeed * 0.5 : cfg.lanes.switchSpeed;
-  const desired = clamp((targetLat - body.lateral) * 18, -maxLat, maxLat);
-  body.latVel = approach(body.latVel, desired, cfg.lanes.lateralAccel * grip * dt);
-  const newLat = body.lateral + body.latVel * dt;
-  const gSide = track.groundAt(body.s, newLat);
-  if (gSide !== null && gSide > body.y + cfg.jump.stepUp) {
-    // Side of a raised ledge: can't move into it.
-    body.latVel = 0;
-    body.targetLane = laneOfLateral(body.lateral);
-  } else body.lateral = newLat;
-
-  // --- ledge faces in front ------------------------------------------------
-  let g = track.groundAt(body.s, body.lateral);
-  if (g !== null && g > body.y + cfg.jump.stepUp) {
-    body.s = prevS - 0.6;
-    body.speed = 0;
-    body.vy = Math.min(body.vy, 0);
-    const outcome = applyHit(body, mods, -2, cfg.stun.wall * 0.7, true);
-    world.emit(outcome === 'blocked' ? 'shieldBlock' : 'bonk', racer, -2, body);
-    g = track.groundAt(body.s, body.lateral);
-  }
-
-  // --- vertical ------------------------------------------------------------
+  // --- vertical ----------------------------------------------------------------
   if (body.grounded) {
-    if (g === null || body.y - g > cfg.jump.snapDown) {
+    const g = groundUnder(track, body, body.x, prevY);
+    if (Number.isNaN(g) || body.y - g > cfg.jump.snapDown) {
       body.grounded = false;
       body.coyote = cfg.jump.coyoteTime;
       body.vy = 0;
       body.jumping = false;
-    } else body.y = g;
+      body.pieceId = -1;
+    } else {
+      body.y = g;
+      body.pieceId = track.lastPiece;
+    }
   }
 
   if (body.jumpBuffer > 0 && body.stun <= 0 && (body.grounded || body.coyote > 0)) {
@@ -148,64 +128,59 @@ export function stepBody(
     body.jumping = true;
     body.jumpAge = 0;
     body.cutPending = false;
+    body.pieceId = -1;
     world.emit('jump', racer, 0, body);
   }
 
   if (!body.grounded) {
-    const gravityScale = body.vy < 0 && body.jumpHeld ? mods.fallGravityScaleWhileHolding : 1;
+    let gravityScale = 1;
+    if (body.vy < 0 && body.downHeld) gravityScale = cfg.jump.fastFallScale;
+    else if (body.vy < 0 && body.jumpHeld) gravityScale = mods.fallGravityScaleWhileHolding;
+    const vyBefore = body.vy;
     body.vy = Math.max(cfg.jump.terminalVelocity, body.vy - cfg.jump.gravity * gravityScale * dt);
     body.y += body.vy * dt;
-    const gNow = track.groundAt(body.s, body.lateral);
-    if (gNow !== null && body.vy <= 0 && body.y <= gNow && prevY >= gNow - cfg.jump.stepUp) {
-      body.y = gNow;
-      body.vy = 0;
-      body.grounded = true;
-      body.jumping = false;
-      world.emit('land', racer, 0, body);
-    } else if (hasFallenOut(track, body.s, body.y)) {
-      enterFall(body);
-      world.emit('fall', racer, 0, body);
-      return;
+    if (body.vy <= 0) {
+      // Land on the highest surface crossed between last tick and now.
+      const ignore = body.dropTimer > 0 ? body.dropId : -1;
+      const g = track.groundBelow(body.x, prevY + 0.02, ignore, true);
+      if (!Number.isNaN(g) && body.y <= g) {
+        body.y = g;
+        body.vy = 0;
+        body.grounded = true;
+        body.jumping = false;
+        body.pieceId = track.lastPiece;
+        world.emit('land', racer, Math.round(-vyBefore * 10), body);
+      } else if (hasFallenOut(body)) {
+        enterFall(body);
+        world.emit('fall', racer, 0, body);
+        return;
+      }
     }
   }
 
-  // --- hazards ---------------------------------------------------------------
-  resolveHazardContacts(track, body, prevS, prevLat, world.time, contact);
+  // --- hazards -------------------------------------------------------------------
+  resolveHazardContacts(track, body, world.time, contact);
   let terrain = contact.terrain;
-  if (body.grounded && world.inSap(racer, body.s, body.lateral)) terrain = 2;
+  if (body.grounded && world.inSap(racer, body.x, body.y)) terrain = 2;
   body.terrain = terrain;
 
-  const pad = contact.boostPad ?? contact.bouncePad;
+  const pad = contact.boostPad ?? contact.spring;
   if (contact.boostPad) {
     body.padBoost = cfg.boostPad.duration;
     if (!body.onPad) world.emit('boostPad', racer, contact.boostPad.id, body);
   }
-  if (contact.bouncePad && body.grounded) {
+  if (contact.spring && body.grounded) {
     body.vy = cfg.jump.bouncePadVelocity;
     body.grounded = false;
     body.jumping = false;
-    world.emit('bounce', racer, contact.bouncePad.id, body);
+    body.pieceId = -1;
+    world.emit('bounce', racer, contact.spring.id, body);
   }
   body.onPad = pad !== null;
 
-  const hit = contact.hit;
-  if (hit) {
-    if (hit.kind === 'wall') {
-      if (contact.fromSide) {
-        body.lateral = prevLat;
-        body.latVel = 0;
-        body.targetLane = laneOfLateral(prevLat);
-      } else {
-        body.s = hit.s - hit.halfDepth - hb.halfDepth - cfg.stun.wallPushback;
-        body.speed = 0;
-        body.vy = Math.min(body.vy, 0);
-        const outcome = applyHit(body, mods, hit.id, cfg.stun.wall, true);
-        world.emit(outcome === 'blocked' ? 'shieldBlock' : 'bonk', racer, hit.id, body);
-      }
-    } else {
-      const outcome = applyHit(body, mods, hit.id, stunFor(hit.kind), true);
-      if (outcome !== 'ignored') world.emit(outcome === 'blocked' ? 'shieldBlock' : 'hit', racer, hit.id, body);
-    }
+  if (contact.hit) {
+    const outcome = applyHit(body, mods, contact.hit.id, stunFor(contact.hit.kind), true);
+    if (outcome !== 'ignored') world.emit(outcome === 'blocked' ? 'shieldBlock' : 'hit', racer, contact.hit.id, body);
   }
 
   const snare = world.touchSnare(racer, body);
@@ -214,13 +189,12 @@ export function stepBody(
     if (outcome !== 'ignored') world.emit(outcome === 'blocked' ? 'shieldBlock' : 'hit', racer, snare, body);
   }
 
-  // --- stats: hurdles/spikes cleared in the air ------------------------------
+  // --- stats: obstacles cleared in the air ---------------------------------------
   if (!body.grounded) {
     const hz = track.data.hazards;
-    const lane = laneOfLateral(body.lateral);
-    for (let i = track.firstHazardIndex(prevS); i < hz.length && hz[i].s <= body.s; i++) {
+    for (let i = track.firstHazardIndex(prevX); i < hz.length && hz[i].x <= body.x; i++) {
       const h = hz[i];
-      if ((h.kind === 'hurdle' || h.kind === 'spikes') && h.s > prevS && maskHasLane(h.lanes, lane) && body.lastHitId !== h.id) {
+      if ((h.kind === 'log' || h.kind === 'spikes' || h.kind === 'saw' || h.kind === 'boulder') && h.x > prevX && body.lastHitId !== h.id) {
         world.emit('hurdleCleared', racer, h.id, body);
       }
     }

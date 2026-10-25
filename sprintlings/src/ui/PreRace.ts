@@ -41,7 +41,7 @@ export function preRace(ctx: AppContext, ticket: RaceTicket, onGo: () => void, o
         h(
           'div',
           { class: 'panel', style: 'padding:10px 14px' },
-          h('div', { class: 'row row--wrap small' }, h('span', { class: 'chip' }, `⤒ ${touch ? 'JUMP / swipe up' : t('Space / W / ↑ or tap')}`), h('span', { class: 'chip' }, `⇆ ${touch ? '◀ ▶ / swipe' : t('A / D / ← → or swipe')}`), h('span', { class: 'chip' }, `✦ ${touch ? 'Ability button' : t('E / right click')}`)),
+          h('div', { class: 'row row--wrap small' }, h('span', { class: 'chip' }, `⤒ ${touch ? t('Tap / JUMP (hold = higher)') : t('Space / W / ↑ or tap')}`), h('span', { class: 'chip' }, `⤓ ${touch ? t('▼ / swipe down') : t('S / ↓ or swipe down')}`), h('span', { class: 'chip' }, `✦ ${touch ? t('Ability button') : t('E / right click')}`)),
           h('div', { class: 'small muted', style: 'margin-top:6px' }, t('Press jump right at GO for a start boost!')),
         ),
         h('div', { class: 'row', style: 'justify-content:center' }, h('button', { class: 'btn btn--ghost', onClick: () => ((started = true), onCancel()) }, t('Back')), h('button', { class: 'btn btn--good btn--big', onClick: go }, t('Ready'))),

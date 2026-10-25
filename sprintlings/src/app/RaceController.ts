@@ -6,11 +6,9 @@ import type { RaceSettlement } from '../economy/EconomyService';
 import { RaceSimulation } from '../game/RaceManager';
 import { InputRecorder } from '../game/RaceReplay';
 import { summarizeRace, type RaceResultSummary } from '../game/RaceResults';
-import type { RaceEvent } from '../game/RaceState';
+import { NO_INPUT, type RaceEvent } from '../game/RaceState';
 import type { RaceTicket } from '../game/RaceVerifier';
 import { getTrack } from '../game/TrackManager';
-import { laneOfLateral } from '../game/Track';
-import { maskHasLane } from '../obstacles/ObstacleBase';
 import { BIOME_THEMES } from '../render/BiomeTheme';
 import { RaceScene } from '../render/RaceScene';
 import { h } from '../ui/dom';
@@ -37,6 +35,7 @@ export class RaceController {
   private acc = 0;
   private finishTimer = 0;
   private readonly tutorial: boolean;
+  private readonly touch: boolean;
   private pauseModal: HTMLElement | null = null;
   private settled = false;
   private autopilot: AIController | null = null;
@@ -53,6 +52,7 @@ export class RaceController {
     void this.scene.loadExtras();
     const s = ctx.settings.value;
     const touch = s.touchControls === 'on' || (s.touchControls === 'auto' && matchMedia('(pointer: coarse)').matches);
+    this.touch = touch;
     this.hud = new RaceHUD(this.sim, 0, ctx.input, touch, s.showFps);
     this.hud.pauseBtn.addEventListener('click', () => this.pause());
     this.tutorial = !ctx.authority.profile.tutorialDone;
@@ -146,7 +146,7 @@ export class RaceController {
       while (this.acc >= TICK_DT && steps < MAX_STEPS_PER_FRAME && this.sim.phase !== 'done') {
         this.acc -= TICK_DT;
         steps++;
-        const input = this.phase === 'racing' ? this.ctx.input.sample() : { jumpHeld: false, left: false, right: false, use: false };
+        const input = this.phase === 'racing' ? this.ctx.input.sample() : NO_INPUT;
         this.recorder.record(this.sim.tick, input);
         const events = this.sim.step([input]);
         this.scene.onTick(events);
@@ -177,10 +177,11 @@ export class RaceController {
         continue;
       }
       const local = e.racer === 0;
-      const near = Math.abs(e.s - me.s) < 22;
+      const near = Math.abs(e.x - me.x) < 22;
       const vol = local ? 1 : near ? 0.3 : 0;
       if (vol === 0) continue;
-      const pan = local ? 0 : Math.max(-0.7, Math.min(0.7, (e.lateral - me.lateral) / 5));
+      // Rivals ahead sound to the right, behind to the left.
+      const pan = local ? 0 : Math.max(-0.7, Math.min(0.7, (e.x - me.x) / 12));
       switch (e.type) {
         case 'jump':
           a.play('jump', vol, pan);
@@ -258,7 +259,7 @@ export class RaceController {
     this.settled = true;
     this.ctx.input.enabled = false;
     this.ctx.platform.gameplayStop();
-    const idle = { jumpHeld: false, left: false, right: false, use: false };
+    const idle = NO_INPUT;
     let guard = 0;
     while (this.sim.phase !== 'done' && guard++ < 60 * 30) {
       this.recorder.record(this.sim.tick, idle);
@@ -286,25 +287,30 @@ export class RaceController {
       this.hud.setHint(null);
       return;
     }
-    const lane = laneOfLateral(b.lateral);
     let hint: string | null = null;
-    for (const h of sim.track.data.hazards) {
-      const d = h.s - b.s;
-      if (d < 0 || d > 14) continue;
-      if (!maskHasLane(h.lanes, lane)) continue;
-      if (h.kind === 'wall' && d < 14) hint = `${t('Switch lanes!')} (${t('A / D / ← → or swipe')})`;
-      else if ((h.kind === 'hurdle' || h.kind === 'spikes') && d < 8) hint = `${t('Jump!')} (${t('Space / W / ↑ or tap')})`;
-      if (hint) break;
-    }
+    sim.track.forHazardsNear(b.x, b.x + 9, (h) => {
+      if (hint) return;
+      const d = h.x - b.x;
+      if (d < 0) return;
+      if ((h.kind === 'log' || h.kind === 'spikes' || h.kind === 'saw') && d < 7) hint = `${t('Jump!')} (${this.touch ? t('tap JUMP') : t('Space / W / ↑ or tap')})`;
+      else if ((h.kind === 'crusher' || h.kind === 'flame') && d < 8) hint = t('Watch the timing: jump over it or wait for it to open.');
+      else if (h.kind === 'spring' && d < 6) hint = t('Springs launch you across wide gaps!');
+    });
     if (!hint) {
-      for (let s = b.s + 1; s < b.s + 9; s += 0.5) {
-        if (sim.track.groundAt(s, b.lateral) === null) {
+      for (let x = b.x + 1; x < b.x + 8; x += 0.5) {
+        const g = sim.track.solidTop(x);
+        if (Number.isNaN(g)) {
           hint = `${t('Jump!')} · ${t('Hold jump to jump higher')}`;
+          break;
+        }
+        if (g - b.y > 0.35) {
+          hint = `${t('Jump up the step!')} · ${t('Hold jump to jump higher')}`;
           break;
         }
       }
     }
-    if (!hint && r.item) hint = `${t('Use your ability!')} (${t('E / right click')})`;
+    if (!hint && b.grounded && b.pieceId >= 0 && sim.track.isOneWay(b.pieceId)) hint = `${t('Drop down')}: ${this.touch ? t('▼ / swipe down') : t('S / ↓ or swipe down')}`;
+    if (!hint && r.item) hint = `${t('Use your ability!')} (${this.touch ? t('tap the ability button') : t('E / right click')})`;
     this.hud.setHint(hint);
   }
 

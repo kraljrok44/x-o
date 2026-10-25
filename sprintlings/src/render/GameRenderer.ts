@@ -1,19 +1,4 @@
-import * as THREE from 'three';
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
-
 export type GraphicsQuality = 'low' | 'medium' | 'high';
-
-export function isWebGLAvailable(): boolean {
-  try {
-    const canvas = document.createElement('canvas');
-    return !!(window.WebGL2RenderingContext && canvas.getContext('webgl2')) || !!canvas.getContext('webgl');
-  } catch {
-    return false;
-  }
-}
 
 /** Picks a sensible default quality from the device. */
 export function detectQuality(): GraphicsQuality {
@@ -23,60 +8,48 @@ export function detectQuality(): GraphicsQuality {
   return cores >= 6 ? 'high' : 'medium';
 }
 
+export function isCanvasAvailable(): boolean {
+  try {
+    return !!document.createElement('canvas').getContext('2d');
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Owns the single WebGL context. Quality changes pixel ratio, shadows and
- * the bloom pass; anti-aliasing is fixed at context creation (a quality
- * change re-creates the renderer).
+ * Owns the main 2D canvas. Quality sets the backing-store resolution and
+ * how much decoration/particles the painters draw. All drawing happens in
+ * CSS pixels; the device-pixel scale is applied by begin().
  */
 export class GameRenderer {
-  renderer!: THREE.WebGLRenderer;
-  private composer: EffectComposer | null = null;
-  private bloom: UnrealBloomPass | null = null;
-  private renderPass: RenderPass | null = null;
+  readonly canvas: HTMLCanvasElement;
+  readonly ctx: CanvasRenderingContext2D;
   quality: GraphicsQuality;
   width = 1;
   height = 1;
   private readonly container: HTMLElement;
   onContextLost: (() => void) | null = null;
+  /** Bumped on every resize so painters can rebuild cached layers. */
+  generation = 0;
 
   constructor(container: HTMLElement, quality: GraphicsQuality) {
     this.container = container;
     this.quality = quality;
-    this.create();
-    window.addEventListener('resize', () => this.resize());
-  }
-
-  private create(): void {
-    if (this.renderer) {
-      this.renderer.domElement.remove();
-      this.renderer.dispose();
-    }
-    const r = new THREE.WebGLRenderer({
-      antialias: this.quality !== 'low',
-      powerPreference: 'high-performance',
-      alpha: false,
-      stencil: false,
-    });
-    r.outputColorSpace = THREE.SRGBColorSpace;
-    r.toneMapping = THREE.ACESFilmicToneMapping;
-    r.toneMappingExposure = 1.05;
-    r.shadowMap.enabled = this.quality !== 'low';
-    r.shadowMap.type = THREE.PCFShadowMap;
-    r.domElement.id = 'game-canvas';
-    r.domElement.addEventListener('webglcontextlost', (e) => {
-      e.preventDefault();
-      this.onContextLost?.();
-    });
-    this.container.prepend(r.domElement);
-    this.renderer = r;
-    this.composer = null;
+    this.canvas = document.createElement('canvas');
+    this.canvas.id = 'game-canvas';
+    const ctx = this.canvas.getContext('2d', { alpha: false });
+    if (!ctx) throw new Error('2D canvas not available');
+    this.ctx = ctx;
+    this.canvas.addEventListener('contextlost', () => this.onContextLost?.());
+    container.prepend(this.canvas);
     this.resize();
+    window.addEventListener('resize', () => this.resize());
   }
 
   setQuality(q: GraphicsQuality): void {
     if (q === this.quality) return;
     this.quality = q;
-    this.create();
+    this.resize();
   }
 
   get pixelRatio(): number {
@@ -87,34 +60,25 @@ export class GameRenderer {
   resize(): void {
     this.width = Math.max(1, this.container.clientWidth || window.innerWidth);
     this.height = Math.max(1, this.container.clientHeight || window.innerHeight);
-    this.renderer.setPixelRatio(this.pixelRatio);
-    this.renderer.setSize(this.width, this.height);
-    this.composer?.setSize(this.width, this.height);
-    this.composer?.setPixelRatio(this.pixelRatio);
+    const pr = this.pixelRatio;
+    this.canvas.width = Math.round(this.width * pr);
+    this.canvas.height = Math.round(this.height * pr);
+    this.canvas.style.width = `${this.width}px`;
+    this.canvas.style.height = `${this.height}px`;
+    this.generation++;
   }
 
   get aspect(): number {
     return this.width / this.height;
   }
 
-  render(scene: THREE.Scene, camera: THREE.Camera, bloomStrength = 0.55): void {
-    if (this.quality === 'high') {
-      if (!this.composer) {
-        this.composer = new EffectComposer(this.renderer);
-        this.renderPass = new RenderPass(scene, camera);
-        this.composer.addPass(this.renderPass);
-        this.bloom = new UnrealBloomPass(new THREE.Vector2(this.width, this.height), bloomStrength, 0.55, 0.82);
-        this.composer.addPass(this.bloom);
-        this.composer.addPass(new OutputPass());
-        this.composer.setPixelRatio(this.pixelRatio);
-        this.composer.setSize(this.width, this.height);
-      }
-      this.renderPass!.scene = scene;
-      this.renderPass!.camera = camera;
-      this.bloom!.strength = bloomStrength;
-      this.composer.render();
-    } else {
-      this.renderer.render(scene, camera);
-    }
+  /** Resets the transform to CSS pixels and returns the context. */
+  begin(): CanvasRenderingContext2D {
+    const c = this.ctx;
+    c.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
+    c.globalAlpha = 1;
+    c.globalCompositeOperation = 'source-over';
+    c.imageSmoothingEnabled = true;
+    return c;
   }
 }

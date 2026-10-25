@@ -54,7 +54,7 @@ describe('local authority', () => {
     const rec = new InputRecorder();
     let t = 0;
     while (sim.phase !== 'done') {
-      const input = { jumpHeld: t++ % 50 < 20, left: false, right: false, use: false };
+      const input = { jumpHeld: t++ % 50 < 20, down: false, use: false };
       rec.record(sim.tick, input);
       sim.step([input]);
     }

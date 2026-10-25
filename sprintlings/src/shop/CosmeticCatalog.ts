@@ -67,7 +67,7 @@ const BASE: CosmeticDefinition[] = [
   { id: 'back_scarf', slot: 'back', name: 'Trail Scarf', description: 'Flaps heroically in the wind.', rarity: 'common', price: C(200), color: '#ff5a4f' },
   { id: 'back_pack', slot: 'back', name: 'Explorer Pack', description: 'Snacks for the road.', rarity: 'common', price: C(280), color: '#c08a4a' },
   { id: 'back_balloon', slot: 'back', name: 'Lucky Balloon', description: 'Bobbing along behind you.', rarity: 'rare', price: C(420), color: '#ff7ab8' },
-  { id: 'back_cape', slot: 'back', name: 'Hero Cape', description: 'Every critter is a hero.', rarity: 'rare', price: C(700), color: '#4a63ff' },
+  { id: 'back_cape', slot: 'back', name: 'Hero Cape', description: 'Every monster is a hero.', rarity: 'rare', price: C(700), color: '#4a63ff' },
   { id: 'back_leafwings', slot: 'back', name: 'Leafwing Glider', description: 'Wings woven from autumn leaves.', rarity: 'epic', price: C(1200), requiresLevel: 8, color: '#f2a43a' },
   { id: 'back_harvest', slot: 'back', name: 'Harvest Scarf', description: 'Season reward: Harvest Hoopla.', rarity: 'rare', price: null, seasonId: 'season_1', model: 'back_scarf', color: '#ff8a2a' },
   { id: 'back_rocket', slot: 'back', name: 'Toy Rocket', description: 'Purely decorative. Probably.', rarity: 'legendary', price: G(250), color: '#e8e8f0' },

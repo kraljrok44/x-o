@@ -1,8 +1,6 @@
-import { GameplayConfig, laneToLateral } from '../config/GameplayConfig';
+import { GameplayConfig } from '../config/GameplayConfig';
 import { ABILITIES, AbilityTuning, ITEM_WEIGHTS_BY_POSITION, type AbilityId } from './AbilityDefinition';
 import { findSeekerTarget } from './ProjectileSystem';
-import { laneBit } from '../obstacles/ObstacleBase';
-import { laneOfLateral } from '../game/Track';
 import type { RaceSimulation } from '../game/RaceManager';
 import type { Racer } from '../game/RaceState';
 
@@ -27,47 +25,31 @@ export function tryUseAbility(sim: RaceSimulation, racer: Racer): UseResult {
     case 'shield':
       b.shield = ABILITIES.shield.duration;
       break;
-    case 'seeker': {
-      const s = b.s + AbilityTuning.seeker.spawnAhead;
-      const g = sim.track.groundAt(s, b.lateral) ?? b.y;
+    case 'seeker':
       sim.entities.push({
         kind: 'seeker',
         id: sim.nextEntityId++,
         owner: racer.index,
         target: findSeekerTarget(sim, racer.index),
-        s,
-        lateral: b.lateral,
-        y: g + AbilityTuning.seeker.height,
+        x: b.x + AbilityTuning.seeker.spawnAhead,
+        y: b.y + AbilityTuning.seeker.height,
+        vy: 0,
         age: 0,
         alive: true,
       });
       break;
-    }
     case 'snare': {
-      const lane = laneOfLateral(b.lateral);
-      const s = b.s - AbilityTuning.snare.offsetBehind;
-      const g = sim.track.groundAtLane(s, lane);
-      if (g === null) return 'invalid';
-      sim.entities.push({ kind: 'snare', id: sim.nextEntityId++, owner: racer.index, s, lane, y: g, ttl: ABILITIES.snare.duration, alive: true });
+      const x = b.x - AbilityTuning.snare.offsetBehind;
+      const g = sim.track.groundBelow(x, b.y + 0.4, -1, true);
+      if (Number.isNaN(g) || b.y - g > 1.5) return 'invalid';
+      sim.entities.push({ kind: 'snare', id: sim.nextEntityId++, owner: racer.index, x, y: g, ttl: ABILITIES.snare.duration, alive: true });
       break;
     }
     case 'sap': {
-      const lane = laneOfLateral(b.lateral);
-      const s1 = b.s - AbilityTuning.sap.offsetBehind;
-      if (sim.track.groundAtLane(s1, lane) === null) return 'invalid';
-      let lanes = laneBit(lane);
-      if (lane > -1) lanes |= laneBit(lane - 1);
-      if (lane < 1) lanes |= laneBit(lane + 1);
-      sim.entities.push({
-        kind: 'sap',
-        id: sim.nextEntityId++,
-        owner: racer.index,
-        s0: s1 - AbilityTuning.sap.length,
-        s1,
-        lanes,
-        ttl: ABILITIES.sap.duration,
-        alive: true,
-      });
+      const x1 = b.x - AbilityTuning.sap.offsetBehind;
+      const g = sim.track.groundBelow(x1, b.y + 0.4, -1, true);
+      if (Number.isNaN(g) || b.y - g > 1.5) return 'invalid';
+      sim.entities.push({ kind: 'sap', id: sim.nextEntityId++, owner: racer.index, x0: x1 - AbilityTuning.sap.length, x1, y: g, ttl: ABILITIES.sap.duration, alive: true });
       break;
     }
   }
@@ -87,18 +69,15 @@ export function rollItem(sim: RaceSimulation, place: number): AbilityId {
 /** Handles Rune Box pickups for every racer this tick. */
 export function collectItemBoxes(sim: RaceSimulation): void {
   const boxes = sim.track.data.itemBoxes;
-  const r2 = GameplayConfig.itemBox.pickupRadius;
+  const r = GameplayConfig.itemBox.pickupRadius;
   for (const racer of sim.racers) {
     if (racer.item || racer.body.phase !== 'run') continue;
     const b = racer.body;
     for (let i = 0; i < boxes.length; i++) {
       const box = boxes[i];
-      if (Math.abs(box.s - b.s) > r2) continue;
+      if (Math.abs(box.x - b.x) > r) continue;
       if (sim.itemBoxReadyAt[i] > sim.time) continue;
-      if (Math.abs(laneToLateral(box.lane) - b.lateral) > r2) continue;
-      const g = sim.track.groundAtLane(box.s, box.lane) ?? 0;
-      const by = g + box.lift;
-      if (b.y > by + 0.6 || b.y + GameplayConfig.hitbox.height < by - 0.6) continue;
+      if (box.y < b.y - 0.4 || box.y > b.y + GameplayConfig.hitbox.height + 0.4) continue;
       sim.itemBoxReadyAt[i] = sim.time + GameplayConfig.itemBox.respawnSeconds;
       racer.item = rollItem(sim, sim.placeOf(racer.index));
       racer.stats.itemBoxes++;

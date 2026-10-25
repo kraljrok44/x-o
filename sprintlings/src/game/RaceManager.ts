@@ -1,4 +1,4 @@
-import { GameplayConfig, TICK_DT, laneToLateral } from '../config/GameplayConfig';
+import { GameplayConfig, TICK_DT } from '../config/GameplayConfig';
 import { Rng } from '../shared/Rng';
 import { passiveModifiers } from '../player/CharacterAbilities';
 import type { CharacterId } from '../player/CharacterDefinition';
@@ -6,13 +6,12 @@ import { stepBody } from '../player/PlayerMovement';
 import { enterFinished, startRunning } from '../player/PlayerStateMachine';
 import { collectItemBoxes, tryUseAbility } from '../abilities/AbilityController';
 import { stepSeekers } from '../abilities/ProjectileSystem';
-import type { AbilityId } from '../abilities/AbilityDefinition';
-import { maskHasLane } from '../obstacles/ObstacleBase';
+import { AbilityTuning, type AbilityId } from '../abilities/AbilityDefinition';
 import type { MovementWorld, BodyInput } from '../physics/PhysicsWorld';
 import { makeBodyInput } from '../physics/PhysicsWorld';
 import { AIController } from '../ai/AIController';
 import type { DifficultyId } from '../ai/DifficultyProfile';
-import { laneOfLateral, type Track } from './Track';
+import type { Track } from './Track';
 import {
   NO_INPUT,
   emptyStats,
@@ -46,12 +45,8 @@ export interface RaceSetup {
 
 export type RacePhase = 'countdown' | 'racing' | 'done';
 
-const START_SLOTS: { lane: number; back: number }[] = [
-  { lane: 0, back: 0 },
-  { lane: -1, back: 1.2 },
-  { lane: 1, back: 1.2 },
-  { lane: -1, back: 2.8 },
-];
+/** Start line offsets: racers share one running line, slightly staggered so all are visible. */
+const START_BACK = [0, 0.7, 1.4, 2.1];
 
 /**
  * Authoritative race simulation. Deterministic: given the same setup and the
@@ -80,7 +75,7 @@ export class RaceSimulation implements MovementWorld {
   private readonly ai: (AIController | null)[];
   private readonly bodyInputs: BodyInput[];
   private readonly countdownPresses: { early: boolean; lastTick: number }[];
-  /** Glimmer indices sorted by s (glimmers are stored in construction order). */
+  /** Glimmer indices sorted by x (glimmers are stored in construction order). */
   readonly glimmerOrder: number[];
 
   constructor(setup: RaceSetup) {
@@ -90,9 +85,9 @@ export class RaceSimulation implements MovementWorld {
     this.maxTicks = this.countdownTicks + GameplayConfig.race.maxDurationSeconds * GameplayConfig.tickRate;
     this.itemBoxReadyAt = new Float64Array(this.track.data.itemBoxes.length);
     this.racers = setup.racers.map((r, index) => {
-      const slot = START_SLOTS[index % START_SLOTS.length];
-      const s = -slot.back;
-      const y = this.track.groundAtLane(s, slot.lane) ?? 0;
+      const x = -START_BACK[index % START_BACK.length];
+      const g = this.track.solidTop(x);
+      const y = Number.isNaN(g) ? 0 : g;
       const racer: Racer = {
         index,
         id: r.id,
@@ -102,16 +97,16 @@ export class RaceSimulation implements MovementWorld {
         cosmetics: r.cosmetics ?? {},
         variantId: r.variantId ?? null,
         mods: passiveModifiers(r.characterId),
-        body: makeBody(s, slot.lane, y),
+        body: makeBody(x, y),
         item: null,
         abilityCooldown: 0,
         finishTime: null,
         stats: emptyStats(),
         glimmerTaken: new Uint8Array(this.track.data.glimmers.length),
         prevJumpHeld: false,
+        prevDownHeld: false,
         startBoostArmed: false,
       };
-      racer.body.lateral = laneToLateral(slot.lane);
       return racer;
     });
     this.ai = setup.racers.map((r, i) => (r.difficulty ? new AIController(i, r.difficulty, this.setup.seed ^ (i * 7919)) : null));
@@ -119,7 +114,7 @@ export class RaceSimulation implements MovementWorld {
     this.countdownPresses = setup.racers.map(() => ({ early: false, lastTick: -1000 }));
     this.standings = setup.racers.map((_, i) => i);
     const gl = this.track.data.glimmers;
-    this.glimmerOrder = gl.map((_, i) => i).sort((a, b) => gl[a].s - gl[b].s);
+    this.glimmerOrder = gl.map((_, i) => i).sort((a, b) => gl[a].x - gl[b].x);
   }
 
   /** Race clock in seconds; negative during the countdown. */
@@ -138,17 +133,16 @@ export class RaceSimulation implements MovementWorld {
   // --- MovementWorld ----------------------------------------------------------
 
   emit(type: RaceEventType, racer: number, value: number, body: RacerBody): void {
-    this.emitAt(type, racer, value, body.s, body.lateral, body.y);
+    this.emitAt(type, racer, value, body.x, body.y);
   }
 
-  emitAt(type: RaceEventType, racer: number, value: number, s: number, lateral: number, y: number): void {
-    const e = this.eventPool.pop() ?? { type, racer, value, ability: null, s, lateral, y };
+  emitAt(type: RaceEventType, racer: number, value: number, x: number, y: number): void {
+    const e = this.eventPool.pop() ?? { type, racer, value, ability: null, x, y };
     e.type = type;
     e.racer = racer;
     e.value = value;
     e.ability = null;
-    e.s = s;
-    e.lateral = lateral;
+    e.x = x;
     e.y = y;
     this.events.push(e);
     const r = this.racers[racer];
@@ -182,21 +176,20 @@ export class RaceSimulation implements MovementWorld {
     this.events[this.events.length - 1].ability = ability;
   }
 
-  inSap(racer: number, s: number, lateral: number): boolean {
-    const lane = laneOfLateral(lateral);
+  inSap(racer: number, x: number, y: number): boolean {
     for (const e of this.entities) {
-      if (e.kind === 'sap' && e.alive && e.owner !== racer && s >= e.s0 && s <= e.s1 && maskHasLane(e.lanes, lane)) return true;
+      if (e.kind === 'sap' && e.alive && e.owner !== racer && x >= e.x0 && x <= e.x1 && Math.abs(y - e.y) < 0.3) return true;
     }
     return false;
   }
 
   touchSnare(racer: number, body: RacerBody): number {
     if (body.invuln > 0) return -1;
-    const lane = laneOfLateral(body.lateral);
+    const tune = AbilityTuning.snare;
     for (const e of this.entities) {
-      if (e.kind !== 'snare' || !e.alive || e.owner === racer || e.lane !== lane) continue;
-      if (Math.abs(e.s - body.s) > 0.45 + GameplayConfig.hitbox.halfDepth) continue;
-      if (body.y > e.y + 0.7) continue;
+      if (e.kind !== 'snare' || !e.alive || e.owner === racer) continue;
+      if (Math.abs(e.x - body.x) > tune.halfWidth + GameplayConfig.hitbox.halfWidth) continue;
+      if (body.y > e.y + tune.height || body.y + GameplayConfig.hitbox.height < e.y) continue;
       e.alive = false;
       return 200000 + e.id;
     }
@@ -227,9 +220,10 @@ export class RaceSimulation implements MovementWorld {
       bi.jumpPressed = input.jumpHeld && !racer.prevJumpHeld;
       bi.jumpReleased = !input.jumpHeld && racer.prevJumpHeld;
       bi.jumpHeld = input.jumpHeld;
-      bi.left = input.left;
-      bi.right = input.right;
+      bi.downPressed = input.down && !racer.prevDownHeld;
+      bi.downHeld = input.down;
       racer.prevJumpHeld = input.jumpHeld;
+      racer.prevDownHeld = input.down;
       if (racer.abilityCooldown > 0) racer.abilityCooldown = Math.max(0, racer.abilityCooldown - dt);
 
       stepBody(racer.body, bi, racer.mods, this, racer.index, dt);
@@ -261,7 +255,7 @@ export class RaceSimulation implements MovementWorld {
   private stepCountdown(inputs: readonly (TickInput | undefined)[]): void {
     const tps = GameplayConfig.tickRate;
     const window = GameplayConfig.movement.startBoostWindowTicks;
-    if (this.tick % tps === 0) this.emitAt('countdown', -1, GameplayConfig.race.countdownSeconds - this.tick / tps, 0, 0, 0);
+    if (this.tick % tps === 0) this.emitAt('countdown', -1, GameplayConfig.race.countdownSeconds - this.tick / tps, 0, 0);
     for (const racer of this.racers) {
       const ai = this.ai[racer.index];
       const input = ai ? ai.decideCountdown(this) : inputs[racer.index] ?? NO_INPUT;
@@ -286,7 +280,7 @@ export class RaceSimulation implements MovementWorld {
           this.emit('startBoost', racer.index, 0, racer.body);
         }
       }
-      this.emitAt('go', -1, 0, 0, 0, 0);
+      this.emitAt('go', -1, 0, 0, 0);
     }
   }
 
@@ -297,15 +291,13 @@ export class RaceSimulation implements MovementWorld {
       const b = racer.body;
       if (b.phase !== 'run') continue;
       const idx = this.glimmerOrder;
-      for (let k = this.firstGlimmerOrderIndex(b.s - radius - 0.5); k < idx.length; k++) {
+      for (let k = this.firstGlimmerOrderIndex(b.x - radius - 0.5); k < idx.length; k++) {
         const i = idx[k];
         const g = gl[i];
-        if (g.s > b.s + radius + 0.5) break;
+        if (g.x > b.x + radius + 0.5) break;
         if (racer.glimmerTaken[i]) continue;
-        if (Math.abs(g.s - b.s) > radius) continue;
-        if (Math.abs(laneToLateral(g.lane) - b.lateral) > radius) continue;
-        const gy = (this.track.groundAtLane(g.s, g.lane) ?? this.track.baseline(g.s)) + g.lift;
-        if (gy < b.y - 0.3 || gy > b.y + GameplayConfig.hitbox.height + 0.3) continue;
+        if (Math.abs(g.x - b.x) > radius) continue;
+        if (g.y < b.y - 0.3 || g.y > b.y + GameplayConfig.hitbox.height + 0.3) continue;
         racer.glimmerTaken[i] = 1;
         racer.stats.glimmers++;
         this.emit('glimmer', racer.index, i, b);
@@ -313,15 +305,15 @@ export class RaceSimulation implements MovementWorld {
     }
   }
 
-  /** Index of the first entry in glimmerOrder whose glimmer has s >= sMin. */
-  firstGlimmerOrderIndex(sMin: number): number {
+  /** Index of the first entry in glimmerOrder whose glimmer has x >= xMin. */
+  firstGlimmerOrderIndex(xMin: number): number {
     const gl = this.track.data.glimmers;
     const idx = this.glimmerOrder;
     let lo = 0;
     let hi = idx.length;
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
-      if (gl[idx[mid]].s < sMin) lo = mid + 1;
+      if (gl[idx[mid]].x < xMin) lo = mid + 1;
       else hi = mid;
     }
     return lo;
@@ -331,9 +323,9 @@ export class RaceSimulation implements MovementWorld {
     const len = this.track.length;
     for (const racer of this.racers) {
       const b = racer.body;
-      if (racer.finishTime !== null || b.s < len) continue;
+      if (racer.finishTime !== null || b.x < len) continue;
       if (b.phase !== 'run' && b.phase !== 'respawn') continue;
-      const over = b.s - len;
+      const over = b.x - len;
       const t = this.time + TICK_DT - over / Math.max(b.speed, 0.1);
       racer.finishTime = Math.round(t * 1000) / 1000;
       enterFinished(b);
@@ -351,7 +343,7 @@ export class RaceSimulation implements MovementWorld {
       if (fa !== null && fb !== null) return fa - fb || a - b;
       if (fa !== null) return -1;
       if (fb !== null) return 1;
-      return rs[b].body.s - rs[a].body.s || a - b;
+      return rs[b].body.x - rs[a].body.x || a - b;
     });
   }
 

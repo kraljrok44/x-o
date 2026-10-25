@@ -3,7 +3,7 @@ import { RaceSimulation } from './RaceManager';
 import { getTrack, remixRecipe, TRACK_RECIPES } from './TrackManager';
 import { buildTrack } from '../obstacles/ObstacleSpawner';
 import { SEGMENT_BY_ID } from '../obstacles/HazardPatterns';
-import { ALL_LANES, isDamaging, maskHasLane } from '../obstacles/ObstacleBase';
+import { isDamaging } from '../obstacles/ObstacleBase';
 import { Track } from './Track';
 import type { CharacterId } from '../player/CharacterDefinition';
 
@@ -15,13 +15,16 @@ export interface ValidationReport {
   solverIncidents: number;
 }
 
-const MAX_FULL_GAP = 5.2;
+/** Widest pit a normal running jump must clear (a full jump travels ~7.5 u). */
+const MAX_PIT = 4.6;
+const MAX_SPRUNG_PIT = 10;
+const MIN_HURDLE_GAP = 6;
 /** Characters whose passives change movement physics or timing. */
 const SOLVER_CHARACTERS: readonly CharacterId[] = ['moss', 'kip', 'pebble', 'ember'];
 
 /**
  * Proves a track is passable at normal speed:
- *  1. static rules (wall coverage, gap widths, segment adjacency, lead-ins),
+ *  1. static rules (pit widths, segment adjacency, lead-ins, landing room),
  *  2. a "perfect" planner bot must finish solo with zero hits and falls,
  *     for every character (passives change physics slightly).
  */
@@ -32,20 +35,21 @@ export function validateTrack(
   const problems: string[] = [];
   const d = track.data;
 
-  for (const h of d.hazards) {
-    if (h.kind === 'wall' && h.lanes === ALL_LANES) problems.push(`wall ${h.id} blocks every lane`);
-  }
-
-  // Gaps spanning every lane must be jumpable.
-  let fullGapStart: number | null = null;
-  for (let s = 0; s <= d.length; s += 0.25) {
-    const any = [-1, 0, 1].some((l) => track.groundAtLane(s, l) !== null);
-    if (!any && fullGapStart === null) fullGapStart = s;
-    if (any && fullGapStart !== null) {
-      if (s - fullGapStart > MAX_FULL_GAP) problems.push(`full-width gap ${fullGapStart.toFixed(1)}..${s.toFixed(1)} too long`);
-      fullGapStart = null;
+  // Pits must be jumpable at running speed unless a spring launches you across.
+  let pitStart: number | null = null;
+  for (let x = -10; x <= d.length + 20; x += 0.25) {
+    const solid = !Number.isNaN(track.solidTop(x));
+    if (!solid && pitStart === null) pitStart = x;
+    if (solid && pitStart !== null) {
+      const width = x - pitStart;
+      const sprung = d.hazards.some((h) => h.kind === 'spring' && h.x <= pitStart! && h.x > pitStart! - 6);
+      if (width > MAX_PIT && !sprung) problems.push(`pit ${pitStart.toFixed(1)}..${x.toFixed(1)} too wide without a spring`);
+      if (width > MAX_SPRUNG_PIT) problems.push(`pit ${pitStart.toFixed(1)}..${x.toFixed(1)} too wide even with a spring`);
+      pitStart = null;
     }
   }
+  if (pitStart !== null) problems.push('track ends over a pit');
+  if (Number.isNaN(track.solidTop(d.length)) || Number.isNaN(track.solidTop(d.length + 10))) problems.push('no ground after the finish line');
 
   // Segment adjacency and lead-in rules.
   for (let i = 0; i < d.segments.length; i++) {
@@ -57,21 +61,22 @@ export function validateTrack(
     if (prev && prev.allowedBefore.length && !prev.allowedBefore.some((t) => seg.tags.includes(t))) {
       problems.push(`segment ${prev.id} not allowed before ${seg.id}`);
     }
-    const s0 = d.segments[i].s0;
+    const x0 = d.segments[i].x0;
     for (const h of d.hazards) {
-      if (h.s >= s0 && h.s < s0 + seg.minSafeLeadIn && isDamaging(h.kind)) {
+      if (h.x >= x0 && h.x < x0 + seg.minSafeLeadIn && isDamaging(h.kind)) {
         problems.push(`hazard ${h.id} inside lead-in of ${seg.id}`);
       }
     }
   }
 
-  // Two jump-requiring hazards in the same lane need landing room between them.
-  const jumpers = d.hazards.filter((h) => h.kind === 'hurdle' || h.kind === 'spikes');
-  for (let lane = -1; lane <= 1; lane++) {
-    const inLane = jumpers.filter((h) => maskHasLane(h.lanes, lane));
-    for (let i = 1; i < inLane.length; i++) {
-      const gap = inLane[i].s - inLane[i - 1].s;
-      if (gap < 9 && gap > 0.01) problems.push(`lane ${lane}: hazards ${inLane[i - 1].id} and ${inLane[i].id} only ${gap.toFixed(1)}u apart`);
+  // Two ground hurdles on the same level need landing room between them.
+  const jumpers = d.hazards.filter((h) => h.kind === 'log' || h.kind === 'spikes');
+  for (let i = 1; i < jumpers.length; i++) {
+    const a = jumpers[i - 1];
+    const b = jumpers[i];
+    const gap = b.x - a.x;
+    if (Math.abs(a.y - b.y) < 0.3 && gap < MIN_HURDLE_GAP && gap > 0.01) {
+      problems.push(`hazards ${a.id} and ${b.id} only ${gap.toFixed(1)}u apart`);
     }
   }
 
@@ -111,7 +116,7 @@ export function getValidatedRemix(day: string): Track {
   if (hit) return hit;
   for (let attempt = 0; attempt < 6; attempt++) {
     const track = buildTrack(remixRecipe(day, attempt));
-    // Runtime check uses the neutral-physics critter; the test suite covers all passives.
+    // Runtime check uses the neutral-physics monster; the test suite covers all passives.
     if (validateTrack(track, { characters: ['moss'] }).ok) {
       remixCache.set(day, track);
       return track;

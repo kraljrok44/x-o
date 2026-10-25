@@ -57,7 +57,7 @@ export function mainMenu(ctx: AppContext): Screen {
     h(
       'div',
       { class: 'menu-main' },
-      h('div', { class: 'menu-side' }, tile('🛍', t('Shop'), () => ctx.go('shop')), tile('🎩', t('Locker'), () => ctx.go('locker')), tile('🦔', t('Characters'), () => ctx.go('characters'))),
+      h('div', { class: 'menu-side' }, tile('🛍', t('Shop'), () => ctx.go('shop')), tile('🎩', t('Locker'), () => ctx.go('locker')), tile('👾', t('Characters'), () => ctx.go('characters'))),
       h(
         'div',
         { class: 'menu-center' },

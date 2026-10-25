@@ -4,15 +4,15 @@ import type { PassiveModifiers } from '../player/CharacterAbilities';
 
 export type RacerPhase = 'grid' | 'run' | 'fall' | 'respawn' | 'finished';
 
-/** Input for a single simulation tick. Presses are edges, `jumpHeld` is level. */
+/** Input for a single simulation tick. Presses are edges, `jumpHeld`/`down` are levels. */
 export interface TickInput {
   jumpHeld: boolean;
-  left: boolean;
-  right: boolean;
+  /** Held: drop through one-way platforms / fall faster. */
+  down: boolean;
   use: boolean;
 }
 
-export const NO_INPUT: Readonly<TickInput> = Object.freeze({ jumpHeld: false, left: false, right: false, use: false });
+export const NO_INPUT: Readonly<TickInput> = Object.freeze({ jumpHeld: false, down: false, use: false });
 
 export interface RacerStats {
   jumps: number;
@@ -36,56 +36,60 @@ export function emptyStats(): RacerStats {
  */
 export interface RacerBody {
   phase: RacerPhase;
-  s: number;
-  lateral: number;
-  latVel: number;
-  targetLane: number;
+  x: number;
   y: number;
   vy: number;
   speed: number;
   grounded: boolean;
+  /** Ground piece the racer stands on (-1 in the air). */
+  pieceId: number;
   coyote: number;
   jumpBuffer: number;
   jumpGuard: number;
   jumpHeld: boolean;
+  downHeld: boolean;
   /** True while the current airtime started with a jump (release-cut allowed). */
   jumping: boolean;
+  jumpAge: number;
+  cutPending: boolean;
+  /** One-way platform being dropped through, and for how long. */
+  dropId: number;
+  dropTimer: number;
   stun: number;
   invuln: number;
   phaseTimer: number;
   dash: number;
   padBoost: number;
   shield: number;
-  /** Terrain under the racer this tick: 0 none, 1 mud, 2 sap, 3 ice. */
+  /** Terrain under the racer this tick: 0 none, 1 mud, 2 sap. */
   terrain: number;
   lastHitId: number;
   lastHitTimer: number;
-  fallFromS: number;
-  fallLane: number;
-  /** Was standing on a pad last tick (edge detection for pad events). */
+  fallFromX: number;
   onPad: boolean;
-  /** Seconds since the current jump started. */
-  jumpAge: number;
-  /** Jump was released before the minimum hold; cut is applied at minHold. */
-  cutPending: boolean;
+  /** Pressing against a wall this tick (for animation). */
+  blocked: boolean;
 }
 
-export function makeBody(s: number, lane: number, y: number): RacerBody {
+export function makeBody(x: number, y: number): RacerBody {
   return {
     phase: 'grid',
-    s,
-    lateral: lane * 2.4,
-    latVel: 0,
-    targetLane: lane,
+    x,
     y,
     vy: 0,
     speed: 0,
     grounded: true,
+    pieceId: -1,
     coyote: 0,
     jumpBuffer: 0,
     jumpGuard: 0,
     jumpHeld: false,
+    downHeld: false,
     jumping: false,
+    jumpAge: 0,
+    cutPending: false,
+    dropId: -1,
+    dropTimer: 0,
     stun: 0,
     invuln: 0,
     phaseTimer: 0,
@@ -95,11 +99,9 @@ export function makeBody(s: number, lane: number, y: number): RacerBody {
     terrain: 0,
     lastHitId: -1,
     lastHitTimer: 0,
-    fallFromS: 0,
-    fallLane: 0,
+    fallFromX: 0,
     onPad: false,
-    jumpAge: 0,
-    cutPending: false,
+    blocked: false,
   };
 }
 
@@ -127,6 +129,7 @@ export interface Racer {
   glimmerTaken: Uint8Array;
   /** Previous jumpHeld to detect press/release edges. */
   prevJumpHeld: boolean;
+  prevDownHeld: boolean;
   /** Start boost earned by pressing jump right at "GO". */
   startBoostArmed: boolean;
 }
@@ -136,9 +139,9 @@ export interface SeekerEntity {
   id: number;
   owner: number;
   target: number;
-  s: number;
-  lateral: number;
+  x: number;
   y: number;
+  vy: number;
   age: number;
   alive: boolean;
 }
@@ -147,8 +150,7 @@ export interface SnareEntity {
   kind: 'snare';
   id: number;
   owner: number;
-  s: number;
-  lane: number;
+  x: number;
   y: number;
   ttl: number;
   alive: boolean;
@@ -158,9 +160,9 @@ export interface SapEntity {
   kind: 'sap';
   id: number;
   owner: number;
-  s0: number;
-  s1: number;
-  lanes: number;
+  x0: number;
+  x1: number;
+  y: number;
   ttl: number;
   alive: boolean;
 }
@@ -186,7 +188,7 @@ export type RaceEventType =
   | 'glimmer'
   | 'boostPad'
   | 'bounce'
-  | 'laneChange'
+  | 'drop'
   | 'finish';
 
 export interface RaceEvent {
@@ -197,7 +199,6 @@ export interface RaceEvent {
   /** Optional ability involved. */
   ability: AbilityId | null;
   /** Position of the event in track space. */
-  s: number;
-  lateral: number;
+  x: number;
   y: number;
 }

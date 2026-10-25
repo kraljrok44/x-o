@@ -12,7 +12,7 @@ for (const id of ids) {
       for (const e of ev) {
         if (e.type === 'hit' || e.type === 'bonk' || e.type === 'fall') {
           const h = track.data.hazards.find((x) => x.id === e.value);
-          incidents.push(`${e.type}@${e.s.toFixed(1)} lat${e.lateral.toFixed(1)} y${e.y.toFixed(2)} ${h?.kind ?? e.value} hs=${h?.s.toFixed(1)} t=${sim.time.toFixed(2)}`);
+          incidents.push(`${e.type}@${e.x.toFixed(1)} y${e.y.toFixed(2)} ${h?.kind ?? e.value} hx=${h?.x.toFixed(1)} t=${sim.time.toFixed(2)}`);
         }
       }
     }

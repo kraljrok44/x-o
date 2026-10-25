@@ -1,6 +1,5 @@
 // End-to-end UI tests: builds the standalone version, serves it with
-// `vite preview` and drives it with Playwright (headless Chromium, software GL).
-// Usage: npm run test:e2e
+// `vite preview` and drives it with Playwright (headless Chromium).
 import { spawn, execSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -14,7 +13,8 @@ execSync('npx vite build --logLevel error', { stdio: 'inherit' });
 const preview = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort', '--outDir', 'dist/standalone'], { stdio: 'ignore' });
 await new Promise((r) => setTimeout(r, 2500));
 
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+// Canvas2D renders fastest with Chromium's default (CPU) rasteriser in headless mode.
+const browser = await chromium.launch();
 const results = [];
 async function test(name, fn) {
   const t0 = Date.now();

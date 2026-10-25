@@ -13,5 +13,5 @@ for (const id of TRACK_IDS) {
   sim.runToEnd();
   const ms = performance.now() - t0;
   console.log(id, 'len', track.length.toFixed(0), 'ticks', sim.tick, 'ms', ms.toFixed(0), 'per tick ms', (ms / sim.tick).toFixed(3));
-  for (const r of sim.racers) console.log('  ', r.characterId, r.finishTime, JSON.stringify(r.stats), 's', r.body.s.toFixed(1));
+  for (const r of sim.racers) console.log('  ', r.characterId, r.finishTime, JSON.stringify(r.stats), 's', r.body.x.toFixed(1));
 }

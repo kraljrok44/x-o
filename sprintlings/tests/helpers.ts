@@ -1,26 +1,30 @@
 import { Track } from '../src/game/Track';
-import { SegmentContext, buildLaneGround, emptyDraft } from '../src/game/TrackSegment';
+import { SegmentContext, emptyDraft } from '../src/game/TrackSegment';
 import { Rng } from '../src/shared/Rng';
 import { RaceSimulation, type RacerSetup } from '../src/game/RaceManager';
 import { NO_INPUT, type TickInput } from '../src/game/RaceState';
 
-/** Builds a flat test track of `length` and lets `build` place things. */
+/**
+ * Builds a test track of `length`. `build` lays ground with the segment
+ * cursor (run/gap/step...) and places hazards; whatever it leaves is filled
+ * with flat ground (plus a run-out past the finish).
+ */
 export function testTrack(length: number, build: (c: SegmentContext) => void = () => {}): Track {
   const draft = emptyDraft();
-  const ctx = new SegmentContext(draft, 0, false, new Rng(1), 'forest');
+  draft.pieces.push({ id: draft.nextId++, x0: -20, x1: 0, y0: 0, y1: 0, oneWay: false });
+  const ctx = new SegmentContext(draft, 0, new Rng(1), 'forest');
   build(ctx);
+  ctx.run(Math.max(1, length + 40 - ctx.cursor));
   return new Track({
     id: 'test',
     name: 'Test',
     biome: 'forest',
     seed: 1,
     length,
-    laneGround: buildLaneGround(draft, length),
+    pieces: draft.pieces,
     hazards: draft.hazards,
     itemBoxes: draft.itemBoxes,
     glimmers: draft.glimmers,
-    heightKeys: [{ s: -10, h: 0 }],
-    curveKeys: [],
     segments: [],
   });
 }

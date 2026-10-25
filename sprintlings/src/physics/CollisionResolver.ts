@@ -1,174 +1,128 @@
 import { GameplayConfig } from '../config/GameplayConfig';
 import {
   boulderPosition,
-  maskHasLane,
-  pendulumLateral,
-  periodicState,
+  CRUSHER_BLOCK,
+  crusherLift,
+  flameState,
+  pendulumBall,
+  sawCenter,
   type Hazard,
+  type Point,
 } from '../obstacles/ObstacleBase';
-import { laneOfLateral, type Track } from '../game/Track';
+import type { Track } from '../game/Track';
 import type { RacerBody } from '../game/RaceState';
 
-/** Half width of a hazard inside one lane cell (cells are lane width wide). */
-export const HAZARD_LANE_HALF_WIDTH = 1.05;
-
 export interface ContactResult {
-  /** Most severe blocking/damaging hazard touched this tick, or null. */
+  /** Damaging hazard touched this tick, or null. */
   hit: Hazard | null;
-  /** True when `hit` was entered from the side rather than the front. */
-  fromSide: boolean;
-  /** Terrain zone the racer stands in: 0 none, 1 mud, 3 ice. */
+  /** Terrain the racer stands in: 0 none, 1 mud. */
   terrain: number;
   boostPad: Hazard | null;
-  bouncePad: Hazard | null;
+  spring: Hazard | null;
 }
 
 export function makeContactResult(): ContactResult {
-  return { hit: null, fromSide: false, terrain: 0, boostPad: null, bouncePad: null };
+  return { hit: null, terrain: 0, boostPad: null, spring: null };
 }
 
 const hb = GameplayConfig.hitbox;
-const laneW = GameplayConfig.lanes.width;
+const tmp: Point = { x: 0, y: 0 };
 
-function groundAtHazard(track: Track, h: Hazard, lane: number): number {
-  const g = track.groundAtLane(h.s, lane);
-  return g === null ? track.baseline(h.s) : g;
+/** Racer box vs circle overlap. */
+function circleHit(body: RacerBody, cx: number, cy: number, r: number): boolean {
+  const nx = Math.max(body.x - hb.halfWidth, Math.min(cx, body.x + hb.halfWidth));
+  const ny = Math.max(body.y, Math.min(cy, body.y + hb.height));
+  const dx = cx - nx;
+  const dy = cy - ny;
+  return dx * dx + dy * dy < r * r;
 }
 
-/** Lateral overlap between the racer and lane cell `lane`. */
-function overlapsLane(lateral: number, lane: number): boolean {
-  const c = lane * laneW;
-  return lateral + hb.halfWidth > c - HAZARD_LANE_HALF_WIDTH && lateral - hb.halfWidth < c + HAZARD_LANE_HALF_WIDTH;
+/** Racer box vs axis-aligned box. */
+function boxHit(body: RacerBody, x0: number, x1: number, y0: number, y1: number): boolean {
+  return body.x + hb.halfWidth > x0 && body.x - hb.halfWidth < x1 && body.y + hb.height > y0 && body.y < y1;
 }
 
 /**
- * Tests a racer against every static/timed hazard near it at time `t`.
- * `prevS`/`prevLateral` are last tick's values, used to tell front hits from
- * side hits. Writes into `out` to avoid allocations.
+ * Tests a racer against every hazard near it at time t. Writes into `out`
+ * to avoid allocations.
  */
-export function resolveHazardContacts(
-  track: Track,
-  body: RacerBody,
-  prevS: number,
-  prevLateral: number,
-  t: number,
-  out: ContactResult,
-): ContactResult {
+export function resolveHazardContacts(track: Track, body: RacerBody, t: number, out: ContactResult): ContactResult {
   out.hit = null;
-  out.fromSide = false;
   out.terrain = 0;
   out.boostPad = null;
-  out.bouncePad = null;
-  const s0 = body.s - hb.halfDepth;
-  const s1 = body.s + hb.halfDepth;
-  const y0 = body.y;
-  const y1 = body.y + hb.height;
-  const centreLane = laneOfLateral(body.lateral);
-
+  out.spring = null;
   const hazards = track.data.hazards;
-  const end = s1 + 2 + track.maxHazardReach;
-  for (let i = track.firstHazardIndex(s0 - 2); i < hazards.length && hazards[i].s <= end; i++) {
-    testHazard(track, hazards[i], body, prevS, prevLateral, t, out, s0, s1, y0, y1, centreLane);
-  }
-  return out;
-}
-
-function testHazard(
-  track: Track,
-  h: Hazard,
-  body: RacerBody,
-  prevS: number,
-  prevLateral: number,
-  t: number,
-  out: ContactResult,
-  s0: number,
-  s1: number,
-  y0: number,
-  y1: number,
-  centreLane: number,
-): void {
+  const x0 = body.x - hb.halfWidth - 1;
+  const end = body.x + hb.halfWidth + 1 + track.maxHazardReach;
+  for (let i = track.firstHazardIndex(x0); i < hazards.length && hazards[i].x <= end; i++) {
+    const h = hazards[i];
     switch (h.kind) {
       case 'mud':
-      case 'ice': {
-        if (!body.grounded || !maskHasLane(h.lanes, centreLane)) return;
-        if (body.s < h.s - h.halfDepth || body.s > h.s + h.halfDepth) return;
-        out.terrain = h.kind === 'mud' ? 1 : 3;
-        return;
-      }
+        if (body.grounded && Math.abs(body.x - h.x) < h.halfWidth && Math.abs(body.y - h.y) < 0.2) out.terrain = 1;
+        break;
       case 'boostPad':
-      case 'bouncePad': {
-        if (!body.grounded || !maskHasLane(h.lanes, centreLane)) return;
-        if (s1 < h.s - h.halfDepth || s0 > h.s + h.halfDepth) return;
-        if (h.kind === 'boostPad') out.boostPad = h;
-        else out.bouncePad = h;
-        return;
-      }
-      case 'hurdle':
-      case 'wall':
+      case 'spring':
+        if (body.grounded && Math.abs(body.x - h.x) < h.halfWidth + hb.halfWidth * 0.5 && Math.abs(body.y - h.y) < 0.2) {
+          if (h.kind === 'boostPad') out.boostPad = h;
+          else out.spring = h;
+        }
+        break;
+      case 'log':
       case 'spikes':
-      case 'flame': {
-        if (h.kind === 'spikes' || h.kind === 'flame') {
-          if (periodicState(h, t) !== 'active') return;
-        }
-        if (s1 <= h.s - h.halfDepth || s0 >= h.s + h.halfDepth) return;
-        for (let lane = -1; lane <= 1; lane++) {
-          if (!maskHasLane(h.lanes, lane) || !overlapsLane(body.lateral, lane)) continue;
-          const g = groundAtHazard(track, h, lane);
-          if (y0 >= g + h.height || y1 <= g) continue;
-          record(out, h, prevS, prevLateral, lane);
-          return;
-        }
-        return;
+        if (boxHit(body, h.x - h.halfWidth, h.x + h.halfWidth, h.y, h.y + h.height)) out.hit = h;
+        break;
+      case 'flame':
+        if (flameState(h, t) === 'active' && boxHit(body, h.x - h.halfWidth, h.x + h.halfWidth, h.y, h.y + h.height)) out.hit = h;
+        break;
+      case 'crusher': {
+        // Only a slammed block hurts: a raised one clears even a full jump, and
+        // jumping over the slammed block always works, so every arrival time
+        // has an answer.
+        const lift = crusherLift(h, t);
+        if (lift <= 0.3 && boxHit(body, h.x - h.halfWidth, h.x + h.halfWidth, h.y, h.y + lift + CRUSHER_BLOCK)) out.hit = h;
+        break;
+      }
+      case 'saw': {
+        const c = sawCenter(h, t, tmp);
+        if (circleHit(body, c.x, c.y, h.radius)) out.hit = h;
+        break;
       }
       case 'pendulum': {
-        if (s1 <= h.s - h.halfDepth || s0 >= h.s + h.halfDepth) return;
-        const p = pendulumLateral(h, t);
-        if (body.lateral + hb.halfWidth <= p - h.halfWidth || body.lateral - hb.halfWidth >= p + h.halfWidth) return;
-        const g = track.baseline(h.s);
-        if (y0 >= g + h.height + 2.6 || y1 <= g + h.height) return;
-        if (!out.hit) out.hit = h;
-        return;
+        const c = pendulumBall(h, t, tmp);
+        if (circleHit(body, c.x, c.y, h.radius)) out.hit = h;
+        break;
       }
       case 'boulder': {
-        const bs = boulderPosition(h, t);
-        if (bs === null) return;
-        if (s1 <= bs - h.radius || s0 >= bs + h.radius) return;
-        const lane = h.lanes === 1 ? -1 : h.lanes === 2 ? 0 : 1;
-        const c = lane * laneW;
-        if (body.lateral + hb.halfWidth <= c - h.radius || body.lateral - hb.halfWidth >= c + h.radius) return;
-        const g = groundAtHazard(track, h, lane);
-        if (y0 >= g + h.radius * 2 || y1 <= g) return;
-        if (!out.hit) out.hit = h;
-        return;
+        const bx = boulderPosition(h, t);
+        if (bx !== null) {
+          const g = track.groundBelow(bx, 50, -1, false);
+          if (!Number.isNaN(g) && circleHit(body, bx, g + h.radius, h.radius)) out.hit = h;
+        }
+        break;
       }
     }
-}
-
-function record(out: ContactResult, h: Hazard, prevS: number, prevLateral: number, lane: number): void {
-  // Walls take priority: they also block movement.
-  if (out.hit && out.hit.kind === 'wall') return;
-  out.hit = h;
-  if (h.kind === 'wall' && 'halfDepth' in h) {
-    const wasInFront = prevS + hb.halfDepth <= h.s - h.halfDepth + 1e-6;
-    out.fromSide = !wasInFront && !overlapsLane(prevLateral, lane);
   }
+  return out;
 }
 
 /** Stun length for a hazard kind before passive modifiers. */
 export function stunFor(kind: Hazard['kind']): number {
   const st = GameplayConfig.stun;
   switch (kind) {
-    case 'hurdle':
-      return st.hurdle;
-    case 'wall':
-      return st.wall;
+    case 'log':
+      return st.log;
     case 'spikes':
+      return st.spikes;
+    case 'saw':
+      return st.saw;
+    case 'crusher':
+      return st.crusher;
     case 'flame':
-      return st.trap;
+      return st.flame;
     case 'pendulum':
       return st.pendulum;
     case 'boulder':
-      return st.hurdle + 0.1;
+      return st.boulder;
     default:
       return 0;
   }

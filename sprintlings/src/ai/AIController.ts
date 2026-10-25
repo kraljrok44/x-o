@@ -1,13 +1,14 @@
 import { Rng } from '../shared/Rng';
 import { GameplayConfig } from '../config/GameplayConfig';
 import { findSeekerTarget, incomingSeekers } from '../abilities/ProjectileSystem';
-import { laneOfLateral } from '../game/Track';
 import type { RaceSimulation } from '../game/RaceManager';
 import type { SeekerEntity, TickInput } from '../game/RaceState';
 import { DIFFICULTIES, type DifficultyId, type DifficultyProfile } from './DifficultyProfile';
 import { HazardPlanner, needsPlanning, type Plan } from './HazardPlanner';
 
-const NOOP: Plan = { laneDelta: 0, jumpTick: -1, hold: 0 };
+const NOOP: Plan = { jumpTick: -1, hold: 0, drop: false };
+/** Ticks down is held when a plan drops through a platform. */
+const DROP_TICKS = 4;
 
 /**
  * Drives one computer racer. Produces the same TickInput a human would, so
@@ -17,12 +18,16 @@ export class AIController {
   readonly profile: DifficultyProfile;
   private readonly planner = new HazardPlanner();
   private readonly rng: Rng;
-  private readonly out: TickInput = { jumpHeld: false, left: false, right: false, use: false };
+  private readonly out: TickInput = { jumpHeld: false, down: false, use: false };
   private readonly incoming: SeekerEntity[] = [];
   private plan: Plan = NOOP;
   private planStart = -1000;
   private jitter = 0;
   private holdUntil = -1;
+  private pressAt = -1;
+  private pressHold = 0;
+  private pressTick = -1000;
+  private blockedTicks = 0;
   private mistakeUntil = -1;
   private lastIncidents = 0;
   private itemSince = -1;
@@ -45,35 +50,54 @@ export class AIController {
 
   decideCountdown(sim: RaceSimulation): TickInput {
     const o = this.out;
-    o.left = o.right = o.use = false;
+    o.down = o.use = false;
     o.jumpHeld = this.countdownPressTick >= 0 && sim.tick >= this.countdownPressTick && sim.tick < this.countdownPressTick + 4;
     return o;
   }
 
   decide(sim: RaceSimulation): TickInput {
     const o = this.out;
-    o.left = o.right = o.use = false;
+    o.down = o.use = false;
     const racer = sim.racers[this.index];
     const body = racer.body;
     const tick = sim.tick;
     if (body.phase !== 'run') {
       o.jumpHeld = false;
       this.holdUntil = -1;
+      this.pressAt = -1;
       this.planStart = -1000;
       return o;
     }
 
+    // Holding jump on the ground does nothing: let go once landed.
+    if (body.grounded && tick > this.pressTick + 1 && this.holdUntil > tick) this.holdUntil = tick;
     if (tick - this.planStart >= this.profile.replanInterval) this.replan(sim, tick);
 
     const k = tick - this.planStart;
     const p = this.plan;
-    const dir = Math.sign(p.laneDelta);
-    if (dir !== 0 && (k === 0 || (Math.abs(p.laneDelta) === 2 && k === 3))) {
-      if (dir < 0) o.left = true;
-      else o.right = true;
-    }
+    o.down = p.drop && k < DROP_TICKS;
     if (p.jumpTick >= 0 && k === Math.max(0, p.jumpTick + this.jitter)) {
-      this.holdUntil = Math.max(this.holdUntil, tick + p.hold);
+      this.pressAt = tick;
+      this.pressHold = p.hold;
+    }
+    // Safety net: never stand pressed against a wall.
+    if (body.blocked && body.grounded && this.pressAt < tick && tick >= this.holdUntil) {
+      this.blockedTicks++;
+      if (this.blockedTicks > 8) {
+        this.pressAt = tick;
+        this.pressHold = 40;
+        this.blockedTicks = 0;
+      }
+    } else if (!body.blocked) this.blockedTicks = 0;
+    if (this.pressAt === tick) {
+      if (racer.prevJumpHeld) {
+        // Let go for one tick so the press registers as a new edge.
+        this.pressAt = tick + 1;
+        this.holdUntil = tick;
+      } else {
+        this.pressTick = tick;
+        this.holdUntil = tick + this.pressHold;
+      }
     }
     o.jumpHeld = tick < this.holdUntil;
     o.use = this.decideItem(sim);
@@ -94,7 +118,7 @@ export class AIController {
     const heldTicks = Math.max(0, this.holdUntil - tick);
     const results = this.planner.plan(sim, this.index, this.profile.horizon, heldTicks, this.profile.greed, this.incoming);
     const best = results[0];
-    const noop = results.find((r) => r.plan.laneDelta === 0 && r.plan.jumpTick < 0) ?? best;
+    const noop = results.find((r) => !r.plan.drop && r.plan.jumpTick < 0) ?? best;
     this.lastIncidents = best.incidents + (best.fell ? 1 : 0);
 
     const evasive = noop.incidents > 0 || noop.fell;
@@ -114,17 +138,16 @@ export class AIController {
     if (!r.item) {
       const boxes = sim.track.data.itemBoxes;
       for (let i = 0; i < boxes.length; i++) {
-        const d = boxes[i].s - b.s;
+        const d = boxes[i].x - b.x;
         if (d > 0 && d < dist && sim.itemBoxReadyAt[i] <= sim.time + d / 9) return true;
       }
     }
     const gl = sim.track.data.glimmers;
     const order = sim.glimmerOrder;
-    for (let k = sim.firstGlimmerOrderIndex(b.s); k < order.length; k++) {
+    for (let k = sim.firstGlimmerOrderIndex(b.x); k < order.length; k++) {
       const g = gl[order[k]];
-      if (g.s > b.s + dist) break;
-      if (!r.glimmerTaken[order[k]] && g.lane !== laneOfLateral(b.lateral)) return true;
-      if (!r.glimmerTaken[order[k]] && g.lift > 1.2) return true;
+      if (g.x > b.x + dist) break;
+      if (!r.glimmerTaken[order[k]] && g.y > b.y + 1.2) return true;
     }
     return false;
   }
@@ -145,22 +168,22 @@ export class AIController {
         use = b.stun <= 0 && this.lastIncidents === 0 && !needsPlanning(sim, this.index, 15);
         break;
       case 'shield': {
-        const threat = this.incoming.some((s) => s.s > b.s - 12);
+        const threat = this.incoming.some((s) => s.x > b.x - 12);
         use = threat || this.lastIncidents > 0 || heldFor > 14;
         break;
       }
       case 'seeker': {
         const t = findSeekerTarget(sim, this.index);
-        use = b.stun <= 0 && t >= 0 && sim.racers[t].body.s - b.s < 40;
+        use = b.stun <= 0 && t >= 0 && sim.racers[t].body.x - b.x < 40;
         break;
       }
       case 'snare':
       case 'sap': {
-        const lane = laneOfLateral(b.lateral);
         const behind = sim.racers.some((r) => {
           if (r.index === this.index || r.body.phase !== 'run') return false;
-          const gap = b.s - r.body.s;
-          return gap > 2.5 && gap < 13 && (racer.item === 'sap' || laneOfLateral(r.body.lateral) === lane);
+          const gap = b.x - r.body.x;
+          // Only worth it when the chaser runs on the same level as us.
+          return gap > 2.5 && gap < 13 && Math.abs(r.body.y - b.y) < 1;
         });
         use = behind || heldFor > 10;
         break;

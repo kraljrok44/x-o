@@ -39,7 +39,7 @@ export function summarizeRace(sim: RaceSimulation): RaceResultSummary {
         isPlayer: r.isPlayer,
         place: place + 1,
         finishTime: r.finishTime,
-        distance: Math.min(sim.track.length, Math.max(0, r.body.s)),
+        distance: Math.min(sim.track.length, Math.max(0, r.body.x)),
         stats: { ...r.stats },
       };
     }),

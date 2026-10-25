@@ -1,4 +1,4 @@
-import { isWebGLAvailable } from '../render/GameRenderer';
+import { isCanvasAvailable } from '../render/GameRenderer';
 import { h } from '../ui/dom';
 import { t } from '../ui/i18n';
 
@@ -21,8 +21,8 @@ export function showFatal(title: string, message: string, detail?: string): void
 }
 
 export function checkSupport(): boolean {
-  if (!isWebGLAvailable()) {
-    showFatal(t('Something went wrong'), t('Your browser or device does not support WebGL, which this 3D game needs.'), t('Try updating your browser, enabling hardware acceleration, or playing on another device.'));
+  if (!isCanvasAvailable()) {
+    showFatal(t('Something went wrong'), t('Your browser does not support the canvas this game draws with.'), t('Try updating your browser or playing on another device.'));
     return false;
   }
   return true;

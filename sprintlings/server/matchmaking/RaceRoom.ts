@@ -53,10 +53,9 @@ export class RaceRoom {
 
   setInput(index: number, bits: number): void {
     const p = this.players[index];
-    if (!p || !Number.isInteger(bits) || bits < 0 || bits > 15) return;
+    if (!p || !Number.isInteger(bits) || bits < 0 || (bits & ~11) !== 0) return;
     p.input.jumpHeld = (bits & 1) !== 0;
-    p.input.left ||= (bits & 2) !== 0;
-    p.input.right ||= (bits & 4) !== 0;
+    p.input.down = (bits & 2) !== 0;
     p.input.use ||= (bits & 8) !== 0;
   }
 
@@ -75,7 +74,7 @@ export class RaceRoom {
 
   private tick(): void {
     const inputs = this.players.map((p) => ({ ...p.input }));
-    for (const p of this.players) p.input.left = p.input.right = p.input.use = false;
+    for (const p of this.players) p.input.use = false;
     const events = this.sim.step(inputs);
     if (events.length) {
       const list = events.map((e) => ({ type: e.type, racer: e.racer, value: e.value }));
@@ -87,8 +86,7 @@ export class RaceRoom {
 
   snapshot(): RacerSnap[] {
     return this.sim.racers.map((r) => [
-      Math.round(r.body.s * 1000) / 1000,
-      Math.round(r.body.lateral * 1000) / 1000,
+      Math.round(r.body.x * 1000) / 1000,
       Math.round(r.body.y * 1000) / 1000,
       PHASE_CODES.indexOf(r.body.phase),
       r.body.stun > 0 ? 1 : 0,

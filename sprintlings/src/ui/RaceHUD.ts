@@ -48,12 +48,10 @@ export class RaceHUD {
     this.pauseBtn = h('button', { class: 'btn btn--icon interactive hud-pause', 'aria-label': t('Paused') }, '⏸');
     this.touch = h('div', { class: `touch interactive ${touchMode ? '' : 'hidden'}` });
     const btn = (cls: string, label: string) => h('div', { class: `touch-btn ${cls}` }, label);
-    const left = btn('touch-left', '◀');
-    const right = btn('touch-right', '▶');
-    const jump = btn('touch-jump', 'JUMP');
-    this.touch.append(left, right, jump);
-    input.bindTouchButton(left, 'left');
-    input.bindTouchButton(right, 'right');
+    const down = btn('touch-down', '▼');
+    const jump = btn('touch-jump', t('JUMP'));
+    this.touch.append(down, jump);
+    input.bindTouchButton(down, 'down');
     input.bindTouchButton(jump, 'jump');
     if (touchMode) {
       this.ability.classList.add('interactive');
@@ -112,7 +110,7 @@ export class RaceHUD {
     }
     const len = sim.track.length;
     for (const r of sim.racers) {
-      const pct = Math.max(0, Math.min(1, r.body.s / len)) * 100;
+      const pct = Math.max(0, Math.min(1, r.body.x / len)) * 100;
       this.dots[r.index].style.left = `${pct}%`;
     }
     const item = me.item ?? '';
@@ -149,7 +147,7 @@ export class RaceHUD {
     }
     // Incoming seeker warning.
     let warn = false;
-    for (const e of sim.entities) if (e.kind === 'seeker' && e.alive && e.target === this.localIndex && e.s > me.body.s - 25) warn = true;
+    for (const e of sim.entities) if (e.kind === 'seeker' && e.alive && e.target === this.localIndex && e.x > me.body.x - 25) warn = true;
     if (warn !== this.last.warn) {
       this.last.warn = warn;
       this.warning.textContent = '⚠ ' + t('Incoming seeker!');

@@ -26,9 +26,8 @@ describe('abilities', () => {
 
   it('Thistle Seeker homes in on the racer ahead and stuns it', () => {
     const sim = duo();
-    // b gets a head start in another lane.
-    sim.racers[1].body.s = 12;
-    sim.racers[1].body.targetLane = 1;
+    // b gets a head start.
+    sim.racers[1].body.x = 12;
     sim.racers[0].item = 'seeker';
     sim.step([input({ use: true }), input({})]);
     const seeker = sim.entities.find((e) => e.kind === 'seeker');
@@ -41,24 +40,24 @@ describe('abilities', () => {
 
   it('a seeker can be dodged by jumping over it', () => {
     const sim = duo();
-    sim.racers[1].body.s = 10;
+    sim.racers[1].body.x = 10;
     sim.racers[0].item = 'seeker';
     sim.step([input({ use: true }), input({})]);
     let hit = false;
+    let holdUntil = -1;
     for (let i = 0; i < 200; i++) {
       const sk = sim.entities.find((e) => e.kind === 'seeker' && e.alive);
       const b = sim.racers[1].body;
-      const near = sk && sk.kind === 'seeker' && sk.s > b.s - 4.5 && sk.s < b.s - 1;
-      for (const e of sim.step([input({}), input({ jumpHeld: !!near })])) if (e.type === 'seekerHit') hit = true;
+      // Jump at the last moment and hold: the seeker can't climb as fast as a jump.
+      if (holdUntil < 0 && sk && sk.kind === 'seeker' && sk.x > b.x - 2.2) holdUntil = i + 40;
+      for (const e of sim.step([input({}), input({ jumpHeld: i < holdUntil })])) if (e.type === 'seekerHit') hit = true;
     }
     expect(hit).toBe(false);
   });
 
   it('Bramble Snare stuns a follower who runs into it', () => {
     const sim = duo();
-    sim.racers[0].body.s = 10;
-    sim.racers[1].body.lateral = 0;
-    sim.racers[1].body.targetLane = 0;
+    sim.racers[0].body.x = 10;
     sim.racers[0].item = 'snare';
     sim.step([input({ use: true }), input({})]);
     expect(sim.entities.some((e) => e.kind === 'snare')).toBe(true);
@@ -71,7 +70,7 @@ describe('abilities', () => {
 
   it('Sticky Sap slows followers but not its owner', () => {
     const sim = duo();
-    sim.racers[0].body.s = 14;
+    sim.racers[0].body.x = 14;
     sim.racers[0].item = 'sap';
     sim.step([input({ use: true }), input({})]);
     let minSpeed = 99;
@@ -84,7 +83,7 @@ describe('abilities', () => {
   });
 
   it('invalid use keeps the charge (stunned dash, snare over a gap)', () => {
-    const sim = duo(300, (c) => c.gap(30, 40, 7));
+    const sim = duo(300, (c) => c.run(30).gap(10));
     const r = sim.racers[0];
     r.item = 'dash';
     r.body.stun = 0.5;
@@ -92,9 +91,30 @@ describe('abilities', () => {
     expect(r.item).toBe('dash');
     r.body.stun = 0;
     r.item = 'snare';
-    r.body.s = 35;
+    r.body.x = 37;
+    r.body.y = -2;
+    r.body.grounded = false;
     expect(tryUseAbility(sim, r)).toBe('invalid');
     expect(r.item).toBe('snare');
+  });
+
+  it('a seeker fired into a tall step fizzles', () => {
+    const sim = duo(300, (c) => c.run(25).step(3).run(10).ramp(6, -3));
+    sim.racers[1].body.x = 30;
+    sim.racers[1].body.y = 3;
+    sim.racers[0].body.x = 22;
+    sim.racers[0].item = 'seeker';
+    sim.step([input({ use: true }), input({})]);
+    let expired = false;
+    let hit = false;
+    for (let i = 0; i < 30; i++) {
+      for (const e of sim.step(idle)) {
+        if (e.type === 'seekerExpire') expired = true;
+        if (e.type === 'seekerHit') hit = true;
+      }
+    }
+    expect(expired).toBe(true);
+    expect(hit).toBe(false);
   });
 
   it('Rune Boxes give leaders defensive and trailers offensive items more often', () => {

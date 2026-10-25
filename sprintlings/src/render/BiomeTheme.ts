@@ -1,29 +1,32 @@
 import type { Biome } from '../game/Track';
 
-/** Colour scripts and atmosphere per biome. All colours are original. */
+/** Side-view colour scripts per biome. All colours and motifs are original. */
 export interface BiomeTheme {
   id: Biome;
-  skyTop: string;
-  skyHorizon: string;
-  skyBottom: string;
-  sunColor: string;
-  sunIntensity: number;
-  hemiSky: string;
-  hemiGround: string;
-  hemiIntensity: number;
-  fogColor: string;
-  fogNear: number;
-  fogFar: number;
-  groundTop: string;
-  groundTopAlt: string;
-  groundSide: string;
-  groundEdge: string;
-  abyssColor: string;
-  abyssGlow: string;
-  hazard: { primary: string; secondary: string; warn: string; danger: string };
-  decorPalette: string[];
-  particleColor: string;
-  /** Night-ish biomes get stars and emissive decor. */
+  sky: [string, string, string];
+  sun: string;
+  /** Far, mid and near parallax silhouettes (back to front). */
+  far: string;
+  mid: string;
+  near: string;
+  /** Accent colours for decorations on the near layer (flowers, crystals...). */
+  decor: string[];
+  cloud: string;
+  /** Terrain: grass cap, its highlight, soil, deep soil, outline. */
+  grass: string;
+  grassLight: string;
+  soil: string;
+  soilDeep: string;
+  outline: string;
+  /** Pebbles/roots/gems sprinkled in the soil. */
+  speck: string[];
+  /** One-way platform planks. */
+  plank: string;
+  plankEdge: string;
+  /** Pit glow at the bottom of the screen. */
+  pit: string;
+  hazard: { metal: string; wood: string; stone: string; warn: string; danger: string };
+  particle: string;
   night: boolean;
   music: { root: number; scale: number[]; tempo: number; mood: 'bright' | 'warm' | 'dreamy' };
 }
@@ -31,76 +34,70 @@ export interface BiomeTheme {
 export const BIOME_THEMES: Record<Biome, BiomeTheme> = {
   forest: {
     id: 'forest',
-    skyTop: '#4aa8ff',
-    skyHorizon: '#c9ecff',
-    skyBottom: '#e9f7d8',
-    sunColor: '#fff3d6',
-    sunIntensity: 2.4,
-    hemiSky: '#bfe3ff',
-    hemiGround: '#5c7a3a',
-    hemiIntensity: 1.25,
-    fogColor: '#cfeadf',
-    fogNear: 45,
-    fogFar: 160,
-    groundTop: '#7cc95a',
-    groundTopAlt: '#6db84d',
-    groundSide: '#8a5a36',
-    groundEdge: '#5a9b3c',
-    abyssColor: '#2c6b5a',
-    abyssGlow: '#6fe0c0',
-    hazard: { primary: '#9b6a3f', secondary: '#f2d16b', warn: '#ffb020', danger: '#ff4d4d' },
-    decorPalette: ['#3f8f3a', '#56a843', '#2f7a3a', '#f28fb0', '#ffd166', '#8a5a36'],
-    particleColor: '#fff6a8',
+    sky: ['#53b6ff', '#a9e0ff', '#e8f9e0'],
+    sun: '#fff4c9',
+    far: '#9fd3c9',
+    mid: '#6bbf7a',
+    near: '#3f9a4f',
+    decor: ['#ff8fb8', '#fff1a8', '#ffffff', '#ffb35c'],
+    cloud: '#ffffff',
+    grass: '#6fd04f',
+    grassLight: '#a6ec6c',
+    soil: '#9a6338',
+    soilDeep: '#6e4224',
+    outline: '#3b2a1e',
+    speck: ['#7d4f2c', '#b98552', '#c9a27a'],
+    plank: '#c98a4b',
+    plankEdge: '#8a5a2e',
+    pit: '#244a3d',
+    hazard: { metal: '#a9b4c2', wood: '#a8703e', stone: '#9aa0a8', warn: '#ffb020', danger: '#ff4d4d' },
+    particle: '#fff6a8',
     night: false,
     music: { root: 60, scale: [0, 2, 4, 7, 9], tempo: 132, mood: 'bright' },
   },
   canyon: {
     id: 'canyon',
-    skyTop: '#ff8a5c',
-    skyHorizon: '#ffd39a',
-    skyBottom: '#ffe8c4',
-    sunColor: '#ffd9a8',
-    sunIntensity: 2.7,
-    hemiSky: '#ffd0a0',
-    hemiGround: '#8a4a2a',
-    hemiIntensity: 1.15,
-    fogColor: '#f7c99a',
-    fogNear: 50,
-    fogFar: 170,
-    groundTop: '#e3a35f',
-    groundTopAlt: '#d69350',
-    groundSide: '#a4512e',
-    groundEdge: '#c97b42',
-    abyssColor: '#6b2a1a',
-    abyssGlow: '#ff7a2f',
-    hazard: { primary: '#7a3f22', secondary: '#ffe08a', warn: '#ffb020', danger: '#ff3d2e' },
-    decorPalette: ['#c0623a', '#d9804a', '#8f3f2a', '#6aa84f', '#f0c070', '#5d3a2a'],
-    particleColor: '#ffe2b0',
+    sky: ['#ff8a5c', '#ffc78a', '#ffe9c4'],
+    sun: '#fff0b8',
+    far: '#e7a07a',
+    mid: '#d27a4f',
+    near: '#a9553a',
+    decor: ['#6fbf5a', '#ffd166', '#ff7a4a', '#f2e2c4'],
+    cloud: '#fff1df',
+    grass: '#e8b86a',
+    grassLight: '#f7d98f',
+    soil: '#c7663d',
+    soilDeep: '#8e3f27',
+    outline: '#4a2216',
+    speck: ['#a84c2c', '#e08a5a', '#f0b27a'],
+    plank: '#b8834f',
+    plankEdge: '#7a5230',
+    pit: '#5a2418',
+    hazard: { metal: '#c2b8a8', wood: '#9a6a3a', stone: '#b07a5a', warn: '#ffcf33', danger: '#ff3d3d' },
+    particle: '#ffe2a8',
     night: false,
     music: { root: 57, scale: [0, 3, 5, 7, 10], tempo: 138, mood: 'warm' },
   },
   crystal: {
     id: 'crystal',
-    skyTop: '#140c3a',
-    skyHorizon: '#5b3fa8',
-    skyBottom: '#3a2a7a',
-    sunColor: '#c9b8ff',
-    sunIntensity: 1.7,
-    hemiSky: '#8f7dff',
-    hemiGround: '#2b1f5a',
-    hemiIntensity: 1.35,
-    fogColor: '#3c2d7c',
-    fogNear: 40,
-    fogFar: 150,
-    groundTop: '#6e7de0',
-    groundTopAlt: '#6271d1',
-    groundSide: '#3b2f7a',
-    groundEdge: '#8fb4ff',
-    abyssColor: '#1a1046',
-    abyssGlow: '#5cf2ff',
-    hazard: { primary: '#5a4bb5', secondary: '#7ef2ff', warn: '#ffd24a', danger: '#ff4f9a' },
-    decorPalette: ['#7ef2ff', '#b48cff', '#ff8ad8', '#5ab8ff', '#e9e2ff', '#3b2f7a'],
-    particleColor: '#9ff7ff',
+    sky: ['#1d1650', '#4b2f8f', '#9b6bd6'],
+    sun: '#e8f4ff',
+    far: '#3d2f7a',
+    mid: '#4f3c98',
+    near: '#2f2466',
+    decor: ['#7ef2ff', '#ff8fe0', '#b8a2ff', '#fff38a'],
+    cloud: '#b8a8ff',
+    grass: '#58d6c8',
+    grassLight: '#9cf6ea',
+    soil: '#5a4aa8',
+    soilDeep: '#3a2f78',
+    outline: '#160f36',
+    speck: ['#7ef2ff', '#ff8fe0', '#4a3c90'],
+    plank: '#8f7bd6',
+    plankEdge: '#5a4aa8',
+    pit: '#0d0a2a',
+    hazard: { metal: '#c8d4ff', wood: '#7a5ab8', stone: '#7f78b8', warn: '#ffd23f', danger: '#ff4fa0' },
+    particle: '#b8f6ff',
     night: true,
     music: { root: 62, scale: [0, 2, 3, 7, 9], tempo: 126, mood: 'dreamy' },
   },

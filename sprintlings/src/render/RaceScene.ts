@@ -1,149 +1,490 @@
-import * as THREE from 'three';
+import { ABILITIES } from '../abilities/AbilityDefinition';
+import { CHARACTERS } from '../player/CharacterDefinition';
 import type { RaceSimulation } from '../game/RaceManager';
-import type { RaceEvent } from '../game/RaceState';
-import { BiomeEnvironment } from './BiomeEnvironment';
-import { CameraController } from './CameraController';
-import { DebrisPhysics } from './DebrisPhysics';
-import { EffectsSystem } from './EffectsSystem';
+import type { RaceEvent, Racer } from '../game/RaceState';
+import { Background } from './Background';
+import { BIOME_THEMES } from './BiomeTheme';
+import { Camera2D } from './Camera2D';
+import { cosmeticLayers, paletteFor, trailStyle } from './Cosmetics2D';
+import { ellipse, rgba, roundRect, type Ctx } from './draw';
 import type { GameRenderer } from './GameRenderer';
-import { RacerView } from './RacerView';
-import { TrackPath } from './TrackPath';
-import { TrackView } from './TrackView';
+import { MonsterAnimator, emoteStyle } from './MonsterAnimator';
+import { drawMonster, makeAnchors, monsterHeight, type RigAnchors } from './MonsterRig';
+import { Particles } from './Particles';
+import { WorldPainter } from './WorldPainter';
 
-const tmp = new THREE.Vector3();
+/** Per-racer visual state: interpolation snapshots, animator, trail. */
+class RacerVisual {
+  readonly anim: MonsterAnimator;
+  readonly palette;
+  readonly plan;
+  readonly layers;
+  readonly anchors: RigAnchors = makeAnchors();
+  readonly trail;
+  readonly height: number;
+  prevX = 0;
+  prevY = 0;
+  currX = 0;
+  currY = 0;
+  x = 0;
+  y = 0;
+  trailT = 0;
+  celebrating = false;
+  readonly ribbon: number[] = [];
 
-/** Everything visual for one race. Reads the simulation, never writes it. */
+  constructor(readonly racer: Racer) {
+    const def = CHARACTERS[racer.characterId];
+    this.plan = def.bodyPlan;
+    this.palette = paletteFor(def.palette, def.variants, racer.variantId);
+    this.layers = cosmeticLayers(racer.cosmetics);
+    this.trail = trailStyle(racer.cosmetics.trail);
+    this.anim = new MonsterAnimator(racer.index * 31 + 7);
+    this.anim.emote = emoteStyle(racer.cosmetics.emote);
+    this.height = monsterHeight(this.plan);
+    this.reset();
+  }
+
+  reset(): void {
+    const b = this.racer.body;
+    this.prevX = this.currX = this.x = b.x;
+    this.prevY = this.currY = this.y = b.y;
+  }
+
+  snapshot(): void {
+    const b = this.racer.body;
+    this.prevX = this.currX;
+    this.prevY = this.currY;
+    this.currX = b.x;
+    this.currY = b.y;
+    // Teleports (respawn) must not be smeared across the screen.
+    if (Math.abs(this.currX - this.prevX) > 3 || Math.abs(this.currY - this.prevY) > 3) {
+      this.prevX = this.currX;
+      this.prevY = this.currY;
+    }
+  }
+
+  interpolate(alpha: number): void {
+    this.x = this.prevX + (this.currX - this.prevX) * alpha;
+    this.y = this.prevY + (this.currY - this.prevY) * alpha;
+  }
+}
+
+const SHADOW_SKIP = 1e9;
+
+/**
+ * Everything visual for one race, drawn with Canvas2D from the side: the
+ * parallax backdrop, the course, hazards, pickups, the monsters and all
+ * effects. Reads the simulation, never writes it.
+ */
 export class RaceScene {
-  readonly scene = new THREE.Scene();
-  readonly path: TrackPath;
-  readonly env: BiomeEnvironment;
-  readonly trackView: TrackView;
-  readonly views: RacerView[];
-  readonly effects: EffectsSystem;
-  readonly cameraCtl: CameraController;
-  private readonly debris: DebrisPhysics | null;
+  readonly camera = new Camera2D();
+  private readonly bg: Background;
+  private readonly world: WorldPainter;
+  private readonly visuals: RacerVisual[];
+  private readonly particles: Particles;
   private time = 0;
+  private groundRef = 0;
   /** Camera shake on hits (Settings: camera shake / reduced motion). */
   shakeEnabled = true;
-  private outroT = 0;
+  private readonly lowQ: boolean;
 
   constructor(
     private readonly gr: GameRenderer,
     private readonly sim: RaceSimulation,
     readonly localIndex: number,
   ) {
-    const q = gr.quality;
-    this.path = new TrackPath(sim.track);
-    this.env = new BiomeEnvironment(sim.track, this.path, q);
-    this.env.applyFog(this.scene);
-    this.scene.add(this.env.group);
-    this.trackView = new TrackView(sim.track, this.path, q);
-    this.scene.add(this.trackView.group);
-    this.views = sim.racers.map((r) => new RacerView(r, r.index === localIndex, q));
-    for (const v of this.views) {
-      this.scene.add(v.root);
-      this.scene.add(v.shadow);
-      v.resetSnapshot(v.racer.body);
-    }
-    this.debris = q === 'low' ? null : new DebrisPhysics(this.scene);
-    this.effects = new EffectsSystem(this.path, sim, this.env.theme, q, this.debris);
-    this.effects.setViewportHeight(gr.height * gr.pixelRatio);
-    this.scene.add(this.effects.group);
-    this.cameraCtl = new CameraController(gr.aspect);
-    this.cameraCtl.resize(gr.aspect);
+    this.lowQ = gr.quality === 'low';
+    this.bg = new Background(sim.track.biome, gr.quality);
+    this.world = new WorldPainter(sim.track, BIOME_THEMES[sim.track.biome], gr.quality);
+    this.visuals = sim.racers.map((r) => new RacerVisual(r));
+    this.particles = new Particles(gr.quality === 'low' ? 140 : gr.quality === 'medium' ? 320 : 600);
+    this.resize();
     const me = sim.racers[localIndex].body;
-    this.cameraCtl.snap(me.s, me.lateral, me.y);
+    this.groundRef = me.y;
+    this.camera.snap(me.x + 1.5, me.y + 1.2);
   }
 
-  /** Loads optional heavy extras (Rapier debris). Never blocks the race. */
-  async loadExtras(): Promise<void> {
-    if (this.debris) await this.debris.load();
-  }
+  /** Kept for API compatibility with the previous renderer; nothing heavy to load. */
+  async loadExtras(): Promise<void> {}
 
   resize(): void {
-    this.cameraCtl.resize(this.gr.aspect);
-    this.effects.setViewportHeight(this.gr.height * this.gr.pixelRatio);
+    this.camera.resize(this.gr.width, this.gr.height);
   }
 
   /** Call after every simulation tick. */
   onTick(events: readonly RaceEvent[]): void {
-    for (const v of this.views) v.snapshot(v.racer.body);
-    for (const e of events) {
-      if (e.type === 'glimmer' && e.racer === this.localIndex) this.trackView.hideGlimmer(e.value);
-      if (e.type === 'bounce') this.trackView.bounce(e.value);
-      this.effects.handle(e, this.views, this.localIndex);
+    for (const v of this.visuals) v.snapshot();
+    for (const e of events) this.handle(e);
+  }
+
+  private handle(e: RaceEvent): void {
+    const p = this.particles;
+    const v = e.racer >= 0 ? this.visuals[e.racer] : null;
+    const local = e.racer === this.localIndex;
+    switch (e.type) {
+      case 'jump':
+        v?.anim.onJump();
+        p.emit({ kind: 'puff', x: e.x - 0.1, y: e.y + 0.05, color: 'rgba(255,255,255,0.8)', count: 3, speed: 1.2, dir: Math.PI, spread: 1.6, size: 0.12, life: 0.35 });
+        break;
+      case 'land': {
+        const impact = e.value / 10;
+        v?.anim.onLand(impact);
+        if (impact > 4) p.emit({ kind: 'puff', x: e.x, y: e.y + 0.05, color: 'rgba(255,255,255,0.85)', count: Math.min(8, Math.round(impact / 2)), speed: 1.8, dir: Math.PI / 2, spread: Math.PI, size: 0.13, life: 0.4 });
+        if (local && impact > 12) this.camera.shake(0.04);
+        break;
+      }
+      case 'hit':
+      case 'bonk':
+      case 'seekerHit':
+        v?.anim.onHit();
+        p.emit({ kind: 'star', x: e.x, y: e.y + 0.8, color: '#ffe14d', count: 6, speed: 3, size: 0.14, life: 0.6, gravity: 4 });
+        if (e.type === 'seekerHit') p.emit({ kind: 'puff', x: e.x, y: e.y + 0.6, color: '#ff7a3d', count: 8, speed: 3, size: 0.18, life: 0.4 });
+        if (local) this.camera.shake(0.12);
+        break;
+      case 'shieldBlock':
+        p.emit({ kind: 'ring', x: e.x, y: e.y + 0.6, color: '#9b8cff', count: 1, speed: 0, size: 0.5, life: 0.45 });
+        p.emit({ kind: 'spark', x: e.x, y: e.y + 0.6, color: '#d8d0ff', count: 8, speed: 3.5, size: 0.1, life: 0.4 });
+        break;
+      case 'respawn':
+        p.emit({ kind: 'spark', x: e.x, y: e.y + 0.6, color: '#ffffff', count: 10, speed: 2.5, size: 0.12, life: 0.5 });
+        p.emit({ kind: 'ring', x: e.x, y: e.y + 0.6, color: '#ffffff', count: 1, speed: 0, size: 0.4, life: 0.4 });
+        if (local) this.groundRef = e.y;
+        v?.reset();
+        break;
+      case 'itemPickup': {
+        const box = this.sim.track.data.itemBoxes[e.value];
+        this.world.onBoxPicked(e.value, this.time);
+        if (box) p.emit({ kind: 'confetti', x: box.x, y: box.y + 0.1, color: ['#ffe066', '#ff9f1c', '#ffffff'][e.value % 3], count: 10, speed: 3.5, size: 0.07, life: 0.6, gravity: 6 });
+        break;
+      }
+      case 'abilityUse':
+        if (e.ability === 'dash') p.emit({ kind: 'line', x: e.x - 0.3, y: e.y + 0.5, color: 'rgba(79,214,255,0.9)', count: 6, speed: 4, dir: Math.PI, spread: 0.3, size: 0.2, life: 0.35 });
+        else if (e.ability === 'shield') p.emit({ kind: 'ring', x: e.x, y: e.y + 0.6, color: '#c8bfff', count: 1, speed: 0, size: 0.3, life: 0.35 });
+        else p.emit({ kind: 'puff', x: e.x, y: e.y + 0.4, color: e.ability ? ABILITIES[e.ability].color : '#ffffff', count: 5, speed: 1.6, size: 0.12, life: 0.4 });
+        break;
+      case 'seekerExpire':
+        p.emit({ kind: 'puff', x: e.x, y: e.y, color: 'rgba(255,170,120,0.8)', count: 5, speed: 1.5, size: 0.12, life: 0.35 });
+        break;
+      case 'glimmer':
+        if (local) p.emit({ kind: 'spark', x: e.x + 0.2, y: e.y + 0.9, color: '#7ef2ff', count: 4, speed: 2.2, size: 0.1, life: 0.35 });
+        break;
+      case 'boostPad':
+        p.emit({ kind: 'spark', x: e.x, y: e.y + 0.2, color: '#4fd6ff', count: 6, speed: 3, dir: Math.PI * 0.75, spread: 1, size: 0.1, life: 0.35 });
+        break;
+      case 'bounce':
+        this.world.onBounce(e.value, Math.max(0, this.sim.time));
+        v?.anim.onJump();
+        p.emit({ kind: 'puff', x: e.x, y: e.y + 0.3, color: 'rgba(255,200,230,0.9)', count: 5, speed: 2, size: 0.12, life: 0.35 });
+        break;
+      case 'drop':
+        p.emit({ kind: 'puff', x: e.x, y: e.y, color: 'rgba(255,255,255,0.6)', count: 3, speed: 1, size: 0.1, life: 0.3 });
+        break;
+      case 'startBoost':
+        p.emit({ kind: 'ring', x: e.x, y: e.y + 0.5, color: '#ffe14d', count: 1, speed: 0, size: 0.4, life: 0.5 });
+        p.emit({ kind: 'spark', x: e.x, y: e.y + 0.5, color: '#ffe14d', count: 8, speed: 3, size: 0.12, life: 0.45 });
+        break;
+      case 'finish':
+        v?.anim.onHappy();
+        if (local || e.value === 1) {
+          const colors = ['#ff5a8a', '#ffe14d', '#4fd6ff', '#5bd16b', '#b46bff', '#ffffff'];
+          for (let i = 0; i < 6; i++) p.emit({ kind: 'confetti', x: this.sim.track.length, y: e.y + 3, color: colors[i], count: local ? 8 : 3, speed: 5, dir: Math.PI / 2, spread: 2.4, size: 0.08, life: 1.6, gravity: 5, drag: 1.2 });
+        }
+        break;
+      default:
+        break;
     }
   }
 
   frame(dt: number, alpha: number): void {
     this.time += dt;
-    const t = this.sim.time + alpha / 60;
-    this.computeNudges(alpha);
-    for (const v of this.views) {
-      const s = v.interpolatedS(alpha);
-      const g = this.sim.track.groundAt(s, v.racer.body.lateral);
-      v.update(dt, this.time, alpha, this.path, g);
-    }
-    const me = this.views[this.localIndex];
-    const body = me.racer.body;
-    const s = me.interpolatedS(alpha);
-    for (const v of this.views) {
-      if (v === me) continue;
-      const vs = v.interpolatedS(alpha);
-      const blocking = body.phase !== 'finished' && vs > s - 6.2 && vs < s - 0.4 && Math.abs(v.racer.body.lateral - body.lateral) < 1.7;
-      v.setGhost(blocking ? 0.28 : 1, dt);
-    }
-    this.trackView.update(Math.max(0, t), dt, this.sim.itemBoxReadyAt, s);
-    // Camera follows the ground-ish height so jumps feel big but stay readable.
-    const groundY = this.sim.track.groundAt(s, body.lateral) ?? this.sim.track.baseline(s);
-    const camY = body.phase === 'fall' ? this.sim.track.baseline(s) : Math.max(groundY, me.prev.y + (me.curr.y - me.prev.y) * alpha - 0.6);
-    const intro = this.sim.phase === 'countdown' ? Math.max(0, 1 - this.sim.tick / this.sim.countdownTicks) : 0;
-    if (body.phase === 'finished') {
-      // Orbit around the celebrating racer.
-      this.outroT += dt;
-      const ang = this.outroT * 0.35;
-      this.path.toWorld(s, body.lateral, body.y + 1.2, tmp);
-      const cam = this.cameraCtl.camera;
-      const a = this.path.heading(s) + ang;
-      // Starts in front of the racer (seeing its face) and slowly circles.
-      cam.position.set(tmp.x + Math.sin(a) * 5, tmp.y + 1.4, tmp.z - Math.cos(a) * 5);
-      cam.lookAt(tmp);
-    } else {
-      this.cameraCtl.update(dt, this.path, s, body.lateral, camY, body.speed, this.shakeEnabled ? this.effects.shake : 0, intro);
-    }
-    this.path.toWorld(s, 0, this.sim.track.baseline(s), tmp);
-    this.env.update(this.time, tmp, this.path.heading(s));
-    this.effects.update(dt, this.time, this.views);
-    this.gr.render(this.scene, this.cameraCtl.camera, this.sim.track.biome === 'crystal' ? 0.85 : 0.45);
+    const sim = this.sim;
+    const gr = this.gr;
+    const ctx = gr.begin();
+    const pr = gr.pixelRatio;
+    const w = gr.width;
+    const h = gr.height;
+    const cam = this.camera;
+    const raceTime = sim.time + alpha / 60;
+
+    for (const v of this.visuals) v.interpolate(alpha);
+    const me = this.visuals[this.localIndex];
+    const mb = me.racer.body;
+
+    // --- camera ----------------------------------------------------------------
+    if (mb.grounded && mb.phase === 'run') this.groundRef = me.y;
+    const above = Math.max(0, me.y - this.groundRef - 1.2);
+    const targetY = this.groundRef + 1.0 + above * 0.7;
+    const lead = mb.phase === 'finished' ? 0 : 1.2 + Math.min(1.2, mb.speed * 0.08);
+    cam.follow(dt, me.x + lead, targetY);
+    cam.updateShake(dt, this.shakeEnabled);
+
+    // --- backdrop (screen space) -------------------------------------------------
+    ctx.setTransform(pr, 0, 0, pr, 0, 0);
+    this.bg.draw(ctx, w, h, pr, cam.x, cam.y, cam.scale, this.time);
+
+    // --- world -------------------------------------------------------------------
+    cam.applyWorld(ctx, pr);
+    const L = cam.left;
+    const R = cam.right;
+    const B = cam.bottom - 1;
+    this.world.drawPitShade(ctx, L, R, B);
+    this.world.drawTerrain(ctx, L, R, B);
+    if (!this.lowQ) this.world.drawDecor(ctx, L, R, this.time);
+    this.world.drawStartFinish(ctx, L, R, this.time);
+    this.world.drawPlatforms(ctx, L, R);
+    this.world.drawHazards(ctx, L, R, raceTime);
+    this.world.drawItemBoxes(ctx, L, R, this.time, sim.itemBoxReadyAt, raceTime);
+    this.world.drawGlimmers(ctx, L, R, this.time, me.racer.glimmerTaken);
+    this.world.drawEntities(ctx, sim.entities, this.time);
+
+    // Trails behind racers, then racers (local one on top).
+    for (const v of this.visuals) this.updateTrail(v, dt);
+    this.particles.update(dt);
+    this.particles.draw(ctx, L, R);
+    for (const v of this.visuals) if (v !== me) this.drawRacer(ctx, v, dt, false);
+    this.drawRacer(ctx, me, dt, true);
+
+    // --- overlays (screen space) ---------------------------------------------------
+    cam.applyScreen(ctx, pr);
+    for (const v of this.visuals) this.drawTag(ctx, v, v === me);
+    this.drawOffscreen(ctx, me);
   }
 
-  /** Visual-only: push overlapping racers apart sideways. */
-  private computeNudges(alpha: number): void {
-    for (const v of this.views) v.nudge *= 0.85;
-    for (let i = 0; i < this.views.length; i++) {
-      for (let j = i + 1; j < this.views.length; j++) {
-        const a = this.views[i];
-        const b = this.views[j];
-        const ds = a.interpolatedS(alpha) - b.interpolatedS(alpha);
-        const dl = a.racer.body.lateral - b.racer.body.lateral;
-        if (Math.abs(ds) < 1.1 && Math.abs(dl) < 0.8) {
-          const push = (0.8 - Math.abs(dl)) * 0.5;
-          const dir = dl >= 0 ? 1 : -1;
-          a.nudge = Math.max(-0.45, Math.min(0.45, a.nudge + dir * push * 0.2));
-          b.nudge = Math.max(-0.45, Math.min(0.45, b.nudge - dir * push * 0.2));
+  private updateTrail(v: RacerVisual, dt: number): void {
+    const b = v.racer.body;
+    if (b.phase !== 'run' && b.phase !== 'finished') {
+      v.ribbon.length = 0;
+      return;
+    }
+    if (v.trail.kind === 'ribbon') {
+      v.ribbon.push(v.x - 0.3, v.y + 0.45);
+      // Keep a short tail (by distance, so frame drops never stretch it).
+      while (v.ribbon.length > 4 && (v.ribbon.length > 40 || v.ribbon[0] < v.x - 3.2)) v.ribbon.splice(0, 2);
+      return;
+    }
+    const running = b.grounded && b.speed > 3;
+    const fancy = v.trail.kind !== 'dust';
+    if (!running && !fancy) return;
+    v.trailT -= dt;
+    if (v.trailT > 0) return;
+    v.trailT = this.lowQ ? 0.12 : fancy ? 0.06 : 0.09;
+    const t = v.trail;
+    const x = v.x - 0.35;
+    const y = v.y + (fancy ? 0.4 : 0.06);
+    switch (t.kind) {
+      case 'dust':
+        this.particles.emit({ kind: 'puff', x, y, color: rgba(t.color, 0.7), speed: 0.6, dir: Math.PI * 0.8, spread: 0.6, size: 0.09, life: 0.35 });
+        break;
+      case 'sparkle':
+        this.particles.emit({ kind: 'spark', x, y, color: t.color, speed: 0.8, size: 0.09, life: 0.45 });
+        break;
+      case 'leaf':
+        this.particles.emit({ kind: 'leaf', x, y, color: t.color, speed: 1.2, dir: Math.PI * 0.85, spread: 0.8, size: 0.1, life: 0.7, gravity: 1 });
+        break;
+      case 'bubble':
+        this.particles.emit({ kind: 'bubble', x, y, color: t.color, speed: 0.8, dir: Math.PI / 2, spread: 1.2, size: 0.08, life: 0.8, gravity: -0.6 });
+        break;
+      case 'note':
+        this.particles.emit({ kind: 'note', x, y: y + 0.2, color: t.color, speed: 0.8, dir: Math.PI * 0.6, spread: 0.6, size: 0.16, life: 0.8 });
+        break;
+      case 'flame':
+        this.particles.emit({ kind: 'flame', x, y, color: t.color, speed: 0.8, dir: Math.PI, spread: 0.6, size: 0.12, life: 0.35, gravity: -2 });
+        break;
+      default:
+        break;
+    }
+  }
+
+  private drawRacer(ctx: Ctx, v: RacerVisual, dt: number, local: boolean): void {
+    const b = v.racer.body;
+    const cam = this.camera;
+    if (v.x < cam.left - 2 || v.x > cam.right + 2) {
+      v.anim.update(dt, this.time, this.animInput(v));
+      return;
+    }
+    // Rainbow ribbon trail.
+    if (v.ribbon.length > 4) {
+      const colors = ['#ff5a8a', '#ffb020', '#ffe14d', '#5bd16b', '#4fd6ff', '#b46bff'];
+      for (let c = 0; c < colors.length; c++) {
+        ctx.beginPath();
+        for (let i = 0; i < v.ribbon.length; i += 2) {
+          const x = v.ribbon[i];
+          const y = v.ribbon[i + 1] + (c - 2.5) * 0.045;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
         }
+        ctx.lineWidth = 0.05;
+        ctx.strokeStyle = colors[c];
+        ctx.globalAlpha = 0.8;
+        ctx.stroke();
       }
+      ctx.globalAlpha = 1;
+    }
+
+    const input = this.animInput(v);
+    if (b.phase === 'finished' && !v.celebrating && b.speed < 4.5) {
+      v.celebrating = true;
+      v.anim.startEmote(v.anim.emote);
+    }
+    const pose = v.anim.update(dt, this.time, input);
+
+    ctx.save();
+    ctx.translate(v.x, v.y);
+    // Respawn: pop in. Invulnerable: blink.
+    if (b.phase === 'respawn') {
+      const k = Math.max(0.05, 1 - b.phaseTimer / 0.7);
+      ctx.translate(0, 0.6);
+      ctx.scale(k, k);
+      ctx.translate(0, -0.6);
+    }
+    if (b.invuln > 0 && b.phase === 'run' && Math.floor(this.time * 14) % 2 === 0) ctx.globalAlpha = 0.45;
+    if (!local) ctx.globalAlpha *= 0.92;
+    const ground = this.sim.track.groundBelow(v.x, v.y + 0.05, b.dropTimer > 0 ? b.dropId : -1, true);
+    const drop = Number.isNaN(ground) ? -SHADOW_SKIP : ground - v.y;
+    drawMonster(ctx, v.plan, v.palette, pose, { flat: this.lowQ, shadow: drop > -3.5, shadowDrop: drop }, v.layers, v.anchors);
+    ctx.restore();
+
+    // Shield bubble.
+    if (b.shield > 0) {
+      const r = 0.85 + Math.sin(this.time * 6) * 0.03;
+      ctx.save();
+      ctx.globalAlpha = b.shield < 1 && Math.floor(this.time * 10) % 2 === 0 ? 0.3 : 0.6;
+      ctx.beginPath();
+      ellipse(ctx, v.x + 0.05, v.y + 0.62, r, r);
+      const g = ctx.createRadialGradient(v.x - 0.2, v.y + 0.9, 0.1, v.x, v.y + 0.62, r);
+      g.addColorStop(0, 'rgba(255,255,255,0.5)');
+      g.addColorStop(0.7, 'rgba(155,140,255,0.15)');
+      g.addColorStop(1, 'rgba(120,200,255,0.55)');
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.lineWidth = 0.04;
+      ctx.strokeStyle = 'rgba(210,200,255,0.9)';
+      ctx.stroke();
+      ctx.restore();
+    }
+    // Speed lines while dashing/boosting.
+    if ((b.dash > 0 || b.padBoost > 0) && b.phase === 'run') {
+      ctx.save();
+      ctx.strokeStyle = b.dash > 0 ? 'rgba(79,214,255,0.8)' : 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 0.05;
+      for (let i = 0; i < 4; i++) {
+        const k = (this.time * 4 + i * 0.27) % 1;
+        const y = v.y + 0.25 + i * 0.22;
+        ctx.globalAlpha = 1 - k;
+        ctx.beginPath();
+        ctx.moveTo(v.x - 0.6 - k * 1.2, y);
+        ctx.lineTo(v.x - 1.2 - k * 1.2, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  private animInput(v: RacerVisual) {
+    const b = v.racer.body;
+    const sim = this.sim;
+    const countdownLeft = sim.phase === 'countdown' ? (sim.countdownTicks - sim.tick) / 60 : 0;
+    return {
+      mode: (v.celebrating ? 'emote' : b.phase === 'grid' ? 'idle' : 'race') as 'race' | 'idle' | 'emote',
+      speed: b.speed,
+      vy: b.vy,
+      grounded: b.grounded,
+      phase: b.phase,
+      stun: b.stun,
+      boosting: b.dash > 0 || b.padBoost > 0,
+      blocked: b.blocked,
+      ready: b.phase === 'grid' && countdownLeft < 1.1,
+    };
+  }
+
+  private drawTag(ctx: Ctx, v: RacerVisual, local: boolean): void {
+    const cam = this.camera;
+    const r = v.racer;
+    if (r.body.phase === 'fall') return;
+    const x = cam.sx(v.x);
+    const y = cam.sy(v.y + v.height + 0.25);
+    if (x < -50 || x > cam.width + 50) return;
+    const fs = Math.max(11, Math.min(16, cam.scale * 0.17));
+    ctx.font = `600 ${fs}px Fredoka, system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    if (local) {
+      // Bouncing marker over the player.
+      const bob = Math.sin(this.time * 5) * 3;
+      ctx.beginPath();
+      ctx.moveTo(x - 8, y - 14 + bob);
+      ctx.lineTo(x + 8, y - 14 + bob);
+      ctx.lineTo(x, y - 4 + bob);
+      ctx.closePath();
+      ctx.fillStyle = '#ffe14d';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#2a1d2e';
+      ctx.stroke();
+    } else {
+      const label = r.name;
+      const tw = ctx.measureText(label).width + 12;
+      ctx.beginPath();
+      roundRect(ctx, x - tw / 2, y - fs - 8, tw, fs + 6, 8);
+      ctx.fillStyle = 'rgba(30,20,45,0.55)';
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(label, x, y - 4);
+    }
+    // Held ability bubble (so you can see what rivals carry).
+    if (r.item && r.body.phase === 'run') {
+      const ab = ABILITIES[r.item];
+      const bx = x + (local ? 0 : 0);
+      const by = y - (local ? 30 : fs + 22);
+      ctx.beginPath();
+      ellipse(ctx, bx, by, 12, 12);
+      ctx.fillStyle = ab.color;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `700 14px Fredoka, system-ui, sans-serif`;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(ab.icon, bx, by + 1);
+    }
+  }
+
+  /** Arrows at the screen edges for racers out of view, with the gap in metres. */
+  private drawOffscreen(ctx: Ctx, me: RacerVisual): void {
+    const cam = this.camera;
+    for (const v of this.visuals) {
+      if (v === me || v.racer.body.phase === 'finished') continue;
+      const sx = cam.sx(v.x);
+      const ahead = sx > cam.width + 10;
+      const behind = sx < -10;
+      if (!ahead && !behind) continue;
+      const sy = Math.max(40, Math.min(cam.height - 60, cam.sy(v.y + 0.6)));
+      const x = ahead ? cam.width - 26 : 26;
+      const dir = ahead ? 1 : -1;
+      ctx.beginPath();
+      ctx.moveTo(x + dir * 14, sy);
+      ctx.lineTo(x - dir * 6, sy - 12);
+      ctx.lineTo(x - dir * 6, sy + 12);
+      ctx.closePath();
+      ctx.fillStyle = v.palette.body;
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+      ctx.font = '600 12px Fredoka, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = 'rgba(30,20,45,0.8)';
+      ctx.lineWidth = 3;
+      const label = `${Math.round(Math.abs(v.x - me.x))}m`;
+      ctx.strokeText(label, x - dir * 4, sy + 15);
+      ctx.fillText(label, x - dir * 4, sy + 15);
     }
   }
 
   dispose(): void {
-    this.debris?.dispose();
-    for (const v of this.views) v.dispose();
-    this.scene.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (m.isMesh || (o as THREE.Points).isPoints) {
-        m.geometry?.dispose();
-      }
-    });
+    this.particles.clear();
   }
 }

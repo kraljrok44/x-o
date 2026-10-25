@@ -1,7 +1,7 @@
 import type { MenuScene } from '../render/MenuScene';
 import type { RaceController } from './RaceController';
 
-/** Decides which 3D scene renders each frame: the menu stage or the active race. */
+/** Decides which scene renders each frame: the menu stage or the active race. */
 export class SceneManager {
   race: RaceController | null = null;
 

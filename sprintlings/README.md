@@ -1,8 +1,8 @@
 # Sprintlings
 
-Izvirna 3D-arkadna dirkalna igra za spletni brskalnik: štirje živalski tekmovalci samodejno tečejo po progi, igralec skače, menjava pasove, pobira škatle z runami in z njihovimi sposobnostmi prehiteva tekmece. Igra je pripravljena za objavo na **CrazyGames** in **GameMonetize**, ima pa tudi samostojno spletno različico z lastnim strežnikom za račune in nakupe.
+Izvirna arkadna dirkalna igra za spletni brskalnik s **pogledom od strani**: štiri risane pošasti samodejno tečejo od leve proti desni, igralec skače (drži = višji skok), se spušča skozi lebdeče ploščadi, izbira zgornjo ali spodnjo pot, pobira škatle z runami in z njihovimi sposobnostmi prehiteva tekmece. Igra je pripravljena za objavo na **CrazyGames** in **GameMonetize**, ima pa tudi samostojno spletno različico z lastnim strežnikom za račune in nakupe.
 
-Vsa grafika, zvok in glasba so ustvarjeni proceduralno v kodi (brez tujih modelov, tekstur ali posnetkov). Liki (Moss, Kip, Pebble, Lumi, Ember, Hoot), proge, sposobnosti in uporabniški vmesnik so izvirni. Koncept (samodejni tek, skoki, naključne sposobnosti, štirje tekmovalci) je žanrski; nobeno ime, model, zvok ali zaslon ni prevzet iz drugih iger. Za razliko od 2D-iger tega žanra je Sprintlings 3D-igra s tremi pasovi, variabilno višino skoka, startnim pospeškom in opazovalnimi (telegrafiranimi) pastmi.
+Vsa grafika, zvok in glasba so ustvarjeni proceduralno v kodi (vektorsko risanje s Canvas2D, brez tujih slik, modelov ali posnetkov). Pošasti (Bloop, Mimi, Grumbo, Zib, Chompy, Yobo) so narisane v slogu podanih referenčnih slik, a so lastne oblike in barve, ne kopije; proge, sposobnosti in vmesnik so izvirni. Koncept (samodejni tek od strani, skoki, naključne sposobnosti, štirje tekmovalci) je žanrski; nobeno ime, lik, zvok ali zaslon ni prevzet iz drugih iger. Posebnosti: variabilna višina skoka, spust skozi ploščadi, startni pospešek in telegrafirane časovne pasti, ki jih je vedno mogoče preskočiti.
 
 ## Hitri začetek
 
@@ -29,15 +29,17 @@ npm run server       # neobvezno: strežnik na http://localhost:8787 (računi, n
 | `npm run typecheck` | preverjanje tipov odjemalca in strežnika |
 
 E2E testi potrebujejo Playwright: `npm i -D playwright && npx playwright install chromium`.
+
+Preverjanje prog: `npm run validate:tracks` (vse proge in 30 remiksov s »popolnim« botom) in `npx tsx scripts/segment-check.ts` (vsak odsek posebej, pri vseh fazah časovnih pasti).
 Test PostgreSQL se zažene, ko je nastavljen `TEST_DATABASE_URL` (prazna testna baza, npr. `postgres://sprint:sprint@localhost/sprintlings_test`).
 
 ## Upravljanje
 
 | Dejanje | Tipkovnica / miška | Dotik | Igralni plošček |
 | --- | --- | --- | --- |
-| Skok (drži = višji skok) | Space, W, ↑, levi klik | gumb JUMP, tap, poteg navzgor | A |
-| Menjava pasu | A/D, ←/→ | gumba ◀ ▶, poteg levo/desno | D-pad / palica |
-| Sposobnost | E, levi Shift, desni klik | gumb sposobnosti | X / RB |
+| Skok (drži = višji skok) | Space, W, ↑, levi klik | gumb SKOK, tap, poteg navzgor | A |
+| Spust skozi ploščad / hitrejši padec | S, ↓ | gumb ▼, poteg navzdol | D-pad / palica navzdol |
+| Sposobnost | E, D, →, levi Shift, desni klik | gumb sposobnosti, poteg naprej | X / RB |
 | Premor | Escape, P | gumb ⏸ | Start |
 
 Tipke je mogoče spremeniti v Nastavitvah. Pritisk skoka točno ob »START« da startni pospešek.
@@ -76,7 +78,8 @@ src/
   platform/    CrazyGames, GameMonetize, samostojna različica (razvojni testni oglasi so v ločenem modulu)
   persistence/ IndexedDB/localStorage, profil z varnostno kopijo, migracije shem, LocalAuthority, nastavitve
   network/     ServerAuthority (HTTP), MatchmakingClient (WebSocket), protokol
-  render/      Three.js: liki, kozmetika, proga, okolja, učinki, kamera, Rapier razbitine, sličice
+  render/      Canvas2D: pošasti (MonsterRig + MonsterAnimator), kozmetika, teren in ovire (WorldPainter),
+               paralaksno ozadje, delci, stranska kamera, meni, sličice
   audio/       sintetizirani zvočni učinki in proceduralna glasba (Web Audio)
   input/       tipkovnica (spremenljive tipke), miška, dotik, igralni plošček
   ui/          vsi zasloni (DOM), HUD, prevodi EN/SL
@@ -88,10 +91,11 @@ tests/         unit, gameplay, economy, ads, purchases, integration, e2e
 Ključne odločitve:
 
 - **Deterministična simulacija s fiksnim korakom (1/60 s).** Ista koda teče v brskalniku, v AI-planerju in na strežniku. Dirko je mogoče natančno ponoviti iz semena in dnevnika vnosov, zato strežnik nagrade izračuna iz **lastne ponovne simulacije**, nikoli iz rezultata, ki ga sporoči odjemalec.
-- **Arkadna fizika namesto togih teles.** Za odzivno in predvidljivo upravljanje (coyote time 100 ms, medpomnilnik skoka 120 ms, variabilna višina skoka) ter determinizem je igralna fizika lastna. **Rapier 3D** se uporablja za kozmetične razbitine (škatle z runami, odkruški) v ločenem svetu; naloži se naknadno samo na srednji/visoki grafiki, zato ne podaljša začetnega nalaganja (~240 KB gzip).
+- **Arkadna 2D-fizika namesto togih teles.** Za odzivno in predvidljivo upravljanje (coyote time 100 ms, medpomnilnik skoka 120 ms, variabilna višina skoka, spust skozi enosmerne ploščadi, stopnice do 0,3 u brez skoka) ter determinizem je igralna fizika lastna. Three.js in Rapier sta bila v prvi (3D) različici; po prehodu na pogled od strani nista več potrebna, zato je igra precej manjša (~85 KB gzip JS).
 - **AI tekmeci** uporabljajo isti fizikalni korak in planer, ki preizkusi več kratkih zaporedij dejanj. Težavnost spreminja samo hitrost odločanja, natančnost in pogostost napak. Isti planer z »popolnim« profilom preverja **prehodnost prog**.
-- **Proge**: tri ročno izdelane proge (Mossy Hollow, Sunscar Canyon, Glimmerdeep Vale) iz 22 ročno oblikovanih odsekov s pravili sosednosti, plus dnevni »Remix«, ki se pred uporabo preveri (in ob neuspehu zamenja).
-- **Tekmovalci se ne zaletavajo drug v drugega** (brez nepredvidljivih trkov pri menjavi pasu); prekrivanje se razreši vizualno, tekmec, ki zakriva pogled, postane prosojen.
+- **Proge**: tri ročno izdelane proge (Mossy Hollow, Sunscar Canyon, Glimmerdeep Vale) iz 21 ročno oblikovanih odsekov s pravili sosednosti (prepadi, stopnice, lebdeči otoki, zgornje poti po ploščadih, vzmeti), plus dnevni »Remix«, ki se pred uporabo preveri (in ob neuspehu zamenja). `scripts/segment-check.ts` vsak časovno odvisen odsek preveri pri 16 različnih fazah, da je pošten za vsak čas prihoda.
+- **Animacija**: vsaka pošast je vektorski »rig« (telo, oči, usta, roke, noge, rogovi/antene/lasje). Tek je sinhroniziran s hitrostjo, skoki in pristanki uporabljajo vzmeti za raztezanje/stiskanje, okončine in dodatki se pozibavajo glede na pospešek, pošasti mežikajo, gledajo kamor gredo, menjajo izraze (omotica, strah, veselje) in ob zmagi pokažejo izbrano čustveno gesto obrnjeni proti kameri.
+- **Tekmovalci se ne zaletavajo drug v drugega** (tečejo drug skozi drugega, kot je običajno v tem žanru), zato te tekmec ne more poriniti v prepad. Tekmeci zunaj zaslona so označeni s puščicami in razdaljo.
 
 ## Ekonomija in monetizacija
 
@@ -145,10 +149,10 @@ Glavne poti: `POST /api/auth/guest`, `GET /api/profile`, `POST /api/race/start`,
 - **Lokalni profil** (portali, samostojna različica) ni zaščiten pred spreminjanjem na napravi; dirke se sicer preverijo s ponovno simulacijo, a na napravi. Uporabniški vmesnik to jasno navaja. Nakupi s pravim denarjem zato prek lokalnega profila nikoli niso ponujeni.
 - **Prijava z računom** (OAuth, povezava računa portala): samo gostujoči računi z žetonom.
 - **Analitika**: strežnik dogodke samo sprejme in prešteje; brez soglasja se nič ne pošlje.
-- **Zmogljivost** je bila v tem okolju merjena samo s programskim upodabljanjem (SwiftShader); simulacija s tremi AI tekmeci porabi okoli 0,3–0,9 ms na korak na CPU.
+- **Zmogljivost** je bila v tem okolju merjena samo v brezglavem Chromiumu s programskim rasterizatorjem (~45–50 sličic/s pri 1280×720); na napravah z grafičnim pospeševanjem je pričakovano 60. Simulacija s tremi AI tekmeci porabi okoli 0,2–0,7 ms na korak na CPU.
 - **Prevodi**: vmesnik je v angleščini in slovenščini; imena in opisi predmetov so v angleščini.
 - **Sezona 2** ima samo osnovne (generirane) nagrade.
 
 ## Licenca in viri
 
-Koda je del tega repozitorija. Uporabljene knjižnice: Three.js (MIT), Rapier (Apache-2.0), Fredoka (SIL Open Font License, prek @fontsource), ws (MIT), pg (MIT).
+Koda je del tega repozitorija. Uporabljene knjižnice: Fredoka (SIL Open Font License, prek @fontsource), ws (MIT), pg (MIT). Grafika je v celoti narisana v kodi.
