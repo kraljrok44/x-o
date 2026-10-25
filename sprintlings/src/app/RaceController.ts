@@ -56,6 +56,15 @@ export class RaceController {
     this.hud = new RaceHUD(this.sim, 0, ctx.input, touch, s.showFps);
     this.hud.pauseBtn.addEventListener('click', () => this.pause());
     this.tutorial = !ctx.authority.profile.tutorialDone;
+    this.scene.shakeEnabled = s.cameraShake && !s.reducedMotion;
+  }
+
+  private buzz(ms: number): void {
+    try {
+      if (this.ctx.settings.value.touchControls !== 'off') navigator.vibrate?.(ms);
+    } catch {
+      /* not supported */
+    }
   }
 
   /** Screen wrapper so the HUD participates in UIRoot navigation. */
@@ -190,6 +199,7 @@ export class RaceController {
           break;
         case 'hit':
           a.play('hit', vol, pan);
+          if (local) this.buzz(35);
           break;
         case 'seekerHit':
           a.play('hit', vol, pan);
@@ -197,6 +207,7 @@ export class RaceController {
           break;
         case 'bonk':
           a.play('bonk', vol, pan);
+          if (local) this.buzz(50);
           break;
         case 'shieldBlock':
           a.play('block', vol, pan);

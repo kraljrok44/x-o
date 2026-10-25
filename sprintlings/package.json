@@ -19,7 +19,9 @@
     "test:watch": "vitest",
     "test:e2e": "node tests/e2e/run-e2e.mjs",
     "server": "tsx server/index.ts",
-    "server:pg": "STORAGE=postgres tsx server/index.ts"
+    "server:pg": "STORAGE=postgres tsx server/index.ts",
+    "validate:tracks": "tsx scripts/validate-all.ts 30",
+    "bench:ai": "tsx scripts/mixed-check.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

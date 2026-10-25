@@ -23,6 +23,8 @@ export class RaceScene {
   readonly cameraCtl: CameraController;
   private readonly debris: DebrisPhysics | null;
   private time = 0;
+  /** Camera shake on hits (Settings: camera shake / reduced motion). */
+  shakeEnabled = true;
   private outroT = 0;
 
   constructor(
@@ -107,7 +109,7 @@ export class RaceScene {
       cam.position.set(tmp.x + Math.sin(a) * 5, tmp.y + 1.4, tmp.z - Math.cos(a) * 5);
       cam.lookAt(tmp);
     } else {
-      this.cameraCtl.update(dt, this.path, s, body.lateral, camY, body.speed, this.effects.shake, intro);
+      this.cameraCtl.update(dt, this.path, s, body.lateral, camY, body.speed, this.shakeEnabled ? this.effects.shake : 0, intro);
     }
     this.path.toWorld(s, 0, this.sim.track.baseline(s), tmp);
     this.env.update(this.time, tmp, this.path.heading(s));

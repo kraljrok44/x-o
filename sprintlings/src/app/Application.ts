@@ -45,7 +45,7 @@ export class Application implements AppContext {
   authority!: AppContext['authority'];
   settings!: LocalSettings;
   audio = new AudioManager();
-  platform: Platform = createPlatform();
+  platform!: Platform;
   input!: InputManager;
   renderer!: GameRenderer;
   menu!: MenuScene;
@@ -86,6 +86,7 @@ export class Application implements AppContext {
     setLanguage(detectLanguage());
     this.showLoading();
     this.progress(0.05);
+    this.platform = await createPlatform();
     this.platform.onMuteRequest = (m) => this.audio.applySettings({ ...this.settings.value.audio, muted: m || this.settings.value.audio.muted });
     this.platform.onPauseRequest = (paused) => {
       if (paused) {
