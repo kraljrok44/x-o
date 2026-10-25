@@ -211,11 +211,6 @@ export function getLanguage(): Language {
   return lang;
 }
 
-export function detectLanguage(): Language {
-  const n = (navigator.language || 'en').toLowerCase();
-  return n.startsWith('sl') ? 'sl' : 'en';
-}
-
 export function t(text: string, vars?: Record<string, string | number>): string {
   let out = lang === 'sl' ? SL[text] ?? text : text;
   if (text === 'Back_' && lang !== 'sl') out = 'Back';

@@ -17,7 +17,7 @@ import { ThumbnailRenderer } from '../render/ThumbnailRenderer';
 import { achievementsScreen } from '../ui/AchievementsScreen';
 import { characterSelect } from '../ui/CharacterSelect';
 import { h } from '../ui/dom';
-import { detectLanguage, setLanguage, t } from '../ui/i18n';
+import { setLanguage, t } from '../ui/i18n';
 import { inventoryScreen } from '../ui/InventoryScreen';
 import { mainMenu } from '../ui/MainMenu';
 import { modeSelect } from '../ui/ModeSelect';
@@ -83,7 +83,8 @@ export class Application implements AppContext {
   }
 
   async boot(): Promise<void> {
-    setLanguage(detectLanguage());
+    // The game ships in English only (portal audiences are international).
+    setLanguage('en');
     this.showLoading();
     this.progress(0.05);
     this.platform = await createPlatform();
@@ -99,9 +100,8 @@ export class Application implements AppContext {
     this.progress(0.25);
 
     const browserStore = await createBrowserStore();
-    this.settings = new LocalSettings(browserStore, defaultSettings(detectQuality(), detectLanguage()));
+    this.settings = new LocalSettings(browserStore, defaultSettings(detectQuality(), 'en'));
     await this.settings.load();
-    setLanguage(this.settings.value.language);
     document.body.classList.toggle('reduced-motion', this.settings.value.reducedMotion);
     this.audio.applySettings(this.settings.value.audio);
     this.progress(0.35);

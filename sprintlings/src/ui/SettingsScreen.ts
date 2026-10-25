@@ -2,7 +2,7 @@ import type { AppContext } from '../app/AppContext';
 import { ACTION_LABELS, DEFAULT_BINDINGS, keyLabel, type InputAction } from '../input/InputManager';
 import type { Settings } from '../persistence/LocalSettings';
 import { h } from './dom';
-import { setLanguage, t } from './i18n';
+import { t } from './i18n';
 import { topbar } from './Topbar';
 import type { Screen } from './UIRoot';
 
@@ -133,15 +133,6 @@ export function settingsScreen(ctx: AppContext, params: { from?: 'race' } = {}):
           t('Reset to defaults'),
         ),
         h('p', { class: 'small muted' }, t('Mouse: left click = jump, right click = ability. Gamepad: A = jump, D-pad down / stick down = drop, X/RB = ability, Start = pause. Touch: tap = jump, swipe down = drop, swipe forward = ability.')),
-      ),
-      h(
-        'div',
-        { class: 'panel', style: 'padding:4px 16px 12px' },
-        h('h2', { class: 'panel__title', style: 'margin:12px 0 4px' }, t('Language')),
-        setting(t('Language'), seg('language', [['en', 'English'], ['sl', 'Slovenščina']], () => {
-          setLanguage(s().language);
-          ctx.go('settings');
-        })),
       ),
       h(
         'div',
