@@ -1,0 +1,41 @@
+{
+  "name": "sprintlings",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Sprintlings - original 3D arcade critter racing game for web browsers",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "build:crazygames": "tsc --noEmit -p tsconfig.json && vite build --mode crazygames",
+    "build:gamemonetize": "tsc --noEmit -p tsconfig.json && vite build --mode gamemonetize",
+    "build:web": "tsc --noEmit -p tsconfig.json && vite build --mode web",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p server/tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "node tests/e2e/run-e2e.mjs",
+    "server": "tsx server/index.ts",
+    "server:pg": "STORAGE=postgres tsx server/index.ts"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "0.21.0",
+    "@fontsource/fredoka": "5.3.0",
+    "three": "0.186.1",
+    "ws": "8.22.0",
+    "pg": "8.23.1",
+    "tsx": "4.23.15"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/pg": "8.23.1",
+    "@types/three": "0.186.0",
+    "@types/ws": "8.18.2",
+    "typescript": "5.9.3",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

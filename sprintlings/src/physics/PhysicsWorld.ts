@@ -1,0 +1,32 @@
+import type { Track } from '../game/Track';
+import type { RaceEventType, RacerBody } from '../game/RaceState';
+
+/**
+ * What the racer movement step needs from its surroundings. The real race
+ * (game/RaceManager.ts) implements it with live entities and event output;
+ * the AI planner implements it with a side-effect-free prediction so it can
+ * run "what if" rollouts with the exact same movement code.
+ */
+export interface MovementWorld {
+  readonly track: Track;
+  /** Race clock in seconds (0 at "GO"). Timed hazards depend on it. */
+  readonly time: number;
+  emit(type: RaceEventType, racer: number, value: number, body: RacerBody): void;
+  /** True when (s, lateral) lies in an active sap puddle not owned by `racer`. */
+  inSap(racer: number, s: number, lateral: number): boolean;
+  /** Id of a snare overlapping the racer (consumed by the real world), or -1. */
+  touchSnare(racer: number, body: RacerBody): number;
+}
+
+/** Input edges for one movement step. */
+export interface BodyInput {
+  jumpPressed: boolean;
+  jumpReleased: boolean;
+  jumpHeld: boolean;
+  left: boolean;
+  right: boolean;
+}
+
+export function makeBodyInput(): BodyInput {
+  return { jumpPressed: false, jumpReleased: false, jumpHeld: false, left: false, right: false };
+}

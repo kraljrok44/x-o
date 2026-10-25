@@ -1,0 +1,25 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "lib": [
+      "ES2022"
+    ],
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "./**/*.ts",
+    "../src/shared/**/*.ts",
+    "../src/config/**/*.ts",
+    "../src/game/**/*.ts",
+    "../src/player/**/*.ts",
+    "../src/physics/**/*.ts",
+    "../src/obstacles/**/*.ts",
+    "../src/abilities/**/*.ts",
+    "../src/ai/**/*.ts",
+    "../src/economy/**/*.ts",
+    "../src/progression/**/*.ts",
+    "../src/shop/**/*.ts"
+  ]
+}

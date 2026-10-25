@@ -1,0 +1,150 @@
+/**
+ * The five race abilities. Racers obtain one charge at a time from Rune Boxes
+ * placed on the track and fire it with the ability key.
+ *
+ * Every field the design document asks for (activation, duration, range,
+ * speed, targeting, counterplay, cooldown, feedback, network behaviour,
+ * invalid-use rules) is spelled out per ability so balance discussions have
+ * one source of truth.
+ */
+export type AbilityId = 'dash' | 'shield' | 'seeker' | 'snare' | 'sap';
+
+export interface AbilityDefinition {
+  id: AbilityId;
+  name: string;
+  description: string;
+  /** Seconds between pressing the key and the effect starting. */
+  activationTime: number;
+  /** Seconds the effect lasts (0 = instantaneous). */
+  duration: number;
+  /** Max distance the effect can reach along the track (u). */
+  range: number;
+  /** Speed of the effect, e.g. projectile speed (u/s). 0 when not applicable. */
+  speed: number;
+  targeting: 'self' | 'nearestAhead' | 'behind';
+  counterplay: string;
+  /** Lockout after using any ability before another can be fired. */
+  cooldown: number;
+  feedback: { sound: string; visual: string };
+  /** How the ability is replicated online (see network/ServerMessages.ts). */
+  network: 'input-event' | 'server-spawned-entity';
+  /** What happens when the ability can't be used right now. */
+  invalidUse: string;
+  color: string;
+  icon: string;
+}
+
+export const ABILITIES: Record<AbilityId, AbilityDefinition> = {
+  dash: {
+    id: 'dash',
+    name: 'Zephyr Dash',
+    description: 'A short burst of speed. Does not let you pass through walls.',
+    activationTime: 0,
+    duration: 1.5,
+    range: 0,
+    speed: 0,
+    targeting: 'self',
+    counterplay: 'Opponents can still hit you with seekers; obstacles still trip you.',
+    cooldown: 0.5,
+    feedback: { sound: 'dash', visual: 'speed lines + wind trail' },
+    network: 'input-event',
+    invalidUse: 'Ignored while stunned, falling or respawning; charge is kept.',
+    color: '#4fd6ff',
+    icon: '»',
+  },
+  shield: {
+    id: 'shield',
+    name: 'Bubble Ward',
+    description: 'Blocks the next hit or slow-down for 5 seconds.',
+    activationTime: 0,
+    duration: 5,
+    range: 0,
+    speed: 0,
+    targeting: 'self',
+    counterplay: 'Bait it with a snare before firing a seeker.',
+    cooldown: 0.5,
+    feedback: { sound: 'shield', visual: 'iridescent bubble' },
+    network: 'input-event',
+    invalidUse: 'Ignored while falling or respawning; charge is kept.',
+    color: '#9b8cff',
+    icon: '◎',
+  },
+  seeker: {
+    id: 'seeker',
+    name: 'Thistle Seeker',
+    description: 'A slow rolling thistle that homes toward the nearest racer ahead.',
+    activationTime: 0.1,
+    duration: 6,
+    range: 90,
+    speed: 17,
+    targeting: 'nearestAhead',
+    counterplay: 'Jump over it at the last moment, change lane, or shield it.',
+    cooldown: 0.5,
+    feedback: { sound: 'seeker', visual: 'spiky ball with trail; target gets a warning' },
+    network: 'server-spawned-entity',
+    invalidUse: 'Ignored while stunned, falling or respawning; charge is kept.',
+    color: '#ff7a3d',
+    icon: '✸',
+  },
+  snare: {
+    id: 'snare',
+    name: 'Bramble Snare',
+    description: 'Drops a bramble knot behind you in your lane for 10 seconds.',
+    activationTime: 0,
+    duration: 10,
+    range: 2,
+    speed: 0,
+    targeting: 'behind',
+    counterplay: 'Jump over it or change lane.',
+    cooldown: 0.5,
+    feedback: { sound: 'snare', visual: 'thorny knot with red warning ring' },
+    network: 'server-spawned-entity',
+    invalidUse: 'Ignored in the air over a gap (no ground to place on); charge is kept.',
+    color: '#5bd16b',
+    icon: '✶',
+  },
+  sap: {
+    id: 'sap',
+    name: 'Sticky Sap',
+    description: 'Spills a wide sap puddle behind you that slows racers for 6 seconds.',
+    activationTime: 0,
+    duration: 6,
+    range: 6,
+    speed: 0,
+    targeting: 'behind',
+    counterplay: 'Jump across it; shields ignore it.',
+    cooldown: 0.5,
+    feedback: { sound: 'sap', visual: 'glossy amber puddle' },
+    network: 'server-spawned-entity',
+    invalidUse: 'Ignored in the air over a gap; charge is kept.',
+    color: '#f2b233',
+    icon: '◍',
+  },
+};
+
+export const ABILITY_IDS: readonly AbilityId[] = ['dash', 'shield', 'seeker', 'snare', 'sap'];
+
+/**
+ * Rune Box roll weights by race position (index 0 = leader). Trailing racers
+ * get more offensive/catch-up tools, leaders more defensive ones.
+ */
+export const ITEM_WEIGHTS_BY_POSITION: readonly Record<AbilityId, number>[] = [
+  { dash: 10, shield: 30, seeker: 10, snare: 30, sap: 20 },
+  { dash: 20, shield: 22, seeker: 25, snare: 18, sap: 15 },
+  { dash: 30, shield: 15, seeker: 30, snare: 15, sap: 10 },
+  { dash: 40, shield: 10, seeker: 35, snare: 10, sap: 5 },
+];
+
+export const AbilityTuning = {
+  dash: { speedFactor: 1.55 },
+  seeker: {
+    spawnAhead: 1.2,
+    lateralHoming: 3.2,
+    radius: 0.38,
+    height: 0.45,
+    armTime: 0.25,
+    acquireRange: 70,
+  },
+  snare: { offsetBehind: 1.6, halfDepth: 0.45, height: 0.7 },
+  sap: { offsetBehind: 1.5, length: 4.2, laneSpan: 3 },
+} as const;

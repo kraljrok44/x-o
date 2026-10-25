@@ -1,0 +1,11 @@
+import { getTrack } from '../src/game/TrackManager';
+import { RaceSimulation } from '../src/game/RaceManager';
+import { HazardPlanner } from '../src/ai/HazardPlanner';
+const track = getTrack(process.argv[2]);
+const at = Number(process.argv[3]);
+const sim = new RaceSimulation({ track, seed: 7, racers: [{ id: 'b', name: 'B', characterId: 'moss', isPlayer: false, difficulty: 'perfect' }] });
+while (sim.time < at - 1e-6) sim.step([]);
+const p = new HazardPlanner(); (globalThis as any).PLAN_DEBUG = 1;
+const res = p.plan(sim, 0, 78, Math.max(0, (sim as any).ai[0].holdUntil - sim.tick), 1, []);
+for (const r of res.slice(0, 12)) console.log(JSON.stringify(r.plan), r.score.toFixed(2), r.incidents, r.fell);
+console.log('noop', res.filter(r => r.plan.laneDelta === 0 && r.plan.jumpTick < 0).map(r => [r.score.toFixed(2), r.incidents]));
