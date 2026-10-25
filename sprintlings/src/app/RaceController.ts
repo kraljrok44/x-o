@@ -1,0 +1,303 @@
+import { TICK_DT } from '../config/GameplayConfig';
+import type { AbilityId } from '../abilities/AbilityDefinition';
+import type { SfxId } from '../audio/AudioManager';
+import type { RaceSettlement } from '../economy/EconomyService';
+import { RaceSimulation } from '../game/RaceManager';
+import { InputRecorder } from '../game/RaceReplay';
+import { summarizeRace, type RaceResultSummary } from '../game/RaceResults';
+import type { RaceEvent } from '../game/RaceState';
+import type { RaceTicket } from '../game/RaceVerifier';
+import { getTrack } from '../game/TrackManager';
+import { laneOfLateral } from '../game/Track';
+import { maskHasLane } from '../obstacles/ObstacleBase';
+import { BIOME_THEMES } from '../render/BiomeTheme';
+import { RaceScene } from '../render/RaceScene';
+import { h } from '../ui/dom';
+import { t } from '../ui/i18n';
+import { RaceHUD } from '../ui/RaceHUD';
+import type { Screen } from '../ui/UIRoot';
+import type { AppContext } from './AppContext';
+
+const ABILITY_SFX: Record<AbilityId, SfxId> = { dash: 'dash', shield: 'shield', seeker: 'seeker', snare: 'snare', sap: 'sap' };
+const MAX_STEPS_PER_FRAME = 5;
+
+export type RacePhaseUI = 'lobby' | 'racing' | 'paused' | 'finishing' | 'results';
+
+/**
+ * Runs one race on the client: fixed-step simulation, input recording for
+ * verification, rendering, HUD, audio and the pause menu.
+ */
+export class RaceController {
+  readonly sim: RaceSimulation;
+  readonly scene: RaceScene;
+  readonly hud: RaceHUD;
+  readonly recorder = new InputRecorder();
+  phase: RacePhaseUI = 'lobby';
+  private acc = 0;
+  private finishTimer = 0;
+  private readonly tutorial: boolean;
+  private pauseModal: HTMLElement | null = null;
+  private settled = false;
+  onFinished: ((summary: RaceResultSummary, settlement: Promise<RaceSettlement>) => void) | null = null;
+  onQuit: (() => void) | null = null;
+  onRestart: (() => void) | null = null;
+
+  constructor(
+    private readonly ctx: AppContext,
+    readonly ticket: RaceTicket,
+  ) {
+    this.sim = new RaceSimulation({ track: getTrack(ticket.trackId), seed: ticket.seed, racers: ticket.racers });
+    this.scene = new RaceScene(ctx.renderer, this.sim, 0);
+    void this.scene.loadExtras();
+    const s = ctx.settings.value;
+    const touch = s.touchControls === 'on' || (s.touchControls === 'auto' && matchMedia('(pointer: coarse)').matches);
+    this.hud = new RaceHUD(this.sim, 0, ctx.input, touch, s.showFps);
+    this.hud.pauseBtn.addEventListener('click', () => this.pause());
+    this.tutorial = !ctx.authority.profile.tutorialDone;
+  }
+
+  /** Screen wrapper so the HUD participates in UIRoot navigation. */
+  hudScreen(): Screen {
+    return { el: this.hud.el, onBack: () => (this.togglePause(), true) };
+  }
+
+  begin(): void {
+    this.phase = 'racing';
+    this.ctx.input.reset();
+    this.ctx.input.enabled = true;
+    this.ctx.platform.gameplayStart();
+    const th = BIOME_THEMES[this.sim.track.biome];
+    this.ctx.audio.playMusic(th.music, this.ticket.seed, 1);
+    this.ctx.analytics.track('race_start', { track: this.ticket.trackId, mode: this.ticket.mode });
+  }
+
+  togglePause(): void {
+    if (this.phase === 'paused') this.resume();
+    else this.pause();
+  }
+
+  pause(): void {
+    if (this.phase !== 'racing') return;
+    this.phase = 'paused';
+    this.ctx.input.enabled = false;
+    this.ctx.platform.gameplayStop();
+    this.ctx.audio.setMusicIntensity(0.3);
+    const vol = h('input', { type: 'range', min: '0', max: '1', step: '0.05', value: String(this.ctx.settings.value.audio.master) }) as HTMLInputElement;
+    vol.addEventListener('input', () => {
+      this.ctx.settings.update({ audio: { ...this.ctx.settings.value.audio, master: Number(vol.value) } });
+      this.ctx.audio.applySettings(this.ctx.settings.value.audio);
+    });
+    const body = h('div', { class: 'stack' }, h('div', { class: 'setting' }, h('label', null, t('Master')), vol));
+    this.pauseModal = this.ctx.ui.modal(
+      t('Paused'),
+      body,
+      [
+        {
+          label: t('Quit race'),
+          kind: 'bad',
+          run: async () => {
+            const ok = await this.ctx.ui.confirm(t('Quit race'), t('Leave the race? You will not get rewards for it.'), t('Leave'), 'bad');
+            if (!ok) return false;
+            this.quit();
+            return true;
+          },
+        },
+        { label: t('Restart'), kind: 'ghost', run: () => this.onRestart?.() },
+        { label: '▶ ' + t('Resume'), kind: 'good', run: () => this.resume() },
+      ],
+      { dismissable: false },
+    );
+  }
+
+  resume(): void {
+    if (this.phase !== 'paused') return;
+    if (this.pauseModal) this.ctx.ui.closeModal(this.pauseModal);
+    this.pauseModal = null;
+    this.phase = 'racing';
+    this.acc = 0;
+    this.ctx.input.reset();
+    this.ctx.input.enabled = true;
+    this.ctx.platform.gameplayStart();
+    this.ctx.audio.setMusicIntensity(1);
+  }
+
+  quit(): void {
+    this.ctx.input.enabled = false;
+    this.ctx.platform.gameplayStop();
+    this.phase = 'results';
+    this.onQuit?.();
+  }
+
+  frame(dt: number): void {
+    if (this.phase === 'racing' || this.phase === 'finishing') {
+      this.acc += Math.min(dt, 0.1);
+      let steps = 0;
+      while (this.acc >= TICK_DT && steps < MAX_STEPS_PER_FRAME && this.sim.phase !== 'done') {
+        this.acc -= TICK_DT;
+        steps++;
+        const input = this.phase === 'racing' ? this.ctx.input.sample() : { jumpHeld: false, left: false, right: false, use: false };
+        this.recorder.record(this.sim.tick, input);
+        const events = this.sim.step([input]);
+        this.scene.onTick(events);
+        this.handleEvents(events);
+      }
+      if (steps === MAX_STEPS_PER_FRAME) this.acc = 0;
+      if (this.phase === 'finishing') {
+        this.finishTimer -= dt;
+        if (this.finishTimer <= 0 || this.sim.phase === 'done') this.settle();
+      } else if (this.sim.phase === 'done') this.settle();
+      if (this.tutorial && this.phase === 'racing') this.updateTutorial();
+    }
+    const alpha = this.phase === 'racing' || this.phase === 'finishing' ? this.acc / TICK_DT : 1;
+    this.scene.frame(dt, alpha);
+    if (this.phase !== 'lobby') this.hud.update(dt);
+  }
+
+  private handleEvents(events: readonly RaceEvent[]): void {
+    const a = this.ctx.audio;
+    const me = this.sim.racers[0].body;
+    for (const e of events) {
+      if (e.type === 'countdown') {
+        if (e.value > 0) a.play('beep');
+        continue;
+      }
+      if (e.type === 'go') {
+        a.play('go');
+        continue;
+      }
+      const local = e.racer === 0;
+      const near = Math.abs(e.s - me.s) < 22;
+      const vol = local ? 1 : near ? 0.3 : 0;
+      if (vol === 0) continue;
+      const pan = local ? 0 : Math.max(-0.7, Math.min(0.7, (e.lateral - me.lateral) / 5));
+      switch (e.type) {
+        case 'jump':
+          a.play('jump', vol, pan);
+          break;
+        case 'land':
+          if (local) a.play('land', 0.7);
+          break;
+        case 'glimmer':
+          if (local) a.play('glimmer');
+          break;
+        case 'itemPickup':
+          if (local) a.play('item');
+          break;
+        case 'abilityUse':
+          if (e.ability) a.play(ABILITY_SFX[e.ability], vol, pan);
+          break;
+        case 'hit':
+          a.play('hit', vol, pan);
+          break;
+        case 'seekerHit':
+          a.play('hit', vol, pan);
+          if (!local && e.value === 0) this.hud.callout('💥 Hit!');
+          break;
+        case 'bonk':
+          a.play('bonk', vol, pan);
+          break;
+        case 'shieldBlock':
+          a.play('block', vol, pan);
+          break;
+        case 'fall':
+          if (local) a.play('fall');
+          break;
+        case 'respawn':
+          if (local) a.play('respawn');
+          break;
+        case 'boostPad':
+          if (local) a.play('boost');
+          break;
+        case 'bounce':
+          a.play('bounce', vol, pan);
+          break;
+        case 'startBoost':
+          if (local) {
+            a.play('boost');
+            this.hud.callout('🚀 ' + t('Start boost!'));
+          }
+          break;
+        case 'finish':
+          if (local) {
+            a.play('finish');
+            this.hud.callout(e.value === 1 && this.sim.racers.length > 1 ? '🏆 ' + t('Finished!') : t('Finished!'));
+            if (e.value === 1 && this.sim.racers.length > 1) this.ctx.platform.happyTime();
+            this.beginFinishing();
+          }
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  private beginFinishing(): void {
+    this.phase = 'finishing';
+    this.ctx.input.enabled = false;
+    this.ctx.platform.gameplayStop();
+    this.finishTimer = 2.6;
+    this.hud.setHint(null);
+  }
+
+  /** Fast-forwards the remaining racers, then hands the race to the authority for verification. */
+  private settle(): void {
+    if (this.settled) return;
+    this.settled = true;
+    this.ctx.input.enabled = false;
+    this.ctx.platform.gameplayStop();
+    const idle = { jumpHeld: false, left: false, right: false, use: false };
+    let guard = 0;
+    while (this.sim.phase !== 'done' && guard++ < 60 * 30) {
+      this.recorder.record(this.sim.tick, idle);
+      this.scene.onTick(this.sim.step([idle]));
+    }
+    this.phase = 'results';
+    this.ctx.audio.setMusicIntensity(0.5);
+    const summary = summarizeRace(this.sim);
+    const settlement = this.ctx.authority.finishRace(this.ticket, this.recorder.log);
+    if (this.tutorial) void settlement.then(() => this.ctx.authority.completeTutorial()).catch(() => {});
+    const me = summary.racers.find((r) => r.isPlayer);
+    this.ctx.analytics.track('race_finish', { track: this.ticket.trackId, place: me?.place ?? 0, finished: me?.finishTime !== null });
+    this.onFinished?.(summary, settlement);
+  }
+
+  private updateTutorial(): void {
+    const sim = this.sim;
+    const r = sim.racers[0];
+    const b = r.body;
+    if (sim.phase === 'countdown') {
+      this.hud.setHint(t('Press jump right at GO for a start boost!'));
+      return;
+    }
+    if (sim.time < 1.2) {
+      this.hud.setHint(null);
+      return;
+    }
+    const lane = laneOfLateral(b.lateral);
+    let hint: string | null = null;
+    for (const h of sim.track.data.hazards) {
+      const d = h.s - b.s;
+      if (d < 0 || d > 14) continue;
+      if (!maskHasLane(h.lanes, lane)) continue;
+      if (h.kind === 'wall' && d < 14) hint = `${t('Switch lanes!')} (${t('A / D / ← → or swipe')})`;
+      else if ((h.kind === 'hurdle' || h.kind === 'spikes') && d < 8) hint = `${t('Jump!')} (${t('Space / W / ↑ or tap')})`;
+      if (hint) break;
+    }
+    if (!hint) {
+      for (let s = b.s + 1; s < b.s + 9; s += 0.5) {
+        if (sim.track.groundAt(s, b.lateral) === null) {
+          hint = `${t('Jump!')} · ${t('Hold jump to jump higher')}`;
+          break;
+        }
+      }
+    }
+    if (!hint && r.item) hint = `${t('Grab a Rune Box, then use it!')} (${t('E / right click')})`;
+    this.hud.setHint(hint);
+  }
+
+  dispose(): void {
+    this.ctx.input.enabled = false;
+    this.scene.dispose();
+    document.body.classList.remove('touch-on');
+  }
+}
