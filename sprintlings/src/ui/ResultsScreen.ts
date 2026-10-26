@@ -1,3 +1,4 @@
+import { MAX_ANIMAL_LEVEL, animalLevelForXp, animalXpForLevel, leagueFor, nextLeague } from '../progression/LeagueService';
 import type { AppContext } from '../app/AppContext';
 import type { RaceSettlement } from '../economy/EconomyService';
 import type { RaceResultSummary } from '../game/RaceResults';
@@ -73,6 +74,30 @@ export function resultsScreen(
       return null;
     });
 
+  /** Animal Rank (trophies + league) and the animal's own level. */
+  const rankPanel = (s: RaceSettlement) => {
+    const r = s.rank;
+    const d = r.trophiesAfter - r.trophiesBefore;
+    const lg = leagueFor(r.trophiesAfter);
+    const nx = nextLeague(r.trophiesAfter);
+    const al = animalLevelForXp(r.animalXpAfter);
+    const from = animalXpForLevel(al);
+    const to = al >= MAX_ANIMAL_LEVEL ? from : animalXpForLevel(al + 1);
+    return h(
+      'div',
+      { class: 'rank-panel' },
+      h(
+        'div',
+        { class: 'row row--between' },
+        h('b', null, `${lg.icon} ${lg.name}`),
+        h('span', { class: `chip ${d >= 0 ? 'chip--good' : 'chip--bad'}` }, `🏆 ${r.trophiesAfter} (${d >= 0 ? '+' : ''}${d})`),
+      ),
+      nx ? h('div', null, h('div', { class: 'small muted' }, t('{n} trophies to {league}', { n: nx.min - r.trophiesAfter, league: nx.name })), progressBar(r.trophiesAfter - lg.min, nx.min - lg.min, 'progress--xp')) : null,
+      h('div', { class: 'small muted', style: 'margin-top:6px' }, `${CHARACTERS[r.characterId].name} · ${t('Animal Level {n}', { n: al })}${al < MAX_ANIMAL_LEVEL ? ` · ${r.animalXpAfter - from}/${to - from} XP` : ''}`),
+      al < MAX_ANIMAL_LEVEL ? progressBar(r.animalXpAfter - from, to - from || 1) : null,
+    );
+  };
+
   const renderRewards = (s: RaceSettlement) => {
     const lines = s.breakdown.lines.map((l, i) =>
       h('div', { class: 'reward-line', style: `animation-delay:${0.15 + i * 0.22}s` }, h('span', null, l.label), h('span', { class: 'row' }, l.coins ? coinChip(`+${l.coins}`) : null, l.xp ? h('span', { class: 'chip chip--xp' }, `+${l.xp} XP`) : null)),
@@ -82,7 +107,8 @@ export function resultsScreen(
     rewards.replaceChildren(
       ...lines,
       h('div', { class: 'reward-total row row--between', style: `opacity:0;animation:lineIn .3s ${0.2 + lines.length * 0.22}s forwards` }, h('span', null, t('Total')), h('span', { class: 'row' }, coinChip(`+${s.breakdown.coins}`), h('span', { class: 'chip chip--xp' }, `+${s.breakdown.xp} XP`), h('span', { class: 'chip' }, `+${s.breakdown.seasonPoints} SP`))),
-      h('div', null, h('div', { class: 'small muted' }, `${t('Level {n}', { n: lp.level })} · ${lp.into}/${lp.needed} XP`), progressBar(lp.into, lp.needed || 1, 'progress--xp')),
+      h('div', null, h('div', { class: 'small muted' }, `${t('Runner Level {n}', { n: lp.level })} · ${lp.into}/${lp.needed} XP`), progressBar(lp.into, lp.needed || 1, 'progress--xp')),
+      rankPanel(s),
     );
     setTimeout(() => ctx.audio.play('coin'), 300 + lines.length * 220);
     const notes: HTMLElement[] = [];
@@ -91,7 +117,13 @@ export function resultsScreen(
     for (const q of s.questsCompleted) notes.push(h('div', { class: 'chip', style: 'background:#dcffe4' }, `📜 ${q.description} ✓`));
     for (const a of s.achievements) notes.push(h('div', { class: 'chip', style: 'background:#fff3c4' }, `🏆 ${t('Achievement unlocked')}: ${a.name}`));
     if (s.seasonTierAfter > s.seasonTierBefore) notes.push(h('div', { class: 'chip' }, `🍂 ${t('Season')}: ${t('Tier')} ${s.seasonTierAfter}`));
-    if (s.levelUps.length) ctx.audio.play('unlock');
+    const lb = leagueFor(s.rank.trophiesBefore);
+    const la = leagueFor(s.rank.trophiesAfter);
+    if (la.min > lb.min) notes.push(h('div', { class: 'levelup' }, `${la.icon} ${t('Promoted to {league}!', { league: la.name })}`));
+    const alB = animalLevelForXp(s.rank.animalXpBefore);
+    const alA = animalLevelForXp(s.rank.animalXpAfter);
+    if (alA > alB) notes.push(h('div', { class: 'levelup' }, `⬆ ${CHARACTERS[s.rank.characterId].name}: ${t('Animal Level {n}', { n: alA })}`));
+    if (s.levelUps.length || la.min > lb.min || alA > alB) ctx.audio.play('unlock');
     const active = p.quests.list.filter((q) => q.status === 'active').slice(0, 3);
     const questBox = active.length ? h('div', null, h('div', { class: 'small muted' }, t('Quest progress')), ...active.map((q) => h('div', { class: 'small' }, `${q.description}: ${q.progress}/${q.target}`, progressBar(q.progress, q.target)))) : null;
     extra.replaceChildren(h('div', { class: 'row row--wrap' }, ...notes), questBox ?? '');

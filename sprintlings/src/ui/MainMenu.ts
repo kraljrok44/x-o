@@ -5,6 +5,8 @@ import { visibleLoadout } from '../economy/InventoryService';
 import { dailyInfo } from '../progression/DailyRewardService';
 import { TRACK_IDS, trackInfo } from '../game/TrackManager';
 import { coinChip, gemChip, h } from './dom';
+import { showLeagues } from './LeagueScreen';
+import { animalLevel, leagueFor } from '../progression/LeagueService';
 import { t } from './i18n';
 import { showChestOpening } from './ChestOpening';
 import { topbar } from './Topbar';
@@ -42,6 +44,7 @@ export function mainMenu(ctx: AppContext): Screen {
   const charSub = h('div', { class: 'small muted' });
   const plate = h('button', { class: 'char-plate', style: 'cursor:pointer', onClick: () => ctx.go('characters') }, charName, charSub);
 
+  const rank = h('button', { class: 'rank-chip', onClick: () => showLeagues(ctx) });
   const play = h(
     'button',
     {
@@ -63,6 +66,7 @@ export function mainMenu(ctx: AppContext): Screen {
         'div',
         { class: 'menu-center' },
         plate,
+        rank,
         play,
         h('button', { class: 'btn btn--primary', onClick: () => ctx.go('modes') }, '🗺 ' + t('Choose a race')),
         h('div', { class: 'storage-note' }, ctx.authority.storageLabel),
@@ -82,7 +86,9 @@ export function mainMenu(ctx: AppContext): Screen {
     const p = ctx.authority.profile;
     const c = CHARACTERS[p.loadout.characterId];
     charName.textContent = c.name;
-    charSub.textContent = c.species;
+    charSub.textContent = `${c.species} · ${t('Animal Level {n}', { n: animalLevel(p, p.loadout.characterId) })}`;
+    const lg = leagueFor(p.trophies);
+    rank.textContent = `${lg.icon} ${lg.name} · 🏆 ${p.trophies}`;
     const counts = claimableCounts(p, ctx.authority.now());
     const set = (k: string, n: number) => {
       badges[k].textContent = String(n);

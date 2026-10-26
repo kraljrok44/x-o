@@ -51,6 +51,8 @@ export function profileScreen(ctx: AppContext): Screen {
         h(
           'div',
           { class: 'grid', style: 'grid-template-columns:repeat(auto-fill,minmax(140px,1fr));margin-top:8px' },
+          stat(t('Trophies'), ctx.authority.profile.trophies),
+          stat(t('Best trophies'), ctx.authority.profile.bestTrophies),
           stat(t('Races'), st.races),
           stat(t('Wins'), st.wins),
           stat(t('Podiums'), st.podiums),

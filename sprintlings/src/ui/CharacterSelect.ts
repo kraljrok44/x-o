@@ -1,6 +1,7 @@
 import type { AppContext } from '../app/AppContext';
 import { CHARACTERS, CHARACTER_IDS, PASSIVES, SPECIALS, type CharacterId } from '../player/CharacterDefinition';
 import { visibleLoadout } from '../economy/InventoryService';
+import { animalLevel } from '../progression/LeagueService';
 import { h, priceChip } from './dom';
 import { t } from './i18n';
 import { topbar } from './Topbar';
@@ -39,6 +40,7 @@ export function characterSelect(ctx: AppContext): Screen {
           { class: `card ${id === selected ? 'selected' : ''} ${owned ? '' : 'locked'}`, onClick: () => ((selected = id), render(), preview()) },
           h('img', { src: ctx.thumbs.portrait(id, p.loadout.variants[id] ?? null), alt: c.name, style: 'width:100%;aspect-ratio:1;object-fit:contain' }),
           h('div', { class: 'card__name' }, c.name),
+          p.characters.includes(id) ? h('div', { class: 'small muted' }, t('Animal Level {n}', { n: animalLevel(p, id) })) : null,
           owned ? (p.loadout.characterId === id ? h('span', { class: 'owned-tag equipped-tag' }, t('Selected')) : null) : h('span', { class: 'owned-tag', style: 'background:#9aa7b8' }, '🔒'),
         );
         return card;

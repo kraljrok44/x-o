@@ -10,6 +10,7 @@ import type { Rng } from '../shared/Rng';
 import type { RaceTicket } from '../game/RaceVerifier';
 import { ACHIEVEMENTS, assertClaimable, updateAchievements, type AchievementDefinition } from '../progression/AchievementService';
 import { assertDailyClaimable, markDailyClaimed } from '../progression/DailyRewardService';
+import { applyRank, type RankChange } from '../progression/LeagueService';
 import { applyRaceToQuests, findQuest, refreshQuests, type RaceOutcome } from '../progression/QuestService';
 import type { QuestState } from './Profile';
 import { assertTierClaimable, premiumEntitlement, seasonAt, syncSeason, tierForPoints, type SeasonReward } from '../progression/SeasonPassService';
@@ -39,6 +40,7 @@ export interface RaceSettlement {
   seasonTierBefore: number;
   seasonTierAfter: number;
   newBest: boolean;
+  rank: RankChange;
 }
 
 export interface GrantResult {
@@ -135,6 +137,7 @@ export function settleRace(profile: PlayerProfile, ticket: RaceTicket, outcome: 
   const breakdown = calculateRaceReward(outcome);
   credit(profile, 'coins', breakdown.coins);
   const levelUps = addXp(profile, breakdown.xp);
+  const rank = applyRank(profile, ticket.racers?.[0]?.characterId ?? profile.loadout.characterId, outcome, breakdown.xp);
   const tierBefore = tierForPoints(profile.season.points);
   if (seasonAt(now)?.id === profile.season.seasonId && profile.season.seasonId) profile.season.points += breakdown.seasonPoints;
 
@@ -185,6 +188,7 @@ export function settleRace(profile: PlayerProfile, ticket: RaceTicket, outcome: 
     seasonTierBefore: tierBefore,
     seasonTierAfter: tierForPoints(profile.season.points),
     newBest,
+    rank,
   };
 }
 

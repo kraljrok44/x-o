@@ -111,6 +111,11 @@ export interface PlayerProfile {
   /** Highest server/clock time seen, to detect clocks moved backwards. */
   lastSeenTime: number;
   tutorialDone: boolean;
+  /** Ranked ladder (see progression/LeagueService). */
+  trophies: number;
+  bestTrophies: number;
+  /** XP earned per animal, for Animal Levels. */
+  animalXp: Partial<Record<CharacterId, number>>;
 }
 
 export function emptyStats(): ProfileStats {
@@ -162,6 +167,9 @@ export function createProfile(id: string, now: number, name = 'Sprinter'): Playe
     ledger: [],
     lastSeenTime: now,
     tutorialDone: false,
+    trophies: 0,
+    bestTrophies: 0,
+    animalXp: {},
   };
 }
 
