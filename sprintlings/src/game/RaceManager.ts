@@ -33,6 +33,8 @@ export interface RacerSetup {
   variantId?: string | null;
   /** Present for computer-controlled racers. */
   difficulty?: DifficultyId;
+  /** Team id (Duos). Omitted = everyone for themselves. */
+  team?: number;
 }
 
 export interface RaceSetup {
@@ -90,6 +92,7 @@ export class RaceSimulation implements MovementWorld {
       const y = Number.isNaN(g) ? 0 : g;
       const racer: Racer = {
         index,
+        team: r.team ?? index,
         id: r.id,
         name: r.name,
         characterId: r.characterId,
@@ -120,6 +123,16 @@ export class RaceSimulation implements MovementWorld {
   /** Race clock in seconds; negative during the countdown. */
   get time(): number {
     return (this.tick - this.countdownTicks) / GameplayConfig.tickRate;
+  }
+
+  /** True when a and b are on the same team (a racer is its own teammate). */
+  sameTeam(a: number, b: number): boolean {
+    return this.racers[a].team === this.racers[b].team;
+  }
+
+  /** Whether the race is a team race. */
+  get isTeamRace(): boolean {
+    return this.racers.some((r, i) => r.team !== i);
   }
 
   isAI(index: number): boolean {
@@ -178,7 +191,7 @@ export class RaceSimulation implements MovementWorld {
 
   inSap(racer: number, x: number, y: number): boolean {
     for (const e of this.entities) {
-      if (e.kind === 'sap' && e.alive && e.owner !== racer && x >= e.x0 && x <= e.x1 && Math.abs(y - e.y) < 0.3) return true;
+      if (e.kind === 'sap' && e.alive && !this.sameTeam(e.owner, racer) && x >= e.x0 && x <= e.x1 && Math.abs(y - e.y) < 0.3) return true;
     }
     return false;
   }
@@ -187,7 +200,7 @@ export class RaceSimulation implements MovementWorld {
     if (body.invuln > 0) return -1;
     const tune = AbilityTuning.snare;
     for (const e of this.entities) {
-      if (e.kind !== 'snare' || !e.alive || e.owner === racer) continue;
+      if (e.kind !== 'snare' || !e.alive || this.sameTeam(e.owner, racer)) continue;
       if (Math.abs(e.x - body.x) > tune.halfWidth + GameplayConfig.hitbox.halfWidth) continue;
       if (body.y > e.y + tune.height || body.y + GameplayConfig.hitbox.height < e.y) continue;
       e.alive = false;

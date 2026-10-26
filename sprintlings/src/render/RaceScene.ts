@@ -423,14 +423,23 @@ export class RaceScene {
       ctx.strokeStyle = '#2a1d2e';
       ctx.stroke();
     } else {
+      // Teammates get blue tags and a green marker, rivals red ones (team races).
+      const mate = this.sim.isTeamRace && this.sim.sameTeam(r.index, this.localIndex);
       const label = r.name;
       const tw = ctx.measureText(label).width + 12;
       ctx.beginPath();
       roundRect(ctx, x - tw / 2, y - fs - 8, tw, fs + 6, 8);
-      ctx.fillStyle = 'rgba(30,20,45,0.55)';
+      ctx.fillStyle = mate ? 'rgba(40,100,190,0.75)' : 'rgba(42,22,11,0.6)';
       ctx.fill();
       ctx.fillStyle = '#ffffff';
       ctx.fillText(label, x, y - 4);
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y + 2);
+      ctx.lineTo(x + 5, y + 2);
+      ctx.lineTo(x, y + 9);
+      ctx.closePath();
+      ctx.fillStyle = mate ? '#7cdc4a' : '#ff4a3a';
+      ctx.fill();
     }
     // Held ability bubble (so you can see what rivals carry).
     if (r.item && r.body.phase === 'run') {

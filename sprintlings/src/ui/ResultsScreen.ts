@@ -20,11 +20,12 @@ export function resultsScreen(
   actions: { again: () => void; done: () => void },
 ): Screen & { settled: Promise<RaceSettlement | null> } {
   const standings = h('div');
+  const me0 = summary.racers.find((r) => r.isPlayer)!;
   for (const r of summary.racers) {
     standings.append(
       h(
         'div',
-        { class: `standing ${r.isPlayer ? 'me' : ''}` },
+        { class: `standing ${r.isPlayer ? 'me' : ''} ${summary.winningTeam !== null ? (r.team === me0.team ? 'team-mine' : 'team-rival') : ''}` },
         h('span', { class: 'pos' }, r.finishTime !== null ? ordinal(r.place) : '—'),
         h('img', { src: ctx.thumbs.portrait(r.characterId), style: 'width:44px;height:44px' }),
         h('span', { class: 'name' }, r.isPlayer ? `${r.name} (${t('You')})` : r.name, h('div', { class: 'small muted' }, CHARACTERS[r.characterId].name)),
@@ -41,7 +42,7 @@ export function resultsScreen(
     h('button', { class: 'btn btn--primary', onClick: () => actions.again() }, '↻ ' + t('Race again')),
     h('button', { class: 'btn btn--good btn--big', onClick: () => actions.done() }, t('Continue') + ' ▶'),
   );
-  const title = me.finishTime === null ? t('Time up!') : summary.racers.length > 1 ? `${ordinal(me.place)} ${me.place === 1 ? '🏆' : me.place <= 3 ? '🥉' : ''}` : formatRaceTime(me.finishTime);
+  const title = summary.winningTeam !== null ? (summary.winningTeam === me.team ? '🏆 ' + t('VICTORY') : t('DEFEAT')) : me.finishTime === null ? t('Time up!') : summary.racers.length > 1 ? `${ordinal(me.place)} ${me.place === 1 ? '🏆' : me.place <= 3 ? '🥉' : ''}` : formatRaceTime(me.finishTime);
   const el = h(
     'div',
     { class: 'screen', style: 'background:linear-gradient(90deg,rgba(27,21,48,0.0),rgba(27,21,48,0.55))' },

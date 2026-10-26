@@ -1,5 +1,6 @@
 import { ABILITIES } from '../abilities/AbilityDefinition';
 import type { RaceSimulation } from '../game/RaceManager';
+import type { Racer } from '../game/RaceState';
 import type { InputManager } from '../input/InputManager';
 import { keyLabel } from '../input/InputManager';
 import { CHARACTERS } from '../player/CharacterDefinition';
@@ -25,6 +26,9 @@ export class RaceHUD {
   private readonly warning = h('div', { class: 'hud-warning hidden' });
   private readonly hint = h('div', { class: 'hud-hint hidden' });
   private readonly fps = h('div', { class: 'hud-fps hidden' });
+  private readonly feedEl = h('div', { class: 'hud-feed' });
+  private readonly teamsEl = h('div', { class: 'hud-teams' });
+  private readonly teamSlots: HTMLElement[] = [];
   private readonly touch: HTMLElement;
   readonly pauseBtn: HTMLButtonElement;
   private last = { place: '', time: '', glim: -1, item: 'x', cd: '', warn: false, hint: '' };
@@ -37,7 +41,17 @@ export class RaceHUD {
     input: InputManager,
     touchMode: boolean,
     private readonly showFps: boolean,
+    portrait?: (r: Racer) => string,
   ) {
+    // Fun Run-style header: your side vs the rivals, finishers turn into flags.
+    const mine = sim.racers.filter((r) => r.team === sim.racers[localIndex].team);
+    const rivals = sim.racers.filter((r) => r.team !== sim.racers[localIndex].team);
+    const slot = (r: Racer) => {
+      const el = h('div', { class: `hud-team-slot ${r.team === sim.racers[localIndex].team ? 'mine' : 'rival'}`, title: r.name }, portrait ? h('img', { src: portrait(r), alt: '' }) : r.name.slice(0, 1));
+      this.teamSlots[r.index] = el;
+      return el;
+    };
+    if (sim.racers.length > 1) this.teamsEl.append(...mine.map(slot), h('b', { class: 'hud-vs' }, 'VS'), ...rivals.map(slot));
     for (const r of sim.racers) {
       const dot = h('div', { class: `hud-dot ${r.index === localIndex ? 'me' : ''}`, style: `background:${CHARACTERS[r.characterId].palette.body}`, title: r.name });
       this.dots.push(dot);
@@ -65,6 +79,8 @@ export class RaceHUD {
       h('div', { class: 'hud-top' }, h('div', null, this.place, this.time, this.glimmers), h('div')),
       this.progress,
       this.pauseBtn,
+      this.teamsEl,
+      this.feedEl,
       this.touch,
       this.ability,
       this.countdown,
@@ -72,6 +88,21 @@ export class RaceHUD {
       this.hint,
       this.fps,
     );
+  }
+
+  /** Kill feed line, newest on top: "attacker 🚀 victim" (or a finish notice). */
+  feed(left: string, icon: string, right: string, leftMine: boolean, rightMine: boolean): void {
+    const line = h(
+      'div',
+      { class: 'hud-feed-line' },
+      h('span', { class: leftMine ? 'mine' : 'rival' }, left),
+      h('span', { class: 'ico' }, icon),
+      h('span', { class: rightMine ? 'mine' : 'rival' }, right),
+    );
+    this.feedEl.prepend(line);
+    while (this.feedEl.children.length > 6) this.feedEl.lastElementChild?.remove();
+    setTimeout(() => line.classList.add('fade'), 4500);
+    setTimeout(() => line.remove(), 5200);
   }
 
   callout(text: string): void {
@@ -107,6 +138,10 @@ export class RaceHUD {
     if (me.stats.glimmers !== this.last.glim) {
       this.last.glim = me.stats.glimmers;
       this.glimmers.textContent = `✦ ${me.stats.glimmers}`;
+    }
+    for (const r of sim.racers) {
+      const s = this.teamSlots[r.index];
+      if (s && r.finishTime !== null && !s.classList.contains('done')) s.classList.add('done');
     }
     const len = sim.track.length;
     for (const r of sim.racers) {

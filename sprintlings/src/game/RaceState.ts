@@ -121,6 +121,8 @@ export function copyBody(from: RacerBody, to: RacerBody): RacerBody {
 
 export interface Racer {
   index: number;
+  /** Team id: racers on the same team never hurt each other (Duos). */
+  team: number;
   id: string;
   name: string;
   characterId: CharacterId;
@@ -193,6 +195,8 @@ export type RaceEventType =
   | 'itemPickup'
   | 'abilityUse'
   | 'seekerHit'
+  /** A racer was hit by a rival's powerup (value = attacker, ability = which). */
+  | 'abilityHit'
   | 'seekerExpire'
   | 'glimmer'
   | 'boostPad'

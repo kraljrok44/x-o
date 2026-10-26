@@ -14,7 +14,7 @@ export function findSeekerTarget(sim: RaceSimulation, owner: number): number {
   let best = -1;
   let bestGap = Infinity;
   for (const r of sim.racers) {
-    if (r.index === owner) continue;
+    if (sim.sameTeam(r.index, owner)) continue;
     const b = r.body;
     if (b.phase === 'finished' || b.phase === 'grid') continue;
     const gap = b.x - me.x;
@@ -58,7 +58,7 @@ function stepSeeker(sim: RaceSimulation, e: SeekerEntity, dt: number): void {
     return;
   }
   for (const r of sim.racers) {
-    if (r.index === e.owner && e.age < 2) continue;
+    if (sim.sameTeam(r.index, e.owner)) continue;
     const b = r.body;
     if (b.phase !== 'run') continue;
     if (Math.abs(b.x - e.x) > hb.halfWidth + tune.radius) continue;

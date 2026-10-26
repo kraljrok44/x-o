@@ -1,6 +1,6 @@
 import { TICK_DT } from '../config/GameplayConfig';
 import { AIController } from '../ai/AIController';
-import type { AbilityId } from '../abilities/AbilityDefinition';
+import { ABILITIES, type AbilityId } from '../abilities/AbilityDefinition';
 import type { SfxId } from '../audio/AudioManager';
 import type { RaceSettlement } from '../economy/EconomyService';
 import { RaceSimulation } from '../game/RaceManager';
@@ -53,7 +53,7 @@ export class RaceController {
     const s = ctx.settings.value;
     const touch = s.touchControls === 'on' || (s.touchControls === 'auto' && matchMedia('(pointer: coarse)').matches);
     this.touch = touch;
-    this.hud = new RaceHUD(this.sim, 0, ctx.input, touch, s.showFps);
+    this.hud = new RaceHUD(this.sim, 0, ctx.input, touch, s.showFps, (r) => ctx.thumbs.portrait(r.characterId, r.variantId, {}, true));
     this.hud.pauseBtn.addEventListener('click', () => this.pause());
     this.tutorial = !ctx.authority.profile.tutorialDone;
     this.scene.shakeEnabled = s.cameraShake && !s.reducedMotion;
@@ -164,10 +164,39 @@ export class RaceController {
     if (this.phase !== 'lobby') this.hud.update(dt);
   }
 
+  /** Kill feed: who hit whom with which powerup, and who finished. */
+  private feed(e: RaceEvent): void {
+    const sim = this.sim;
+    const victim = sim.racers[e.racer];
+    if (!victim) return;
+    const mine = (i: number) => sim.sameTeam(i, 0);
+    let owner = -1;
+    let icon = '';
+    if (e.type === 'seekerHit') {
+      owner = e.value;
+      icon = ABILITIES.seeker.icon;
+    } else if (e.type === 'hit' && e.value >= 200000) {
+      const ent = sim.entities.find((x) => x.id === e.value - 200000);
+      if (ent) {
+        owner = ent.owner;
+        icon = ABILITIES.snare.icon;
+      }
+    } else if (e.type === 'abilityHit') {
+      owner = e.value;
+      icon = e.ability ? ABILITIES[e.ability].icon : '💥';
+    } else if (e.type === 'finish') {
+      this.hud.feed(victim.name, '🏁', t('Finished'), mine(e.racer), mine(e.racer));
+      return;
+    }
+    if (owner < 0) return;
+    this.hud.feed(sim.racers[owner].name, icon, victim.name, mine(owner), mine(e.racer));
+  }
+
   private handleEvents(events: readonly RaceEvent[]): void {
     const a = this.ctx.audio;
     const me = this.sim.racers[0].body;
     for (const e of events) {
+      this.feed(e);
       if (e.type === 'countdown') {
         if (e.value > 0) a.play('beep');
         continue;

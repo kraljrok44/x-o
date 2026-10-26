@@ -36,6 +36,13 @@ export function modeSelect(ctx: AppContext): Screen {
   grid.append(
     h(
       'button',
+      { class: 'card track-card track-card--duos', onClick: () => ctx.startRace(ctx.settings.value.lastTrack || TRACK_IDS[0], 'duos') },
+      h('div', { style: 'font-size:44px' }, '🤠🤠'),
+      h('div', { class: 'card__name' }, t('Duos')),
+      h('div', { class: 'small' }, t('Team race: you and a partner against two rivals. Your powerups never hurt your partner.')),
+    ),
+    h(
+      'button',
       {
         class: `card track-card track-card--remix ${remixLocked ? 'locked' : ''}`,
         onClick: () => (remixLocked ? ctx.ui.toast(t('Unlocks at level {n}', { n: 3 }), 'bad') : ctx.startRace(`remix:${dayKey(ctx.authority.now())}`, 'remix')),

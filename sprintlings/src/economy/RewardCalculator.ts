@@ -29,6 +29,7 @@ export function calculateRaceReward(o: RaceOutcome): RaceRewardBreakdown {
       });
     }
   }
+  if (o.mode === 'duos' && o.teamWin) lines.push({ label: 'Team victory', coins: cfg.teamWinCoins, xp: cfg.winXp, seasonPoints: cfg.seasonPoints.win });
   const glimmerCoins = Math.min(cfg.glimmerCoinCap, Math.floor(o.stats.glimmers / cfg.glimmersPerCoin));
   if (glimmerCoins > 0) lines.push({ label: `Gold nuggets ×${o.stats.glimmers}`, coins: glimmerCoins, xp: 0, seasonPoints: 0 });
   if (o.mode === 'practice') {

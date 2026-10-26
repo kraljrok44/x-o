@@ -8,7 +8,7 @@ import { summarizeRace } from './RaceResults';
 import { getTrack } from './TrackManager';
 import type { RaceOutcome } from '../progression/QuestService';
 
-export type RaceMode = 'race' | 'practice' | 'remix';
+export type RaceMode = 'race' | 'practice' | 'remix' | 'duos';
 export type DifficultyChoice = 'auto' | 'easy' | 'normal' | 'hard';
 
 /** Issued by the authority before a race; the only valid basis for rewards. */
@@ -51,7 +51,7 @@ export function createTicket(
   now: number,
 ): RaceTicket {
   const rng = new Rng(seed ^ 0x5bd1e995);
-  const racers: RacerSetup[] = [{ ...player, isPlayer: true, difficulty: undefined }];
+  const racers: RacerSetup[] = [{ ...player, isPlayer: true, difficulty: undefined, team: mode === 'duos' ? 0 : undefined }];
   if (mode !== 'practice') {
     const names = rng.shuffle([...BOT_NAMES]);
     const chars = rng.shuffle(CHARACTER_IDS.filter((c) => c !== player.characterId)) as CharacterId[];
@@ -65,7 +65,8 @@ export function createTicket(
         }
       }
       cosmetics.emote = rng.pick(COSMETICS.filter((c) => c.slot === 'emote' && !c.seasonId)).id;
-      racers.push({ id: `bot_${i}`, name: names[i], characterId: chars[i], isPlayer: false, difficulty: diffs[i], cosmetics, variantId: null });
+      const team = mode === 'duos' ? (i === 0 ? 0 : 1) : undefined;
+      racers.push({ id: `bot_${i}`, name: names[i], characterId: chars[i], isPlayer: false, difficulty: diffs[i], cosmetics, variantId: null, team });
     }
   }
   return { raceId, trackId, seed, mode, racers, issuedAt: now };
@@ -107,6 +108,7 @@ export function verifyRace(ticket: RaceTicket, log: unknown): VerifyResult {
       finished: me.finishTime !== null,
       finishTime: me.finishTime,
       stats: me.stats,
+      teamWin: summary.winningTeam === null ? undefined : summary.winningTeam === me.team,
     },
   };
 }

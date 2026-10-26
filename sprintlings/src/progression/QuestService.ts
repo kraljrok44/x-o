@@ -9,9 +9,11 @@ import type { PlayerProfile, QuestState } from '../economy/Profile';
 export interface RaceOutcome {
   raceId: string;
   trackId: string;
-  mode: 'race' | 'practice' | 'remix';
+  mode: 'race' | 'practice' | 'remix' | 'duos';
   /** 1-based place. */
   place: number;
+  /** Duos only: whether the player's team won. */
+  teamWin?: boolean;
   racerCount: number;
   finished: boolean;
   finishTime: number | null;

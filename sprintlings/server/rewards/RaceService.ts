@@ -11,7 +11,7 @@ import type { Repository } from '../persistence/Repository';
 import type { VerifierPool } from '../antiCheat/VerifierPool';
 import { checkTiming } from '../antiCheat/RacePlausibility';
 
-const MODES: RaceMode[] = ['race', 'practice', 'remix'];
+const MODES: RaceMode[] = ['race', 'practice', 'remix', 'duos'];
 const DIFFS: DifficultyChoice[] = ['auto', 'easy', 'normal', 'hard'];
 
 /**

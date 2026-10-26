@@ -14,6 +14,8 @@ export const EconomyConfig = {
     placeBonusCoins: [20, 12, 6, 0] as readonly number[],
     finishXp: 5,
     winXp: 3,
+    /** Duos: bonus for the whole team when it wins. */
+    teamWinCoins: 15,
     /** One coin per this many glimmers collected, capped. */
     glimmersPerCoin: 5,
     glimmerCoinCap: 15,

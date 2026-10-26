@@ -180,7 +180,7 @@ export class AIController {
       case 'snare':
       case 'sap': {
         const behind = sim.racers.some((r) => {
-          if (r.index === this.index || r.body.phase !== 'run') return false;
+          if (sim.sameTeam(r.index, this.index) || r.body.phase !== 'run') return false;
           const gap = b.x - r.body.x;
           // Only worth it when the chaser runs on the same level as us.
           return gap > 2.5 && gap < 13 && Math.abs(r.body.y - b.y) < 1;

@@ -75,7 +75,7 @@ class PredictionWorld implements MovementWorld {
     if (body.invuln > 0) return -1;
     const tune = AbilityTuning.snare;
     for (const e of this.sim.entities) {
-      if (e.kind !== 'snare' || !e.alive || e.owner === racer) continue;
+      if (e.kind !== 'snare' || !e.alive || this.sim.sameTeam(e.owner, racer)) continue;
       if (Math.abs(e.x - body.x) > tune.halfWidth + GameplayConfig.hitbox.halfWidth) continue;
       if (body.y > e.y + tune.height || body.y + GameplayConfig.hitbox.height < e.y) continue;
       return 200000 + e.id;
@@ -322,8 +322,8 @@ export function needsPlanning(sim: RaceSimulation, racer: number, dist: number):
   for (const e of sim.entities) {
     if (!e.alive) continue;
     if (e.kind === 'seeker' && e.target === racer) return true;
-    if (e.kind === 'snare' && e.owner !== racer && e.x > b.x - 1 && e.x < end) return true;
-    if (e.kind === 'sap' && e.owner !== racer && e.x1 > b.x - 1 && e.x0 < end) return true;
+    if (e.kind === 'snare' && !sim.sameTeam(e.owner, racer) && e.x > b.x - 1 && e.x < end) return true;
+    if (e.kind === 'sap' && !sim.sameTeam(e.owner, racer) && e.x1 > b.x - 1 && e.x0 < end) return true;
   }
   return false;
 }
