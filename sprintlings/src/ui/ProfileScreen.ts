@@ -14,7 +14,7 @@ export function profileScreen(ctx: AppContext): Screen {
   const render = () => {
     const p = ctx.authority.profile;
     const lp = levelProgress(p.xp);
-    const nameInput = h('input', { value: p.name, maxlength: '16', style: 'font:inherit;font-size:18px;padding:8px 10px;border:3px solid #2a2147;border-radius:12px;flex:1;min-width:0' }) as HTMLInputElement;
+    const nameInput = h('input', { value: p.name, maxlength: '16', style: 'font:inherit;font-size:18px;padding:8px 10px;border:3px solid #3a1f10;border-radius:12px;background:#fff8e6;flex:1;min-width:0' }) as HTMLInputElement;
     const st = p.stats;
     const stat = (label: string, v: string | number) => h('div', { class: 'list-item', style: 'padding:8px 12px' }, h('div', { class: 'list-item__body' }, h('div', { class: 'small muted' }, label), h('div', { class: 'list-item__title' }, String(v))));
     body.replaceChildren(
@@ -58,8 +58,8 @@ export function profileScreen(ctx: AppContext): Screen {
           stat('Jumps', st.jumps),
           stat('Obstacles cleared', st.hurdles),
           stat(t('Abilities'), st.abilitiesUsed),
-          stat('Seeker hits', st.hitsLanded),
-          stat('Glimmers', st.glimmers),
+          stat('Rocket hits', st.hitsLanded),
+          stat('Gold nuggets', st.glimmers),
           stat(t('Quests'), st.questsCompleted),
           stat('Items', p.inventory.length),
           stat('Play time', `${Math.round(st.playSeconds / 60)} min`),

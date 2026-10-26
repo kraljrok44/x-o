@@ -30,7 +30,7 @@ export function calculateRaceReward(o: RaceOutcome): RaceRewardBreakdown {
     }
   }
   const glimmerCoins = Math.min(cfg.glimmerCoinCap, Math.floor(o.stats.glimmers / cfg.glimmersPerCoin));
-  if (glimmerCoins > 0) lines.push({ label: `Glimmers ×${o.stats.glimmers}`, coins: glimmerCoins, xp: 0, seasonPoints: 0 });
+  if (glimmerCoins > 0) lines.push({ label: `Gold nuggets ×${o.stats.glimmers}`, coins: glimmerCoins, xp: 0, seasonPoints: 0 });
   if (o.mode === 'practice') {
     for (const l of lines) {
       l.coins = Math.floor(l.coins * cfg.practiceMultiplier);

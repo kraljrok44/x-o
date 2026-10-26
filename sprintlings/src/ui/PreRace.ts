@@ -36,7 +36,7 @@ export function preRace(ctx: AppContext, ticket: RaceTicket, onGo: () => void, o
       h(
         'div',
         { class: 'sheet stack', style: 'max-width:760px' },
-        h('div', { class: 'row row--between row--wrap' }, h('h1', { class: 'logo', style: 'font-size:clamp(30px,6vw,52px)' }, ticket.mode === 'remix' ? t('Daily Remix') : info.name), timer),
+        h('div', { class: 'row row--between row--wrap' }, h('h1', { class: 'logo', style: 'font-size:clamp(30px,6vw,52px)' }, ticket.mode === 'remix' ? t('Daily Trail') : info.name), timer),
         h('div', { class: 'lobby-racers' }, ...cards),
         h(
           'div',

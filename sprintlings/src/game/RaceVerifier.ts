@@ -21,7 +21,7 @@ export interface RaceTicket {
   issuedAt: number;
 }
 
-const BOT_NAMES = ['Pip', 'Bramble', 'Nibs', 'Tumble', 'Skip', 'Wren', 'Clover', 'Juniper', 'Mochi', 'Pepper', 'Sprout', 'Biscuit', 'Fennel', 'Dot', 'Ziggy', 'Marlo', 'Quill', 'Tansy', 'Sorrel', 'Pebbles', 'Fig', 'Basil'];
+const BOT_NAMES = ['Dusty', 'Slim', 'Tex', 'Mabel', 'Hank', 'Daisy', 'Cody', 'Rowdy', 'Belle', 'Jesse', 'Waylon', 'Annie', 'Boone', 'Clem', 'Pecos', 'Sadie', 'Rio', 'Calamity', 'Wyatt', 'Pearl', 'Ringo', 'Dolly'];
 
 export function botDifficulties(choice: DifficultyChoice, level: number): DifficultyId[] {
   switch (choice) {

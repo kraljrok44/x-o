@@ -1,5 +1,5 @@
 /**
- * The five race abilities. Racers obtain one charge at a time from Rune Boxes
+ * The five race abilities. Racers obtain one charge at a time from loot crates
  * placed on the track and fire it with the ability key.
  *
  * Every field the design document asks for (activation, duration, range,
@@ -37,8 +37,8 @@ export interface AbilityDefinition {
 export const ABILITIES: Record<AbilityId, AbilityDefinition> = {
   dash: {
     id: 'dash',
-    name: 'Zephyr Dash',
-    description: 'A short burst of speed. Does not let you pass through walls.',
+    name: 'Spur Dash',
+    description: 'Dig in your spurs for a short burst of speed. Walls still stop you.',
     activationTime: 0,
     duration: 1.5,
     range: 0,
@@ -46,33 +46,33 @@ export const ABILITIES: Record<AbilityId, AbilityDefinition> = {
     targeting: 'self',
     counterplay: 'Opponents can still hit you with seekers; obstacles still trip you.',
     cooldown: 0.5,
-    feedback: { sound: 'dash', visual: 'speed lines + wind trail' },
+    feedback: { sound: 'dash', visual: 'speed lines + dust trail' },
     network: 'input-event',
     invalidUse: 'Ignored while stunned, falling or respawning; charge is kept.',
-    color: '#4fd6ff',
-    icon: '»',
+    color: '#4fb0ff',
+    icon: '💨',
   },
   shield: {
     id: 'shield',
-    name: 'Bubble Ward',
-    description: 'Blocks the next hit or slow-down for 5 seconds.',
+    name: 'Tin Star Shield',
+    description: 'A lucky tin star blocks the next hit or slow-down for 5 seconds.',
     activationTime: 0,
     duration: 5,
     range: 0,
     speed: 0,
     targeting: 'self',
-    counterplay: 'Bait it with a snare before firing a seeker.',
+    counterplay: 'Bait it with dynamite before firing a rocket.',
     cooldown: 0.5,
-    feedback: { sound: 'shield', visual: 'iridescent bubble' },
+    feedback: { sound: 'shield', visual: 'golden star shield' },
     network: 'input-event',
     invalidUse: 'Ignored while falling or respawning; charge is kept.',
-    color: '#9b8cff',
-    icon: '◎',
+    color: '#f2c14e',
+    icon: '⭐',
   },
   seeker: {
     id: 'seeker',
-    name: 'Thistle Seeker',
-    description: 'A slow floating thistle that homes toward the nearest racer ahead.',
+    name: 'Homing Rocket',
+    description: 'A toy rocket that homes in on the nearest racer ahead.',
     activationTime: 0.1,
     duration: 6,
     range: 90,
@@ -80,16 +80,16 @@ export const ABILITIES: Record<AbilityId, AbilityDefinition> = {
     targeting: 'nearestAhead',
     counterplay: 'Jump over it at the last moment, take another route, or shield it.',
     cooldown: 0.5,
-    feedback: { sound: 'seeker', visual: 'spiky ball with trail; target gets a warning' },
+    feedback: { sound: 'seeker', visual: 'red rocket with smoke trail; target gets a warning' },
     network: 'server-spawned-entity',
     invalidUse: 'Ignored while stunned, falling or respawning; charge is kept.',
-    color: '#ff7a3d',
-    icon: '✸',
+    color: '#e8473b',
+    icon: '🚀',
   },
   snare: {
     id: 'snare',
-    name: 'Bramble Snare',
-    description: 'Drops a bramble knot behind you for 10 seconds.',
+    name: 'Dynamite',
+    description: 'Drops a ticking dynamite bundle behind you for 10 seconds.',
     activationTime: 0,
     duration: 10,
     range: 2,
@@ -97,16 +97,16 @@ export const ABILITIES: Record<AbilityId, AbilityDefinition> = {
     targeting: 'behind',
     counterplay: 'Jump over it or take the upper route.',
     cooldown: 0.5,
-    feedback: { sound: 'snare', visual: 'thorny knot with red warning ring' },
+    feedback: { sound: 'snare', visual: 'dynamite with lit fuse, flashing timer and red danger ring' },
     network: 'server-spawned-entity',
     invalidUse: 'Ignored in the air over a gap (no ground to place on); charge is kept.',
-    color: '#5bd16b',
-    icon: '✶',
+    color: '#ff3d2e',
+    icon: '🧨',
   },
   sap: {
     id: 'sap',
-    name: 'Sticky Sap',
-    description: 'Spills a wide sap puddle behind you that slows racers for 6 seconds.',
+    name: 'Tar Spill',
+    description: 'Tips a barrel of sticky tar behind you that slows racers for 6 seconds.',
     activationTime: 0,
     duration: 6,
     range: 6,
@@ -114,18 +114,18 @@ export const ABILITIES: Record<AbilityId, AbilityDefinition> = {
     targeting: 'behind',
     counterplay: 'Jump across it; shields ignore it.',
     cooldown: 0.5,
-    feedback: { sound: 'sap', visual: 'glossy amber puddle' },
+    feedback: { sound: 'sap', visual: 'black tar pool with hazard stripes and a tipped barrel' },
     network: 'server-spawned-entity',
     invalidUse: 'Ignored in the air over a gap; charge is kept.',
-    color: '#f2b233',
-    icon: '◍',
+    color: '#6a4aa8',
+    icon: '🛢',
   },
 };
 
 export const ABILITY_IDS: readonly AbilityId[] = ['dash', 'shield', 'seeker', 'snare', 'sap'];
 
 /**
- * Rune Box roll weights by race position (index 0 = leader). Trailing racers
+ * Loot crate roll weights by race position (index 0 = leader). Trailing racers
  * get more offensive/catch-up tools, leaders more defensive ones.
  */
 export const ITEM_WEIGHTS_BY_POSITION: readonly Record<AbilityId, number>[] = [

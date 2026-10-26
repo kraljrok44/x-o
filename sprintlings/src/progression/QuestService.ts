@@ -35,13 +35,13 @@ export const QUEST_TEMPLATES: QuestTemplate[] = [
   { id: 'q_finish', metric: 'finishes', targets: [3, 5], text: (n) => `Finish ${n} races`, coins: 60, xp: 10, seasonPoints: 40 },
   { id: 'q_hurdles', metric: 'hurdles', targets: [10, 20], text: (n) => `Jump over ${n} obstacles`, coins: 50, xp: 8, seasonPoints: 40 },
   { id: 'q_abilities', metric: 'abilities', targets: [5, 8], text: (n) => `Use abilities ${n} times`, coins: 50, xp: 8, seasonPoints: 40 },
-  { id: 'q_glimmers', metric: 'glimmers', targets: [60, 120], text: (n) => `Collect ${n} glimmers`, coins: 60, xp: 8, seasonPoints: 40 },
+  { id: 'q_glimmers', metric: 'glimmers', targets: [60, 120], text: (n) => `Collect ${n} gold nuggets`, coins: 60, xp: 8, seasonPoints: 40 },
   { id: 'q_podium', metric: 'podiums', targets: [2], text: () => 'Finish in the top 3 twice', coins: 80, xp: 12, seasonPoints: 60 },
   { id: 'q_win', metric: 'wins', targets: [1], text: () => 'Win a race', coins: 100, xp: 15, seasonPoints: 80 },
-  { id: 'q_seeker', metric: 'hitsLanded', targets: [2], text: () => 'Hit rivals with Thistle Seekers twice', coins: 70, xp: 10, seasonPoints: 50 },
+  { id: 'q_seeker', metric: 'hitsLanded', targets: [2], text: () => 'Hit rivals with Homing Rockets twice', coins: 70, xp: 10, seasonPoints: 50 },
   { id: 'q_clean', metric: 'cleanFinishes', targets: [1, 2], text: (n) => (n === 1 ? 'Finish a race without falling' : `Finish ${n} races without falling`), coins: 60, xp: 10, seasonPoints: 50 },
-  { id: 'q_block', metric: 'shieldBlocks', targets: [2], text: () => 'Block 2 hits with Bubble Ward', coins: 70, xp: 10, seasonPoints: 50 },
-  { id: 'q_boxes', metric: 'itemBoxes', targets: [6, 10], text: (n) => `Open ${n} Rune Boxes`, coins: 50, xp: 8, seasonPoints: 40 },
+  { id: 'q_block', metric: 'shieldBlocks', targets: [2], text: () => 'Block 2 hits with a Tin Star Shield', coins: 70, xp: 10, seasonPoints: 50 },
+  { id: 'q_boxes', metric: 'itemBoxes', targets: [6, 10], text: (n) => `Open ${n} loot crates`, coins: 50, xp: 8, seasonPoints: 40 },
 ];
 
 const TEMPLATE_BY_ID = Object.fromEntries(QUEST_TEMPLATES.map((t) => [t.id, t]));

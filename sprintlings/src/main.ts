@@ -1,3 +1,4 @@
+import '@fontsource/rye/latin-400.css';
 import '@fontsource/fredoka/latin-500.css';
 import '@fontsource/fredoka/latin-700.css';
 import '@fontsource/fredoka/latin-ext-500.css';

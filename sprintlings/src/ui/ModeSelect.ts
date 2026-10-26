@@ -41,7 +41,7 @@ export function modeSelect(ctx: AppContext): Screen {
         onClick: () => (remixLocked ? ctx.ui.toast(t('Unlocks at level {n}', { n: 3 }), 'bad') : ctx.startRace(`remix:${dayKey(ctx.authority.now())}`, 'remix')),
       },
       h('div', { style: 'font-size:44px' }, remixLocked ? '🔒' : '🎲'),
-      h('div', { class: 'card__name' }, t('Daily Remix')),
+      h('div', { class: 'card__name' }, t('Daily Trail')),
       h('div', { class: 'small' }, t('A fresh validated track every day.')),
       remixLocked ? h('div', { class: 'small' }, t('Unlocks at level {n}', { n: 3 })) : null,
     ),

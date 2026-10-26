@@ -17,11 +17,11 @@ export interface TrackInfo {
 export const TRACK_RECIPES: Record<string, TrackRecipe & { description: string; unlockLevel: number }> = {
   mossy_hollow: {
     id: 'mossy_hollow',
-    name: 'Mossy Hollow',
+    name: 'Dusty Gulch',
     biome: 'forest',
     seed: 1101,
     unlockLevel: 1,
-    description: 'Sunny jungle trails, logs, a bog with a treetop shortcut and a swinging spike ball.',
+    description: 'Golden prairie trails, barrels, cactus patches, a muddy creek and rooftop hops past the ranch.',
     segments: [
       { id: 'start_meadow' },
       { id: 'log_hop' },
@@ -47,11 +47,11 @@ export const TRACK_RECIPES: Record<string, TrackRecipe & { description: string; 
   },
   sunscar_canyon: {
     id: 'sunscar_canyon',
-    name: 'Sunscar Canyon',
+    name: 'Red Rock Run',
     biome: 'canyon',
     seed: 2202,
     unlockLevel: 2,
-    description: 'Fire vents, tumbling boulders, stone stairs and a spring over the chasm.',
+    description: 'Campfire vents, rolling barrels, red-rock stairs and springboards over the canyon.',
     segments: [
       { id: 'start_meadow' },
       { id: 'spike_strip' },
@@ -77,11 +77,11 @@ export const TRACK_RECIPES: Record<string, TrackRecipe & { description: string; 
   },
   glimmerdeep_vale: {
     id: 'glimmerdeep_vale',
-    name: 'Glimmerdeep Vale',
+    name: 'Moonlit Mine',
     biome: 'crystal',
     seed: 3303,
     unlockLevel: 4,
-    description: 'Crystal crushers, saw-blade dips and floating isles over a glowing abyss.',
+    description: 'Stamp mills, sawmill blades and mesa hops by lantern light at the old gold mine.',
     segments: [
       { id: 'start_meadow' },
       { id: 'saw_dip' },
@@ -114,7 +114,7 @@ export function trackInfo(id: string): TrackInfo {
   if (r) return { id: r.id, name: r.name, biome: r.biome, description: r.description, unlockLevel: r.unlockLevel };
   if (id.startsWith('remix_')) {
     const biome = remixBiome(parseRemixId(id).day);
-    return { id, name: 'Daily Remix', biome, description: 'A fresh validated track every day.', unlockLevel: 3 };
+    return { id, name: 'Daily Trail', biome, description: 'A fresh validated track every day.', unlockLevel: 3 };
   }
   throw new Error(`Unknown track ${id}`);
 }
@@ -184,5 +184,5 @@ export function remixRecipe(day: string, attempt = 0): TrackRecipe {
   }
   if (!fits(prev, SEGMENT_BY_ID.finale_gauntlet)) out.push({ id: 'item_row' });
   out.push({ id: 'finale_gauntlet' }, { id: 'finish_line' });
-  return { id: `remix_${day}_${attempt}`, name: 'Daily Remix', biome: remixBiome(day), seed, segments: out };
+  return { id: `remix_${day}_${attempt}`, name: 'Daily Trail', biome: remixBiome(day), seed, segments: out };
 }

@@ -150,7 +150,7 @@ export class RaceHUD {
     for (const e of sim.entities) if (e.kind === 'seeker' && e.alive && e.target === this.localIndex && e.x > me.body.x - 25) warn = true;
     if (warn !== this.last.warn) {
       this.last.warn = warn;
-      this.warning.textContent = '⚠ ' + t('Incoming seeker!');
+      this.warning.textContent = '⚠ ' + t('Incoming rocket!');
       this.warning.classList.toggle('hidden', !warn);
     }
     if (this.showFps) {

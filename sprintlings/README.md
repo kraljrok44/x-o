@@ -1,8 +1,8 @@
 # Sprintlings
 
-Izvirna arkadna dirkalna igra za spletni brskalnik s **pogledom od strani**: štiri risane pošasti samodejno tečejo od leve proti desni, igralec skače (drži = višji skok), se spušča skozi lebdeče ploščadi, izbira zgornjo ali spodnjo pot, pobira škatle z runami in z njihovimi sposobnostmi prehiteva tekmece. Igra je pripravljena za objavo na **CrazyGames** in **GameMonetize**, ima pa tudi samostojno spletno različico z lastnim strežnikom za račune in nakupe.
+Izvirna arkadna dirkalna igra z **divjezahodnim** vzdušjem in **pogledom od strani**: štiri risane živali v kavbojskih oblačilih (lisica Rusty, zajec Jackie, medved Bruno, rakun Bandit, bik Buck, volk Lobo) samodejno tečejo od leve proti desni. Igralec skače (drži = višji skok), se spušča skozi lesene ploščadi, izbira zgornjo ali spodnjo pot, pobira zaboje z nagradami in zlate kepe ter nasprotnikom nastavlja dinamit, katran in rakete. Dirka traja 60–90 sekund. Igra je v angleščini in pripravljena za **CrazyGames** in **GameMonetize**; ima tudi samostojno spletno različico z lastnim strežnikom.
 
-Vsa grafika, zvok in glasba so ustvarjeni proceduralno v kodi (vektorsko risanje s Canvas2D, brez tujih slik, modelov ali posnetkov). Pošasti (Bloop, Mimi, Grumbo, Zib, Chompy, Yobo) so narisane v slogu podanih referenčnih slik, a so lastne oblike in barve, ne kopije; proge, sposobnosti in vmesnik so izvirni. Koncept (samodejni tek od strani, skoki, naključne sposobnosti, štirje tekmovalci) je žanrski; nobeno ime, lik, zvok ali zaslon ni prevzet iz drugih iger. Posebnosti: variabilna višina skoka, spust skozi ploščadi, startni pospešek in telegrafirane časovne pasti, ki jih je vedno mogoče preskočiti.
+Grafika je v celoti narisana v kodi (Canvas2D). Liki so lastne izvedbe v slogu podanih referenčnih slik (antropomorfne živali), ne kopije. Glasba v meniju in zvoki skoka, udarca in odklepanja so posnetki, ki jih je priložil naročnik (z ozadja Pixabay: *tatamusic – game music*, *freesound_community – jump sound*, *universfield – punch impact hit*, *universfield – achievement unlock*; Pixabay Content License dovoljuje komercialno uporabo v igrah brez navedbe vira – pred objavo preveri licenco na strani posameznega posnetka). Ostali zvoki in glasba med dirko so sintetizirani.
 
 ## Hitri začetek
 
@@ -78,7 +78,7 @@ src/
   platform/    CrazyGames, GameMonetize, samostojna različica (razvojni testni oglasi so v ločenem modulu)
   persistence/ IndexedDB/localStorage, profil z varnostno kopijo, migracije shem, LocalAuthority, nastavitve
   network/     ServerAuthority (HTTP), MatchmakingClient (WebSocket), protokol
-  render/      Canvas2D: pošasti (MonsterRig + MonsterAnimator), kozmetika, teren in ovire (WorldPainter),
+  render/      Canvas2D: liki (CharacterRig + MonsterAnimator), kozmetika, teren in ovire (WorldPainter),
                paralaksno ozadje, delci, stranska kamera, meni, sličice
   audio/       sintetizirani zvočni učinki in proceduralna glasba (Web Audio)
   input/       tipkovnica (spremenljive tipke), miška, dotik, igralni plošček
@@ -93,8 +93,11 @@ Ključne odločitve:
 - **Deterministična simulacija s fiksnim korakom (1/60 s).** Ista koda teče v brskalniku, v AI-planerju in na strežniku. Dirko je mogoče natančno ponoviti iz semena in dnevnika vnosov, zato strežnik nagrade izračuna iz **lastne ponovne simulacije**, nikoli iz rezultata, ki ga sporoči odjemalec.
 - **Arkadna 2D-fizika namesto togih teles.** Za odzivno in predvidljivo upravljanje (coyote time 100 ms, medpomnilnik skoka 120 ms, variabilna višina skoka, spust skozi enosmerne ploščadi, stopnice do 0,3 u brez skoka) ter determinizem je igralna fizika lastna. Three.js in Rapier sta bila v prvi (3D) različici; po prehodu na pogled od strani nista več potrebna, zato je igra precej manjša (~85 KB gzip JS).
 - **AI tekmeci** uporabljajo isti fizikalni korak in planer, ki preizkusi več kratkih zaporedij dejanj. Težavnost spreminja samo hitrost odločanja, natančnost in pogostost napak. Isti planer z »popolnim« profilom preverja **prehodnost prog**.
-- **Proge**: tri ročno izdelane proge (Mossy Hollow, Sunscar Canyon, Glimmerdeep Vale) iz 21 ročno oblikovanih odsekov s pravili sosednosti (prepadi, stopnice, lebdeči otoki, zgornje poti po ploščadih, vzmeti), plus dnevni »Remix«, ki se pred uporabo preveri (in ob neuspehu zamenja). `scripts/segment-check.ts` vsak časovno odvisen odsek preveri pri 16 različnih fazah, da je pošten za vsak čas prihoda.
-- **Animacija**: vsaka pošast je vektorski »rig« (telo, oči, usta, roke, noge, rogovi/antene/lasje). Tek je sinhroniziran s hitrostjo, skoki in pristanki uporabljajo vzmeti za raztezanje/stiskanje, okončine in dodatki se pozibavajo glede na pospešek, pošasti mežikajo, gledajo kamor gredo, menjajo izraze (omotica, strah, veselje) in ob zmagi pokažejo izbrano čustveno gesto obrnjeni proti kameri.
+- **Proge**: tri ročno izdelane proge (Dusty Gulch – prerija, Red Rock Run – kanjon, Moonlit Mine – nočni rudnik; vsaka ~615–640 u oz. 60–90 s) iz 28 ročno oblikovanih odsekov s pravili sosednosti (prepadi, stopnice, strehe, mize, zgornje poti po deskah, vzmeti, kaktusi, kotaleči se sodi), plus dnevni »Daily Trail«, ki se pred uporabo preveri (in ob neuspehu zamenja). `scripts/segment-check.ts` vsak časovno odvisen odsek preveri pri 16 različnih fazah, da je pošten za vsak čas prihoda.
+- **Animacija**: vsak lik je vektorski »rig« (glava z ušesi/rogovi, gobček, oči, srajca, telovnik, ruta, pas, hlače, škornji, rep, sklepne noge in roke). Tek je sinhroniziran s hitrostjo, skoki in pristanki uporabljajo vzmeti za raztezanje/stiskanje, ušesa in rep se pozibavajo glede na pospešek, liki mežikajo, gledajo kamor gredo, menjajo izraze (omotica, strah, veselje) in ob zmagi pokažejo izbrano čustveno gesto obrnjeni proti kameri.
+- **Pošteno gibanje**: če v zraku zadeneš rob stopnice tik pod vrhom, te igra dvigne nanj (ne pade več skozi tla); po zadetku sledi kratka utripajoča zaščita, zato te zaporedne ovire (npr. kotaleči se sodi) ne morejo ujeti v zanko.
+- **Pasti nasprotnikov** (dinamit, katran, raketa) so namenoma kričečih barv z belim robom, utripajočim rdečim obročem in opozorilnim znakom, da se ne zlijejo z okolico.
+- **Skrinje** (Strongbox iz trgovine, sezone ali koledarja) se odprejo z animacijo in zvokom.
 - **Tekmovalci se ne zaletavajo drug v drugega** (tečejo drug skozi drugega, kot je običajno v tem žanru), zato te tekmec ne more poriniti v prepad. Tekmeci zunaj zaslona so označeni s puščicami in razdaljo.
 
 ## Ekonomija in monetizacija
@@ -150,9 +153,9 @@ Glavne poti: `POST /api/auth/guest`, `GET /api/profile`, `POST /api/race/start`,
 - **Prijava z računom** (OAuth, povezava računa portala): samo gostujoči računi z žetonom.
 - **Analitika**: strežnik dogodke samo sprejme in prešteje; brez soglasja se nič ne pošlje.
 - **Zmogljivost** je bila v tem okolju merjena samo v brezglavem Chromiumu s programskim rasterizatorjem (~45–50 sličic/s pri 1280×720); na napravah z grafičnim pospeševanjem je pričakovano 60. Simulacija s tremi AI tekmeci porabi okoli 0,2–0,7 ms na korak na CPU.
-- **Prevodi**: vmesnik je v angleščini in slovenščini; imena in opisi predmetov so v angleščini.
+- **Jezik**: igra je samo v angleščini (slovenski prevod je bil na željo odstranjen).
 - **Sezona 2** ima samo osnovne (generirane) nagrade.
 
 ## Licenca in viri
 
-Koda je del tega repozitorija. Uporabljene knjižnice: Fredoka (SIL Open Font License, prek @fontsource), ws (MIT), pg (MIT). Grafika je v celoti narisana v kodi.
+Koda je del tega repozitorija. Uporabljene knjižnice: Fredoka in Rye (SIL Open Font License, prek @fontsource), ws (MIT), pg (MIT). Grafika je v celoti narisana v kodi; zvočni posnetki so v `src/assets/audio`.

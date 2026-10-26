@@ -322,16 +322,46 @@ export class WorldPainter {
           break;
         }
         case 4: {
-          // Mushroom.
-          ctx.fillStyle = '#f6ead2';
-          ctx.fillRect(d.x - 0.035 * s, d.y, 0.07 * s, 0.16 * s);
+          // Little barrel cactus with a flower.
           ctx.beginPath();
-          ctx.ellipse(d.x, d.y + 0.16 * s, 0.14 * s, 0.11 * s, 0, 0, Math.PI);
-          ctx.fillStyle = th.night ? th.decor[1] : '#e8473b';
+          ellipse(ctx, d.x, d.y + 0.1 * s, 0.1 * s, 0.11 * s);
+          ctx.fillStyle = '#5aa040';
           ctx.fill();
           ctx.lineWidth = 0.025;
           ctx.strokeStyle = th.outline;
           ctx.stroke();
+          ctx.beginPath();
+          ellipse(ctx, d.x, d.y + 0.22 * s, 0.035 * s, 0.03 * s);
+          ctx.fillStyle = '#ff6f8a';
+          ctx.fill();
+          break;
+        }
+        case 5: {
+          // Bleached longhorn skull (prairie and canyon) or a gold-flecked rock at the mine.
+          if (th.night) {
+            ctx.beginPath();
+            ellipse(ctx, d.x, d.y + 0.06 * s, 0.13 * s, 0.08 * s);
+            ctx.fillStyle = th.hazard.stone;
+            ctx.fill();
+            ctx.fillStyle = '#f2c14e';
+            ctx.fillRect(d.x - 0.03, d.y + 0.07 * s, 0.04, 0.03);
+          } else if (Math.floor(d.x) % 3 === 0) {
+            ctx.beginPath();
+            ellipse(ctx, d.x, d.y + 0.07 * s, 0.07 * s, 0.06 * s);
+            ctx.fillStyle = '#f6ead2';
+            ctx.fill();
+            ctx.lineWidth = 0.02;
+            ctx.strokeStyle = th.outline;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(d.x - 0.06 * s, d.y + 0.1 * s);
+            ctx.quadraticCurveTo(d.x - 0.2 * s, d.y + 0.12 * s, d.x - 0.22 * s, d.y + 0.2 * s);
+            ctx.moveTo(d.x + 0.06 * s, d.y + 0.1 * s);
+            ctx.quadraticCurveTo(d.x + 0.2 * s, d.y + 0.12 * s, d.x + 0.22 * s, d.y + 0.2 * s);
+            ctx.lineWidth = 0.03 * s + 0.01;
+            ctx.strokeStyle = '#f6ead2';
+            ctx.stroke();
+          }
           break;
         }
         default:
@@ -342,56 +372,48 @@ export class WorldPainter {
 
   drawStartFinish(ctx: Ctx, left: number, right: number, time: number): void {
     const len = this.track.length;
-    // Start line.
-    if (left < 2 && right > -2) {
-      // Start post with a little chequered pennant.
-      const y = this.track.solidTop(0.6);
-      ctx.beginPath();
-      roundRect(ctx, 0.55, y, 0.08, 1.9, 0.03);
-      ctx.fillStyle = '#f6ead2';
-      ctx.fill();
-      ctx.lineWidth = 0.035;
-      ctx.strokeStyle = this.th.outline;
-      ctx.stroke();
-      for (let i = 0; i < 4; i++) {
-        for (let j = 0; j < 2; j++) {
-          const wave = Math.sin(time * 5 + i) * 0.03;
-          ctx.fillStyle = (i + j) % 2 ? '#ffffff' : '#2a1d2e';
-          ctx.fillRect(0.63 + i * 0.13, y + 1.5 + j * 0.13 + wave * i, 0.13, 0.13);
-        }
-      }
+    if (left < 3 && right > -3) {
+      const y = this.track.solidTop(1.2);
+      drawSign(ctx, 1.2, y, 'START', time, this.th.outline);
     }
-    if (len > left - 3 && len < right + 3) {
+    if (len > left - 4 && len < right + 4) {
       const y = this.track.solidTop(len);
-      const h = 3.2;
-      // Posts.
-      for (const dx of [-1.6, 1.6]) {
+      const h = 3.3;
+      // Ranch gate: two posts and a carved crossbar.
+      for (const dx of [-1.7, 1.7]) {
         ctx.beginPath();
-        roundRect(ctx, len + dx - 0.1, y, 0.2, h, 0.05);
-        ctx.fillStyle = '#f6ead2';
+        roundRect(ctx, len + dx - 0.13, y, 0.26, h, 0.05);
+        ctx.fillStyle = '#9a5b2e';
         ctx.fill();
         ctx.lineWidth = OL_W;
         ctx.strokeStyle = this.th.outline;
         ctx.stroke();
       }
-      // Checkered banner waving.
-      const cells = 12;
-      for (let i = 0; i < cells; i++) {
-        for (let j = 0; j < 2; j++) {
-          const x = len - 1.5 + (i / cells) * 3;
-          const wave = Math.sin(time * 4 + i * 0.6) * 0.06;
-          ctx.fillStyle = (i + j) % 2 ? '#ffffff' : '#2a1d2e';
-          ctx.fillRect(x, y + h - 0.6 + j * 0.25 + wave, 3 / cells + 0.01, 0.25);
-        }
-      }
-      ctx.strokeStyle = this.th.outline;
-      ctx.lineWidth = 0.04;
-      ctx.strokeRect(len - 1.5, y + h - 0.6, 3, 0.5);
-      // Ground stripe.
-      for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      roundRect(ctx, len - 2.1, y + h - 0.1, 4.2, 0.62, 0.1);
+      ctx.fillStyle = '#c07a3c';
+      ctx.fill();
+      ctx.lineWidth = OL_W;
+      ctx.stroke();
+      worldText(ctx, 'FINISH', len, y + h + 0.2, 0.42, '#fff1cf', this.th.outline);
+      // Chequered bunting under the bar.
+      for (let i = 0; i < 10; i++) {
+        const x = len - 1.55 + (i / 10) * 3.1;
+        const wave = Math.sin(time * 4 + i * 0.7) * 0.04;
+        ctx.beginPath();
+        ctx.moveTo(x, y + h - 0.1);
+        ctx.lineTo(x + 0.31, y + h - 0.1);
+        ctx.lineTo(x + 0.155, y + h - 0.45 + wave);
+        ctx.closePath();
         ctx.fillStyle = i % 2 ? '#ffffff' : '#2a1d2e';
-        ctx.fillRect(len - 0.15, y - 0.05 - i * 0.12, 0.3, 0.12);
+        ctx.fill();
       }
+      // Gold horseshoe for luck.
+      ctx.beginPath();
+      ctx.arc(len, y + h + 0.75, 0.16, Math.PI * 1.15, Math.PI * 1.85, true);
+      ctx.lineWidth = 0.07;
+      ctx.strokeStyle = '#f2c14e';
+      ctx.stroke();
     }
   }
 
@@ -413,53 +435,55 @@ export class WorldPainter {
     ctx.strokeStyle = ol;
     switch (h.kind) {
       case 'log': {
-        const r = Math.min(h.height / 2, h.halfWidth + 0.05);
-        const cx = h.x;
-        const cy = h.y + h.height / 2;
-        ctx.beginPath();
-        ellipse(ctx, cx, cy, h.halfWidth + 0.04, h.height / 2);
-        ctx.fillStyle = th.hazard.wood;
-        ctx.fill();
-        ctx.stroke();
-        ctx.beginPath();
-        ellipse(ctx, cx + 0.03, cy, (h.halfWidth + 0.04) * 0.72, r * 0.72);
-        ctx.fillStyle = tint(th.hazard.wood, 0.35);
-        ctx.fill();
-        ctx.lineWidth = 0.025;
-        ctx.strokeStyle = shade(th.hazard.wood, 0.3);
-        for (const k of [0.5, 0.25]) {
-          ctx.beginPath();
-          ellipse(ctx, cx + 0.03, cy, (h.halfWidth + 0.04) * k, r * k);
-          ctx.stroke();
-        }
+        // A sturdy wooden barrel to hop over.
+        drawBarrel(ctx, h.x, h.y, h.halfWidth + 0.06, h.height, th.hazard.wood, ol, 0);
         break;
       }
       case 'spikes': {
-        const n = Math.max(3, Math.round(h.halfWidth / 0.14));
-        const w = (h.halfWidth * 2) / n;
-        ctx.beginPath();
-        roundRect(ctx, h.x - h.halfWidth - 0.05, h.y - 0.02, h.halfWidth * 2 + 0.1, 0.12, 0.04);
-        ctx.fillStyle = shade(th.hazard.metal, 0.35);
-        ctx.fill();
-        ctx.stroke();
+        // Prickly cactus patch: two or three squat cacti with needles.
+        const n = Math.max(2, Math.round(h.halfWidth / 0.3));
         for (let i = 0; i < n; i++) {
-          const x = h.x - h.halfWidth + i * w;
+          const cx = h.x - h.halfWidth + ((i + 0.5) / n) * h.halfWidth * 2;
+          const ch = h.height * (i % 2 ? 0.85 : 1.05);
+          const cw = (h.halfWidth / n) * 0.85;
           ctx.beginPath();
-          ctx.moveTo(x, h.y + 0.08);
-          ctx.lineTo(x + w / 2, h.y + h.height);
-          ctx.lineTo(x + w, h.y + 0.08);
+          ctx.moveTo(cx - cw, h.y);
+          ctx.lineTo(cx - cw, h.y + ch - cw);
+          ctx.quadraticCurveTo(cx - cw, h.y + ch, cx, h.y + ch);
+          ctx.quadraticCurveTo(cx + cw, h.y + ch, cx + cw, h.y + ch - cw);
+          ctx.lineTo(cx + cw, h.y);
           ctx.closePath();
-          ctx.fillStyle = th.hazard.metal;
+          ctx.fillStyle = '#4f9a3a';
           ctx.fill();
           ctx.lineWidth = 0.035;
+          ctx.strokeStyle = ol;
           ctx.stroke();
           ctx.beginPath();
-          ctx.moveTo(x + w * 0.3, h.y + 0.14);
-          ctx.lineTo(x + w / 2, h.y + h.height - 0.06);
-          ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+          ctx.moveTo(cx, h.y + 0.04);
+          ctx.lineTo(cx, h.y + ch - 0.05);
           ctx.lineWidth = 0.02;
+          ctx.strokeStyle = '#3a7a2a';
           ctx.stroke();
-          ctx.strokeStyle = ol;
+          // Needles.
+          ctx.strokeStyle = '#fff4c8';
+          ctx.lineWidth = 0.014;
+          ctx.beginPath();
+          for (let k = 0; k < 4; k++) {
+            const yy = h.y + 0.08 + (k / 4) * (ch - 0.1);
+            ctx.moveTo(cx - cw, yy);
+            ctx.lineTo(cx - cw - 0.06, yy + 0.03);
+            ctx.moveTo(cx + cw, yy + 0.04);
+            ctx.lineTo(cx + cw + 0.06, yy + 0.07);
+          }
+          ctx.moveTo(cx, h.y + ch);
+          ctx.lineTo(cx, h.y + ch + 0.06);
+          ctx.stroke();
+          if (i === 0) {
+            ctx.beginPath();
+            ellipse(ctx, cx, h.y + ch + 0.02, 0.04, 0.035);
+            ctx.fillStyle = '#ff6f8a';
+            ctx.fill();
+          }
         }
         break;
       }
@@ -570,29 +594,48 @@ export class WorldPainter {
       }
       case 'flame': {
         const st = flameState(h, t);
-        // Vent grate.
+        // Stone fire ring with crossed logs.
+        ctx.strokeStyle = shade(th.hazard.wood, 0.25);
+        ctx.lineWidth = 0.09;
         ctx.beginPath();
-        roundRect(ctx, h.x - h.halfWidth - 0.1, h.y - 0.04, h.halfWidth * 2 + 0.2, 0.2, 0.05);
-        ctx.fillStyle = shade(th.hazard.metal, 0.3);
-        ctx.fill();
-        ctx.lineWidth = 0.04;
+        ctx.moveTo(h.x - h.halfWidth, h.y + 0.05);
+        ctx.lineTo(h.x + h.halfWidth, h.y + 0.17);
+        ctx.moveTo(h.x - h.halfWidth, h.y + 0.17);
+        ctx.lineTo(h.x + h.halfWidth, h.y + 0.05);
         ctx.stroke();
-        ctx.fillStyle = st === 'warn' ? th.hazard.warn : shade(th.hazard.metal, 0.6);
-        for (let i = 0; i < 3; i++) ctx.fillRect(h.x - h.halfWidth + 0.08 + i * h.halfWidth * 0.6, h.y + 0.05, 0.12, 0.06);
+        for (let i = 0; i < 5; i++) {
+          ctx.beginPath();
+          ellipse(ctx, h.x - h.halfWidth - 0.08 + (i / 4) * (h.halfWidth * 2 + 0.16), h.y + 0.05, 0.1, 0.07);
+          ctx.fillStyle = mix(th.hazard.stone, '#ffffff', 0.1);
+          ctx.fill();
+          ctx.lineWidth = 0.025;
+          ctx.strokeStyle = ol;
+          ctx.stroke();
+        }
+        // Embers glow even when idle so the vent is recognisable.
+        ctx.beginPath();
+        ellipse(ctx, h.x, h.y + 0.14, h.halfWidth * 0.7, 0.06);
+        ctx.fillStyle = st === 'idle' ? '#a8401f' : '#ff8a1f';
+        ctx.fill();
         if (st === 'warn') {
-          // Smoke puffs and sparks as the tell.
-          for (let i = 0; i < 3; i++) {
-            const k = (t * 1.8 + i / 3) % 1;
+          // Sputtering sparks and smoke: the tell.
+          for (let i = 0; i < 4; i++) {
+            const k = (t * 1.8 + i / 4) % 1;
             ctx.beginPath();
-            ellipse(ctx, h.x + Math.sin(i * 2 + t * 3) * 0.12, h.y + 0.2 + k * 0.7, 0.08 + k * 0.1, 0.08 + k * 0.1);
-            ctx.fillStyle = `rgba(80,70,90,${0.45 * (1 - k)})`;
+            ellipse(ctx, h.x + Math.sin(i * 2 + t * 3) * 0.14, h.y + 0.25 + k * 0.8, 0.07 + k * 0.1, 0.07 + k * 0.1);
+            ctx.fillStyle = `rgba(90,80,80,${0.45 * (1 - k)})`;
             ctx.fill();
+          }
+          ctx.fillStyle = '#ffcf33';
+          for (let i = 0; i < 3; i++) {
+            const k = (t * 3 + i / 3) % 1;
+            ctx.fillRect(h.x + Math.sin(t * 9 + i * 2) * 0.2, h.y + 0.2 + k * 0.6, 0.04, 0.04);
           }
         } else if (st === 'active') {
           const flick = Math.sin(t * 40) * 0.08;
           const layers: [number, string][] = [
-            [1, '#ff5a1f'],
-            [0.72, '#ffb020'],
+            [1, '#ff4a1a'],
+            [0.72, '#ffa51f'],
             [0.42, '#fff2a8'],
           ];
           for (const [k, col] of layers) {
@@ -655,34 +698,43 @@ export class WorldPainter {
         const bx = boulderPosition(h, t);
         if (bx === null) break;
         const r = h.radius;
-        // Fade in at the far end so it doesn't pop.
         const fade = Math.min(1, (h.x + h.travel - bx) / 1.2, (bx - (h.x - h.travel / 3)) / 0.8 + 0.2);
         ctx.save();
         ctx.globalAlpha *= Math.max(0, Math.min(1, fade));
+        // A barrel rolling on its side, seen end-on: hoops and staves spin.
         ctx.translate(bx, h.y + r);
-        ctx.rotate(((h.x + h.travel - bx) / r) * 1);
+        ctx.rotate((h.x + h.travel - bx) / r);
         ctx.beginPath();
-        const pts = 9;
-        for (let i = 0; i < pts; i++) {
-          const a = (i / pts) * Math.PI * 2;
-          const rr = r * (0.92 + hash(h.id * 3 + i) * 0.14);
-          if (i === 0) ctx.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
-          else ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+        ellipse(ctx, 0, 0, r, r);
+        ctx.fillStyle = th.hazard.wood;
+        ctx.fill();
+        ctx.lineWidth = 0.05;
+        ctx.strokeStyle = ol;
+        ctx.stroke();
+        ctx.beginPath();
+        ellipse(ctx, 0, 0, r * 0.78, r * 0.78);
+        ctx.lineWidth = 0.06;
+        ctx.strokeStyle = th.hazard.metal;
+        ctx.stroke();
+        ctx.lineWidth = 0.02;
+        ctx.strokeStyle = shade(th.hazard.wood, 0.35);
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a = (k / 6) * Math.PI;
+          ctx.moveTo(Math.cos(a) * r * 0.7, Math.sin(a) * r * 0.7);
+          ctx.lineTo(-Math.cos(a) * r * 0.7, -Math.sin(a) * r * 0.7);
         }
-        ctx.closePath();
-        ctx.fillStyle = th.hazard.stone;
-        ctx.fill();
         ctx.stroke();
         ctx.beginPath();
-        ellipse(ctx, -r * 0.25, r * 0.25, r * 0.3, r * 0.2, 0.5);
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ellipse(ctx, 0, 0, r * 0.14, r * 0.14);
+        ctx.fillStyle = shade(th.hazard.wood, 0.4);
         ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(r * 0.1, -r * 0.3);
-        ctx.lineTo(r * 0.35, r * 0.05);
-        ctx.lineWidth = 0.03;
-        ctx.stroke();
         ctx.restore();
+        // Dust kicked up under it.
+        ctx.beginPath();
+        ellipse(ctx, bx + r * 0.6, h.y + 0.08, 0.16, 0.08);
+        ctx.fillStyle = 'rgba(230,200,150,0.5)';
+        ctx.fill();
         break;
       }
       case 'mud': {
@@ -732,33 +784,26 @@ export class WorldPainter {
       case 'spring': {
         const since = t - (this.springBounce.get(h.id) ?? -10);
         const squash = since < 0.5 ? Math.exp(-since * 8) * Math.cos(since * 30) : 0;
-        const hgt = 0.35 * (1 - squash * 0.5);
-        // Coil.
+        const hgt = 0.32 * (1 - squash * 0.5);
+        // Steel coil under a painted wooden springboard.
         ctx.beginPath();
-        for (let i = 0; i <= 6; i++) {
-          const y = h.y + (i / 6) * hgt;
-          ctx.lineTo(h.x + (i % 2 ? 0.18 : -0.18), y);
-        }
+        for (let i = 0; i <= 6; i++) ctx.lineTo(h.x + (i % 2 ? 0.2 : -0.2), h.y + (i / 6) * hgt);
         ctx.lineWidth = 0.06;
         ctx.strokeStyle = th.hazard.metal;
         ctx.stroke();
-        // Mushroom cap pad.
         ctx.beginPath();
-        ctx.ellipse(h.x, h.y + hgt, h.halfWidth + 0.15, 0.32 + squash * 0.1, 0, 0, Math.PI);
-        ctx.closePath();
-        ctx.fillStyle = '#ff5a8a';
+        roundRect(ctx, h.x - h.halfWidth - 0.15, h.y + hgt, (h.halfWidth + 0.15) * 2, 0.14, 0.05);
+        ctx.fillStyle = '#e8473b';
         ctx.fill();
         ctx.lineWidth = OL_W;
         ctx.strokeStyle = ol;
         ctx.stroke();
-        ctx.fillStyle = '#ffffff';
-        for (const [dx, dy] of [
-          [-0.22, 0.12],
-          [0.15, 0.2],
-          [0.05, 0.08],
-        ]) {
+        ctx.fillStyle = '#fff1cf';
+        for (const dx of [-0.25, 0, 0.25]) {
           ctx.beginPath();
-          ellipse(ctx, h.x + dx, h.y + hgt + dy, 0.06, 0.05);
+          ctx.moveTo(h.x + dx - 0.07, h.y + hgt + 0.04);
+          ctx.lineTo(h.x + dx, h.y + hgt + 0.11);
+          ctx.lineTo(h.x + dx + 0.07, h.y + hgt + 0.04);
           ctx.fill();
         }
         break;
@@ -774,46 +819,46 @@ export class WorldPainter {
       const b = boxes[i];
       if (b.x < left || b.x > right) continue;
       const ready = readyAt[i] <= raceTime;
-      const popped = this.boxPopped.get(i);
       let scale = 1;
       if (!ready) {
-        // Pop then regrow.
         const k = 1 - (readyAt[i] - raceTime) / GameplayConfig.itemBox.respawnSeconds;
         scale = Math.max(0, (k - 0.6) / 0.4);
-      } else if (popped !== undefined && time - popped < 0.3) scale = 1;
+      }
       if (scale <= 0.01) continue;
-      const bob = Math.sin(time * 3 + i) * 0.08;
-      const s = 0.36 * scale;
+      const bob = Math.sin(time * 3 + i) * 0.07;
+      const s = 0.34 * scale;
       ctx.save();
       ctx.translate(b.x, b.y + 0.1 + bob);
-      ctx.rotate(Math.sin(time * 2 + i) * 0.12);
+      ctx.rotate(Math.sin(time * 2 + i) * 0.1);
+      // Glow so loot reads against any backdrop.
       ctx.beginPath();
-      roundRect(ctx, -s, -s, s * 2, s * 2, s * 0.35);
-      const g = ctx.createLinearGradient(0, s, 0, -s);
-      g.addColorStop(0, '#ffe066');
-      g.addColorStop(1, '#ff9f1c');
-      ctx.fillStyle = g;
+      ellipse(ctx, 0, 0, s * 1.7, s * 1.7);
+      ctx.fillStyle = 'rgba(255,220,90,0.25)';
       ctx.fill();
-      ctx.lineWidth = 0.05;
-      ctx.strokeStyle = '#7a3d00';
-      ctx.stroke();
+      // Wooden loot crate.
       ctx.beginPath();
-      roundRect(ctx, -s * 0.75, -s * 0.75, s * 1.5, s * 1.5, s * 0.25);
-      ctx.lineWidth = 0.025;
-      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-      ctx.stroke();
-      // Rune glyph "?" drawn as a path (text would be mirrored in world space).
-      ctx.beginPath();
-      ctx.arc(0, s * 0.22, s * 0.32, Math.PI * 1.05, -Math.PI * 0.35, true);
-      ctx.quadraticCurveTo(s * 0.05, -s * 0.05, 0, -s * 0.25);
-      ctx.lineWidth = s * 0.22;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = '#ffffff';
-      ctx.stroke();
-      ctx.beginPath();
-      ellipse(ctx, 0, -s * 0.55, s * 0.12, s * 0.12);
-      ctx.fillStyle = '#ffffff';
+      roundRect(ctx, -s, -s, s * 2, s * 2, s * 0.15);
+      ctx.fillStyle = '#c98a4b';
       ctx.fill();
+      ctx.lineWidth = 0.045;
+      ctx.strokeStyle = '#3a1f10';
+      ctx.stroke();
+      ctx.strokeStyle = '#8a5428';
+      ctx.lineWidth = 0.035;
+      ctx.beginPath();
+      ctx.moveTo(-s, -s * 0.33);
+      ctx.lineTo(s, -s * 0.33);
+      ctx.moveTo(-s, s * 0.33);
+      ctx.lineTo(s, s * 0.33);
+      ctx.stroke();
+      ctx.beginPath();
+      roundRect(ctx, -s * 0.55, -s * 0.55, s * 1.1, s * 1.1, s * 0.2);
+      ctx.fillStyle = '#f2c14e';
+      ctx.fill();
+      ctx.lineWidth = 0.03;
+      ctx.strokeStyle = '#3a1f10';
+      ctx.stroke();
+      worldText(ctx, '?', 0, -s * 0.42, s * 1.05, '#ffffff', '#3a1f10');
       ctx.restore();
     }
   }
@@ -823,104 +868,302 @@ export class WorldPainter {
     for (let i = 0; i < gl.length; i++) {
       const g = gl[i];
       if (g.x < left || g.x > right || taken[i]) continue;
-      const pulse = 1 + Math.sin(time * 6 + g.x) * 0.08;
-      const s = 0.17 * pulse;
+      const s = 0.15;
       ctx.save();
       ctx.translate(g.x, g.y + Math.sin(time * 3 + g.x * 0.7) * 0.05);
+      ctx.rotate(Math.sin(time * 2 + g.x) * 0.25);
+      // Gold nugget: a lumpy polygon with a shine.
       ctx.beginPath();
-      ctx.moveTo(0, s * 1.4);
-      ctx.lineTo(s, 0);
-      ctx.lineTo(0, -s * 1.4);
-      ctx.lineTo(-s, 0);
+      const pts = 7;
+      for (let k = 0; k < pts; k++) {
+        const a = (k / pts) * Math.PI * 2;
+        const r = s * (0.8 + hash(i * 7 + k) * 0.35);
+        if (k === 0) ctx.moveTo(Math.cos(a) * r * 1.15, Math.sin(a) * r);
+        else ctx.lineTo(Math.cos(a) * r * 1.15, Math.sin(a) * r);
+      }
       ctx.closePath();
-      ctx.fillStyle = '#7ef2ff';
+      ctx.fillStyle = '#f2c14e';
       ctx.fill();
       ctx.lineWidth = 0.03;
-      ctx.strokeStyle = '#1b5a8a';
+      ctx.strokeStyle = '#7a4a00';
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(0, s * 1.2);
-      ctx.lineTo(s * 0.5, 0.0);
-      ctx.lineTo(0, s * 0.2);
-      ctx.closePath();
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ellipse(ctx, -s * 0.3, s * 0.3, s * 0.3, s * 0.18, -0.5);
+      ctx.fillStyle = '#fff6c0';
       ctx.fill();
+      if ((time * 2 + i * 0.37) % 3 < 0.25) {
+        ctx.beginPath();
+        star(ctx, s * 0.5, s * 0.6, s * 0.6, 0.25, 4);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+      }
       ctx.restore();
     }
   }
 
+  /**
+   * Rival-placed traps are drawn loud on purpose: saturated colours, a
+   * white rim, a pulsing danger ring and a warning sign above, so they never
+   * blend into the scenery.
+   */
   drawEntities(ctx: Ctx, entities: readonly Entity[], time: number): void {
-    const th = this.th;
     for (const e of entities) {
       if (!e.alive) continue;
+      const pulse = 0.5 + 0.5 * Math.sin(time * 10);
       if (e.kind === 'seeker') {
-        // Thistle ball with a dotted wake.
-        for (let k = 1; k <= 4; k++) {
+        // Smoke trail.
+        for (let k = 1; k <= 6; k++) {
           ctx.beginPath();
-          ellipse(ctx, e.x - k * 0.25, e.y, 0.12 - k * 0.02, 0.12 - k * 0.02);
-          ctx.fillStyle = `rgba(255,122,61,${0.5 - k * 0.1})`;
+          ellipse(ctx, e.x - 0.3 - k * 0.2, e.y + Math.sin(time * 20 + k) * 0.03, 0.08 + k * 0.03, 0.08 + k * 0.03);
+          ctx.fillStyle = `rgba(220,220,220,${0.6 - k * 0.09})`;
           ctx.fill();
         }
         ctx.save();
         ctx.translate(e.x, e.y);
-        ctx.rotate(-time * 10);
+        ctx.rotate(Math.sin(time * 14) * 0.08);
+        // Exhaust flame.
         ctx.beginPath();
-        star(ctx, 0, 0, 0.42, 0.55, 9);
-        ctx.fillStyle = '#ff7a3d';
+        ctx.moveTo(-0.32, 0.08);
+        ctx.lineTo(-0.55 - pulse * 0.15, 0);
+        ctx.lineTo(-0.32, -0.08);
+        ctx.fillStyle = '#ffb020';
         ctx.fill();
-        ctx.lineWidth = 0.04;
-        ctx.strokeStyle = th.outline;
+        // White rim then the body.
+        rocketPath(ctx);
+        ctx.lineWidth = 0.12;
+        ctx.strokeStyle = '#ffffff';
         ctx.stroke();
+        rocketPath(ctx);
+        ctx.fillStyle = '#e8473b';
+        ctx.fill();
+        ctx.lineWidth = 0.035;
+        ctx.strokeStyle = '#2a1a1e';
+        ctx.stroke();
+        ctx.fillStyle = '#fff1cf';
+        ctx.fillRect(-0.1, -0.13, 0.05, 0.26);
         ctx.beginPath();
-        ellipse(ctx, 0, 0, 0.2, 0.2);
-        ctx.fillStyle = '#ffd23f';
+        ellipse(ctx, 0.12, 0.0, 0.05, 0.05);
+        ctx.fillStyle = pulse > 0.5 ? '#ffe14d' : '#ff2e2e';
         ctx.fill();
         ctx.restore();
       } else if (e.kind === 'snare') {
         ctx.save();
         ctx.translate(e.x, e.y);
-        const pulse = 0.5 + 0.5 * Math.sin(time * 8);
+        // Danger ring on the ground.
         ctx.beginPath();
-        ctx.ellipse(0, 0.02, 0.65, 0.12, 0, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,77,77,${0.2 + pulse * 0.2})`;
+        ctx.ellipse(0, 0.02, 0.75 + pulse * 0.08, 0.14, 0, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,46,46,${0.25 + pulse * 0.3})`;
         ctx.fill();
-        ctx.strokeStyle = '#2f6b2a';
-        ctx.lineWidth = 0.07;
-        for (let k = 0; k < 4; k++) {
+        ctx.lineWidth = 0.04;
+        ctx.strokeStyle = '#ff2e2e';
+        ctx.stroke();
+        // Dynamite bundle: three red sticks, a tape band, a timer and a lit fuse.
+        for (const [dx, h] of [
+          [-0.16, 0.58],
+          [0, 0.66],
+          [0.16, 0.58],
+        ]) {
           ctx.beginPath();
-          ctx.ellipse(0, 0.3, 0.38 - k * 0.05, 0.28 - k * 0.03, k * 0.8, 0, Math.PI * 2);
+          roundRect(ctx, dx - 0.085, 0.02, 0.17, h, 0.05);
+          ctx.lineWidth = 0.1;
+          ctx.strokeStyle = '#ffffff';
           ctx.stroke();
         }
-        ctx.fillStyle = '#e8473b';
-        for (let k = 0; k < 6; k++) {
-          const a = (k / 6) * Math.PI * 2;
+        for (const [dx, h] of [
+          [-0.16, 0.58],
+          [0, 0.66],
+          [0.16, 0.58],
+        ]) {
           ctx.beginPath();
-          star(ctx, Math.cos(a) * 0.36, 0.3 + Math.sin(a) * 0.26, 0.06, 0.4, 3, a);
+          roundRect(ctx, dx - 0.085, 0.02, 0.17, h, 0.05);
+          ctx.fillStyle = '#e8322a';
+          ctx.fill();
+          ctx.lineWidth = 0.03;
+          ctx.strokeStyle = '#2a1a1e';
+          ctx.stroke();
+          ctx.beginPath();
+          ellipse(ctx, dx, 0.02 + h, 0.06, 0.025);
+          ctx.fillStyle = '#ffe08a';
           ctx.fill();
         }
+        ctx.fillStyle = '#c8ccd8';
+        ctx.fillRect(-0.27, 0.2, 0.54, 0.09);
+        ctx.beginPath();
+        roundRect(ctx, -0.12, 0.3, 0.24, 0.14, 0.03);
+        ctx.fillStyle = '#1f1a26';
+        ctx.fill();
+        ctx.fillStyle = pulse > 0.5 ? '#ff3d2e' : '#ffcf33';
+        ctx.fillRect(-0.08, 0.34, 0.16, 0.06);
+        // Fuse with a spark.
+        ctx.beginPath();
+        ctx.moveTo(0, 0.68);
+        ctx.quadraticCurveTo(0.12, 0.82, 0.05, 0.92);
+        ctx.lineWidth = 0.025;
+        ctx.strokeStyle = '#3a1f10';
+        ctx.stroke();
+        ctx.beginPath();
+        star(ctx, 0.05, 0.93, 0.07 + pulse * 0.04, 0.4, 6, time * 8);
+        ctx.fillStyle = '#ffd23f';
+        ctx.fill();
+        drawWarning(ctx, 0, 1.25 + Math.sin(time * 6) * 0.05);
         ctx.restore();
       } else {
         const fade = Math.min(1, e.ttl / 0.6);
         ctx.save();
         ctx.globalAlpha *= fade;
+        // Hazard-striped border makes the tar pool pop.
+        const x0 = e.x0;
+        const x1 = e.x1;
         ctx.beginPath();
-        ctx.moveTo(e.x0, e.y + 0.01);
-        for (let x = e.x0; x <= e.x1; x += 0.35) ctx.lineTo(x, e.y + 0.06 + Math.sin(x * 5 + time * 2) * 0.03);
-        ctx.lineTo(e.x1, e.y + 0.01);
+        ctx.moveTo(x0 - 0.1, e.y + 0.01);
+        for (let x = x0; x <= x1; x += 0.35) ctx.lineTo(x, e.y + 0.17 + Math.sin(x * 5 + time * 2) * 0.03);
+        ctx.lineTo(x1 + 0.1, e.y + 0.01);
         ctx.closePath();
-        ctx.fillStyle = '#f2b233';
-        ctx.fill();
-        ctx.lineWidth = 0.035;
-        ctx.strokeStyle = '#8a5a00';
+        ctx.lineWidth = 0.14;
+        ctx.strokeStyle = '#ffcf33';
         ctx.stroke();
-        ctx.fillStyle = 'rgba(255,255,255,0.55)';
-        for (let x = e.x0 + 0.4; x < e.x1; x += 1.1) {
+        ctx.fillStyle = '#1f1a2a';
+        ctx.fill();
+        ctx.save();
+        ctx.clip();
+        ctx.fillStyle = '#ffcf33';
+        for (let x = x0 - 0.2; x < x1 + 0.2; x += 0.4) {
           ctx.beginPath();
-          ellipse(ctx, x, e.y + 0.07, 0.12, 0.025);
+          ctx.moveTo(x, e.y - 0.1);
+          ctx.lineTo(x + 0.15, e.y - 0.1);
+          ctx.lineTo(x + 0.3, e.y + 0.2);
+          ctx.lineTo(x + 0.15, e.y + 0.2);
           ctx.fill();
         }
+        ctx.restore();
+        ctx.beginPath();
+        ctx.moveTo(x0, e.y + 0.08);
+        for (let x = x0; x <= x1; x += 0.35) ctx.lineTo(x, e.y + 0.14 + Math.sin(x * 5 + time * 2) * 0.03);
+        ctx.lineTo(x1, e.y + 0.02);
+        ctx.lineTo(x0, e.y + 0.02);
+        ctx.closePath();
+        ctx.fillStyle = '#2a2238';
+        ctx.fill();
+        // Bubbles and shine.
+        for (let k = 0; k < 4; k++) {
+          const ph = (time * 0.8 + k * 0.27) % 1;
+          ctx.beginPath();
+          ellipse(ctx, x0 + 0.4 + ((k * 1.13) % 1) * (x1 - x0 - 0.8), e.y + 0.09 + ph * 0.06, 0.04 + ph * 0.05, 0.03 + ph * 0.04);
+          ctx.lineWidth = 0.02;
+          ctx.strokeStyle = `rgba(190,160,255,${0.8 * (1 - ph)})`;
+          ctx.stroke();
+        }
+        // Tipped-over barrel at the far end.
+        ctx.save();
+        ctx.translate(x1 + 0.2, e.y);
+        ctx.rotate(-Math.PI / 2 + 0.25);
+        drawBarrel(ctx, 0, -0.3, 0.26, 0.6, '#5a3a6a', '#2a1a1e', 0);
+        ctx.restore();
+        drawWarning(ctx, (x0 + x1) / 2, e.y + 0.9 + Math.sin(time * 6) * 0.05);
         ctx.restore();
       }
     }
   }
+}
+
+/** Upright wooden barrel standing at (x, y) in world space. */
+export function drawBarrel(ctx: Ctx, x: number, y: number, hw: number, height: number, wood: string, ol: string, _t: number): void {
+  ctx.beginPath();
+  ctx.moveTo(x - hw * 0.85, y);
+  ctx.quadraticCurveTo(x - hw * 1.12, y + height / 2, x - hw * 0.85, y + height);
+  ctx.lineTo(x + hw * 0.85, y + height);
+  ctx.quadraticCurveTo(x + hw * 1.12, y + height / 2, x + hw * 0.85, y);
+  ctx.closePath();
+  ctx.fillStyle = wood;
+  ctx.fill();
+  ctx.lineWidth = 0.045;
+  ctx.strokeStyle = ol;
+  ctx.stroke();
+  ctx.save();
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+  ctx.lineWidth = 0.02;
+  ctx.beginPath();
+  for (let k = -1; k <= 1; k++) {
+    ctx.moveTo(x + k * hw * 0.45, y);
+    ctx.quadraticCurveTo(x + k * hw * 0.55, y + height / 2, x + k * hw * 0.45, y + height);
+  }
+  ctx.stroke();
+  ctx.fillStyle = '#8f97a3';
+  for (const k of [0.18, 0.82]) ctx.fillRect(x - hw * 1.2, y + height * k - 0.035, hw * 2.4, 0.07);
+  ctx.restore();
+}
+
+function rocketPath(ctx: Ctx): void {
+  ctx.beginPath();
+  ctx.moveTo(0.36, 0);
+  ctx.quadraticCurveTo(0.22, 0.14, -0.22, 0.13);
+  ctx.lineTo(-0.34, 0.22);
+  ctx.lineTo(-0.3, 0.0);
+  ctx.lineTo(-0.34, -0.22);
+  ctx.lineTo(-0.22, -0.13);
+  ctx.quadraticCurveTo(0.22, -0.14, 0.36, 0);
+  ctx.closePath();
+}
+
+/** Yellow warning triangle with "!" (world space). */
+function drawWarning(ctx: Ctx, x: number, y: number): void {
+  ctx.beginPath();
+  ctx.moveTo(x, y + 0.24);
+  ctx.lineTo(x + 0.24, y - 0.16);
+  ctx.lineTo(x - 0.24, y - 0.16);
+  ctx.closePath();
+  ctx.fillStyle = '#ffcf33';
+  ctx.fill();
+  ctx.lineWidth = 0.04;
+  ctx.strokeStyle = '#2a1a1e';
+  ctx.stroke();
+  worldText(ctx, '!', x, y - 0.13, 0.3, '#2a1a1e', null);
+}
+
+/** Text in world space (+y up): flips locally so it reads correctly. */
+export function worldText(ctx: Ctx, text: string, x: number, y: number, size: number, fill: string, stroke: string | null): void {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(1, -1);
+  ctx.font = `400 ${size}px Rye, Fredoka, Georgia, serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  if (stroke) {
+    ctx.lineWidth = size * 0.16;
+    ctx.strokeStyle = stroke;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(text, 0, 0);
+  }
+  ctx.fillStyle = fill;
+  ctx.fillText(text, 0, 0);
+  ctx.restore();
+}
+
+/** Wooden arrow sign on a post (world space). */
+function drawSign(ctx: Ctx, x: number, y: number, label: string, time: number, ol: string): void {
+  ctx.beginPath();
+  roundRect(ctx, x - 0.06, y, 0.12, 1.5, 0.03);
+  ctx.fillStyle = '#8a5428';
+  ctx.fill();
+  ctx.lineWidth = 0.035;
+  ctx.strokeStyle = ol;
+  ctx.stroke();
+  const sway = Math.sin(time * 2) * 0.02;
+  ctx.save();
+  ctx.translate(x, y + 1.35);
+  ctx.rotate(sway);
+  ctx.beginPath();
+  ctx.moveTo(-0.7, -0.2);
+  ctx.lineTo(0.6, -0.2);
+  ctx.lineTo(0.85, 0.05);
+  ctx.lineTo(0.6, 0.3);
+  ctx.lineTo(-0.7, 0.3);
+  ctx.closePath();
+  ctx.fillStyle = '#c98a4b';
+  ctx.fill();
+  ctx.lineWidth = 0.045;
+  ctx.stroke();
+  worldText(ctx, label, -0.02, -0.07, 0.3, '#fff1cf', ol);
+  ctx.restore();
 }

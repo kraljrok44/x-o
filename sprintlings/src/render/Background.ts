@@ -101,89 +101,153 @@ export class Background {
   private drawFar(c: Ctx, lh: number, unit: number): void {
     const th = this.theme;
     const base = lh * 0.45;
-    if (this.biome === 'canyon') {
-      this.silhouette(c, lh, base, unit * 1.6, 1, [2, 5, 9], th.far, true);
-    } else if (this.biome === 'crystal') {
-      // Jagged crystal ranges.
-      c.beginPath();
-      c.moveTo(0, lh);
-      for (let i = 0; i <= 40; i++) {
-        const x = (i / 40) * TILE_W;
-        const y = base - (i % 2 === 0 ? unit * (1.2 + hash(i) * 1.6) : unit * 0.3 * hash(i + 9));
-        c.lineTo(x, y);
-      }
-      c.lineTo(TILE_W, lh);
-      c.closePath();
-      c.fillStyle = th.far;
-      c.fill();
-      c.strokeStyle = rgba(th.decor[0], 0.25);
-      c.lineWidth = 2;
-      c.stroke();
-    } else {
-      this.silhouette(c, lh, base, unit * 1.4, 2, [1, 3, 7], th.far);
-      // Snow caps for a touch of depth.
+    if (this.biome === 'forest') {
+      // Distant blue ranges over the prairie.
+      this.silhouette(c, lh, base, unit * 1.3, 2, [1, 3, 7], th.far);
       c.save();
-      c.globalAlpha = 0.5;
-      this.silhouette(c, lh, base - unit * 0.05, unit * 1.4, 2, [1, 3, 7], tint(th.far, 0.35));
+      c.globalAlpha = 0.45;
+      this.silhouette(c, lh, base - unit * 0.05, unit * 1.3, 2, [1, 3, 7], tint(th.far, 0.4));
       c.restore();
-      this.silhouette(c, lh, base + unit * 0.4, unit * 1.0, 3, [2, 4, 9], mix(th.far, th.mid, 0.35));
+    } else {
+      // Flat-topped mesas and buttes.
+      this.silhouette(c, lh, base, unit * 1.7, this.biome === 'canyon' ? 1 : 4, [2, 5, 9], th.far, true);
     }
+    this.silhouette(c, lh, base + unit * 0.45, unit * 0.9, 3, [2, 4, 9], mix(th.far, th.mid, 0.4), this.biome !== 'forest');
   }
 
   private drawMid(c: Ctx, lh: number, unit: number): void {
     const th = this.theme;
     const base = lh * 0.5;
-    const tops = this.silhouette(c, lh, base, unit * 0.7, 5, [2, 4, 6], th.mid);
+    const tops = this.silhouette(c, lh, base, unit * 0.55, 5, [2, 4, 6], th.mid);
     const at = (x: number) => tops[Math.max(0, Math.min(tops.length - 1, Math.round(x / 8)))];
-    const count = this.quality === 'low' ? 10 : 18;
-    for (let i = 0; i < count; i++) {
-      const x = ((i + hash(i * 4.4) * 0.6) / count) * TILE_W;
-      const y = at(x);
-      const s = unit * (0.6 + hash(i * 2.2) * 0.6);
-      if (this.biome === 'forest') {
-        // Lollipop trees.
-        c.fillStyle = shade(th.mid, 0.25);
-        c.fillRect(x - s * 0.08, y - s * 0.9, s * 0.16, s * 0.95);
-        c.beginPath();
-        ellipse(c, x, y - s * 1.2, s * 0.5, s * 0.55);
-        c.fillStyle = shade(th.mid, 0.12);
-        c.fill();
-        c.beginPath();
-        ellipse(c, x - s * 0.15, y - s * 1.35, s * 0.22, s * 0.2);
-        c.fillStyle = tint(th.mid, 0.15);
-        c.fill();
-      } else if (this.biome === 'canyon') {
-        // Rock spires and saguaros.
-        if (i % 3 === 0) {
+    const col = shade(th.mid, 0.28);
+    const glow = th.night ? '#ffcf5a' : null;
+    // A few landmarks per tile, the rest small fillers.
+    const marks = this.biome === 'forest' ? ['windmill', 'barn', 'fence', 'tree', 'fence', 'windmill', 'tree', 'fence'] : this.biome === 'canyon' ? ['saloon', 'tower', 'cactus', 'saloon', 'cactus', 'rock', 'tower', 'cactus'] : ['mine', 'cactus', 'shack', 'cactus', 'tower', 'mine', 'cactus', 'rock'];
+    for (let i = 0; i < marks.length; i++) {
+      const x = ((i + 0.3 + hash(i * 4.4) * 0.4) / marks.length) * TILE_W;
+      const y = at(x) + 3;
+      const s = unit * (0.75 + hash(i * 2.2) * 0.35);
+      c.fillStyle = col;
+      c.strokeStyle = col;
+      c.lineCap = 'round';
+      switch (marks[i]) {
+        case 'windmill': {
+          c.fillRect(x - s * 0.06, y - s * 1.9, s * 0.12, s * 1.9);
           c.beginPath();
-          c.moveTo(x - s * 0.35, y + 2);
-          c.lineTo(x - s * 0.22, y - s * 1.8);
-          c.lineTo(x + s * 0.18, y - s * 1.9);
-          c.lineTo(x + s * 0.35, y + 2);
-          c.closePath();
-          c.fillStyle = shade(th.mid, 0.12);
-          c.fill();
-        } else {
-          c.strokeStyle = shade('#6fbf5a', 0.35);
-          c.lineCap = 'round';
-          c.lineWidth = s * 0.16;
-          c.beginPath();
-          c.moveTo(x, y + 2);
-          c.lineTo(x, y - s * 0.9);
-          c.moveTo(x, y - s * 0.45);
-          c.quadraticCurveTo(x - s * 0.3, y - s * 0.45, x - s * 0.3, y - s * 0.75);
+          c.moveTo(x - s * 0.35, y);
+          c.lineTo(x - s * 0.05, y - s * 1.9);
+          c.lineTo(x + s * 0.05, y - s * 1.9);
+          c.lineTo(x + s * 0.35, y);
+          c.lineWidth = s * 0.06;
           c.stroke();
+          for (let k = 0; k < 8; k++) {
+            const a = (k / 8) * Math.PI * 2;
+            c.beginPath();
+            c.moveTo(x, y - s * 1.95);
+            c.lineTo(x + Math.cos(a) * s * 0.55, y - s * 1.95 + Math.sin(a) * s * 0.55);
+            c.lineWidth = s * 0.09;
+            c.stroke();
+          }
+          break;
         }
-      } else {
-        // Glowing crystals.
-        c.beginPath();
-        c.moveTo(x - s * 0.2, y + 2);
-        c.lineTo(x - s * 0.1, y - s * 1.3);
-        c.lineTo(x + s * 0.05, y - s * 1.6);
-        c.lineTo(x + s * 0.22, y + 2);
-        c.closePath();
-        c.fillStyle = rgba(th.decor[i % th.decor.length], 0.35);
-        c.fill();
+        case 'barn':
+          c.beginPath();
+          c.moveTo(x - s * 0.7, y);
+          c.lineTo(x - s * 0.7, y - s * 0.7);
+          c.lineTo(x - s * 0.45, y - s * 1.05);
+          c.lineTo(x + s * 0.45, y - s * 1.05);
+          c.lineTo(x + s * 0.7, y - s * 0.7);
+          c.lineTo(x + s * 0.7, y);
+          c.fill();
+          break;
+        case 'fence':
+          c.lineWidth = s * 0.06;
+          c.beginPath();
+          for (let k = 0; k < 6; k++) {
+            c.moveTo(x + k * s * 0.35, y);
+            c.lineTo(x + k * s * 0.35, y - s * 0.4);
+          }
+          c.moveTo(x, y - s * 0.32);
+          c.lineTo(x + s * 1.75, y - s * 0.32);
+          c.moveTo(x, y - s * 0.16);
+          c.lineTo(x + s * 1.75, y - s * 0.16);
+          c.stroke();
+          break;
+        case 'tree':
+          c.fillRect(x - s * 0.06, y - s * 0.8, s * 0.12, s * 0.85);
+          c.beginPath();
+          ellipse(c, x, y - s * 1.0, s * 0.45, s * 0.35);
+          c.fill();
+          break;
+        case 'saloon':
+        case 'shack': {
+          const w = marks[i] === 'saloon' ? s * 1.5 : s * 0.9;
+          const hgt = marks[i] === 'saloon' ? s * 1.25 : s * 0.75;
+          // False-front facade.
+          c.fillRect(x - w / 2, y - hgt, w, hgt);
+          c.fillRect(x - w * 0.35, y - hgt - s * 0.25, w * 0.7, s * 0.3);
+          if (glow) {
+            c.fillStyle = glow;
+            for (const dx of [-0.25, 0.15]) c.fillRect(x + dx * w, y - hgt * 0.65, w * 0.14, hgt * 0.22);
+          } else {
+            c.fillStyle = shade(col, 0.25);
+            c.fillRect(x - w * 0.12, y - hgt * 0.5, w * 0.24, hgt * 0.5);
+          }
+          break;
+        }
+        case 'tower': {
+          c.lineWidth = s * 0.06;
+          c.beginPath();
+          c.moveTo(x - s * 0.35, y);
+          c.lineTo(x - s * 0.25, y - s * 1.2);
+          c.moveTo(x + s * 0.35, y);
+          c.lineTo(x + s * 0.25, y - s * 1.2);
+          c.moveTo(x - s * 0.3, y - s * 0.6);
+          c.lineTo(x + s * 0.3, y - s * 0.6);
+          c.stroke();
+          c.beginPath();
+          roundRectPath(c, x - s * 0.4, y - s * 1.75, s * 0.8, s * 0.6, s * 0.1);
+          c.fill();
+          c.beginPath();
+          c.moveTo(x - s * 0.45, y - s * 1.75);
+          c.lineTo(x, y - s * 2.05);
+          c.lineTo(x + s * 0.45, y - s * 1.75);
+          c.fill();
+          break;
+        }
+        case 'mine': {
+          c.beginPath();
+          c.moveTo(x - s * 0.9, y);
+          c.quadraticCurveTo(x, y - s * 1.8, x + s * 0.9, y);
+          c.fill();
+          c.fillStyle = shade(col, 0.6);
+          c.beginPath();
+          c.moveTo(x - s * 0.35, y);
+          c.lineTo(x - s * 0.35, y - s * 0.5);
+          c.quadraticCurveTo(x, y - s * 0.8, x + s * 0.35, y - s * 0.5);
+          c.lineTo(x + s * 0.35, y);
+          c.fill();
+          if (glow) {
+            const g = c.createRadialGradient(x, y - s * 0.3, 0, x, y - s * 0.3, s * 0.6);
+            g.addColorStop(0, rgba(glow, 0.7));
+            g.addColorStop(1, rgba(glow, 0));
+            c.fillStyle = g;
+            c.fillRect(x - s * 0.6, y - s * 0.9, s * 1.2, s * 0.9);
+          }
+          break;
+        }
+        case 'cactus':
+          drawCactus(c, x, y, s * 0.9, col);
+          break;
+        case 'rock':
+          c.beginPath();
+          c.moveTo(x - s * 0.5, y);
+          c.lineTo(x - s * 0.3, y - s * 0.9);
+          c.lineTo(x + s * 0.2, y - s * 1.1);
+          c.lineTo(x + s * 0.5, y);
+          c.fill();
+          break;
       }
     }
   }
@@ -191,34 +255,51 @@ export class Background {
   private drawNear(c: Ctx, lh: number, unit: number): void {
     const th = this.theme;
     const base = lh * 0.58;
-    const tops = this.silhouette(c, lh, base, unit * 0.45, 8, [3, 7, 11], th.near);
+    const tops = this.silhouette(c, lh, base, unit * 0.4, 8, [3, 7, 11], th.near);
     const at = (x: number) => tops[Math.max(0, Math.min(tops.length - 1, Math.round(x / 8)))];
-    for (let i = 0; i < 26; i++) {
-      const x = (i / 26) * TILE_W + hash(i * 9.1) * 40;
-      const y = at(x);
-      const s = unit * (0.25 + hash(i * 3.3) * 0.3);
-      c.beginPath();
-      if (this.biome === 'crystal') {
-        // Glow mushrooms.
-        c.fillStyle = shade(th.near, 0.2);
-        c.fillRect(x - s * 0.08, y - s * 0.6, s * 0.16, s * 0.62);
-        c.beginPath();
-        c.ellipse(x, y - s * 0.6, s * 0.4, s * 0.25, 0, Math.PI, 0);
-        c.fillStyle = th.decor[i % th.decor.length];
-        c.globalAlpha = 0.75;
-        c.fill();
-        c.globalAlpha = 1;
-      } else {
-        // Bushes with a few flowers.
-        for (let k = 0; k < 3; k++) ellipse(c, x + (k - 1) * s * 0.55, y - s * 0.25 - (k === 1 ? s * 0.2 : 0), s * 0.5, s * 0.42);
-        c.fillStyle = shade(th.near, 0.08);
-        c.fill();
-        if (i % 2 === 0) {
+    for (let i = 0; i < 22; i++) {
+      const x = (i / 22) * TILE_W + hash(i * 9.1) * 40;
+      const y = at(x) + 2;
+      const s = unit * (0.3 + hash(i * 3.3) * 0.3);
+      const kind = i % 3;
+      if (this.biome === 'forest') {
+        if (kind === 0) {
+          // Round hay bale.
           c.beginPath();
-          ellipse(c, x + s * 0.2, y - s * 0.55, s * 0.09, s * 0.09);
-          c.fillStyle = th.decor[i % th.decor.length];
+          ellipse(c, x, y - s * 0.4, s * 0.55, s * 0.42);
+          c.fillStyle = '#d9b45a';
           c.fill();
+          c.strokeStyle = shade('#d9b45a', 0.3);
+          c.lineWidth = 2;
+          c.beginPath();
+          ellipse(c, x, y - s * 0.4, s * 0.3, s * 0.22);
+          c.stroke();
+        } else {
+          c.beginPath();
+          for (let k = -2; k <= 2; k++) {
+            c.moveTo(x + k * s * 0.12, y);
+            c.quadraticCurveTo(x + k * s * 0.15, y - s * 0.4, x + k * s * 0.25, y - s * (0.6 - Math.abs(k) * 0.1));
+          }
+          c.strokeStyle = shade(th.near, 0.15);
+          c.lineWidth = 3;
+          c.stroke();
         }
+      } else if (kind === 0) drawCactus(c, x, y, s * 1.2, shade(th.near, this.theme.night ? 0.35 : 0.2));
+      else if (kind === 1) {
+        // Tumbleweed / boulder.
+        c.beginPath();
+        ellipse(c, x, y - s * 0.3, s * 0.35, s * 0.3);
+        c.fillStyle = shade(th.near, 0.15);
+        c.fill();
+      } else if (this.theme.night) {
+        // Lantern post.
+        c.fillStyle = shade(th.near, 0.4);
+        c.fillRect(x - 2, y - s * 1.4, 4, s * 1.4);
+        const g = c.createRadialGradient(x, y - s * 1.4, 0, x, y - s * 1.4, s * 0.6);
+        g.addColorStop(0, 'rgba(255,207,90,0.9)');
+        g.addColorStop(1, 'rgba(255,207,90,0)');
+        c.fillStyle = g;
+        c.fillRect(x - s * 0.6, y - s * 2, s * 1.2, s * 1.2);
       }
     }
   }
@@ -309,4 +390,28 @@ export class Background {
       }
     }
   }
+}
+
+function roundRectPath(c: Ctx, x: number, y: number, w: number, h: number, r: number): void {
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+
+/** Saguaro silhouette standing on (x, y) in screen space (y down). */
+export function drawCactus(c: Ctx, x: number, y: number, s: number, color: string): void {
+  c.strokeStyle = color;
+  c.lineCap = 'round';
+  c.lineWidth = s * 0.22;
+  c.beginPath();
+  c.moveTo(x, y);
+  c.lineTo(x, y - s * 1.3);
+  c.moveTo(x, y - s * 0.55);
+  c.quadraticCurveTo(x - s * 0.38, y - s * 0.55, x - s * 0.38, y - s * 0.95);
+  c.moveTo(x, y - s * 0.75);
+  c.quadraticCurveTo(x + s * 0.34, y - s * 0.75, x + s * 0.34, y - s * 1.08);
+  c.stroke();
 }

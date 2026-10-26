@@ -23,7 +23,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   { id: 'ach_jumps_100', name: 'Springy', description: 'Jump 100 times.', target: 100, progress: (p) => p.stats.jumps, reward: { coins: 60, gems: 0, xp: 5 } },
   { id: 'ach_jumps_1000', name: 'Pogo Pro', description: 'Jump 1,000 times.', target: 1000, progress: (p) => p.stats.jumps, reward: { coins: 250, gems: 15, xp: 20 } },
   { id: 'ach_abilities_50', name: 'Trickster', description: 'Use 50 abilities.', target: 50, progress: (p) => p.stats.abilitiesUsed, reward: { coins: 120, gems: 0, xp: 10 } },
-  { id: 'ach_abilities_500', name: 'Master of Runes', description: 'Use 500 abilities.', target: 500, progress: (p) => p.stats.abilitiesUsed, reward: { coins: 400, gems: 25, xp: 30 } },
+  { id: 'ach_abilities_500', name: 'Trick Shot', description: 'Use 500 abilities.', target: 500, progress: (p) => p.stats.abilitiesUsed, reward: { coins: 400, gems: 25, xp: 30 } },
   { id: 'ach_podium_streak', name: 'Consistent', description: 'Finish in the top 3 in 3 races in a row.', target: 3, progress: (p) => p.stats.bestPodiumStreak, reward: { coins: 150, gems: 0, xp: 10 } },
   { id: 'ach_daily_sweep', name: 'Busy Day', description: 'Complete all daily quests in one day.', target: 1, progress: (p) => p.stats.dailyQuestSweeps, reward: { coins: 100, gems: 5, xp: 10 } },
   { id: 'ach_level_5', name: 'Rising Star', description: 'Reach account level 5.', target: 5, progress: (p) => p.level, reward: { coins: 100, gems: 10, xp: 0 } },
@@ -31,9 +31,9 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   { id: 'ach_level_20', name: 'Legend of the Lanes', description: 'Reach account level 20.', target: 20, progress: (p) => p.level, reward: { coins: 400, gems: 40, xp: 0 } },
   { id: 'ach_collector_10', name: 'Collector', description: 'Own 10 cosmetic items.', target: 10, progress: (p) => p.inventory.length, reward: { coins: 150, gems: 0, xp: 10 } },
   { id: 'ach_collector_25', name: 'Curator', description: 'Own 25 cosmetic items.', target: 25, progress: (p) => p.inventory.length, reward: { coins: 300, gems: 20, xp: 20 } },
-  { id: 'ach_glimmers_1000', name: 'Shiny Hoard', description: 'Collect 1,000 glimmers.', target: 1000, progress: (p) => p.stats.glimmers, reward: { coins: 200, gems: 10, xp: 15 } },
+  { id: 'ach_glimmers_1000', name: 'Gold Rush', description: 'Collect 1,000 gold nuggets.', target: 1000, progress: (p) => p.stats.glimmers, reward: { coins: 200, gems: 10, xp: 15 } },
   { id: 'ach_all_tracks', name: 'Explorer', description: 'Finish every hand-made track.', target: TRACK_IDS.length, progress: (p) => p.stats.tracksFinished.filter((t) => TRACK_IDS.includes(t)).length, reward: { coins: 150, gems: 10, xp: 10 } },
-  { id: 'ach_seeker_hits', name: 'Sharpshooter', description: 'Hit rivals with 25 Thistle Seekers.', target: 25, progress: (p) => p.stats.hitsLanded, reward: { coins: 200, gems: 0, xp: 15 } },
+  { id: 'ach_seeker_hits', name: 'Sharpshooter', description: 'Hit rivals with 25 Homing Rockets.', target: 25, progress: (p) => p.stats.hitsLanded, reward: { coins: 200, gems: 0, xp: 15 } },
 ];
 
 export const ACHIEVEMENT_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]));

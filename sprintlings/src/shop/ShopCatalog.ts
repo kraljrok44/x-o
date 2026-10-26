@@ -20,7 +20,7 @@ export interface ShopOffer {
 
 /** Bundles sold for Gems: discounted sets of existing cosmetics. */
 export const BUNDLES = [
-  { id: 'bundle_explorer', name: 'Explorer Set', description: 'Acorn Helmet, Explorer Pack and Leaf Swirl.', items: ['hat_acorn', 'back_pack', 'trail_leaves'], price: { currency: 'gems' as const, amount: 90 } },
+  { id: 'bundle_explorer', name: 'Prospector Set', description: 'Prospector Helmet, Saddlebag and Tumbleweed Swirl.', items: ['hat_acorn', 'back_pack', 'trail_leaves'], price: { currency: 'gems' as const, amount: 90 } },
   { id: 'bundle_royal', name: 'Royal Set', description: 'Sunburst Crown, Gilded Monocle and Prism Ribbon.', items: ['hat_crown', 'eyes_monocle', 'trail_rainbow'], price: { currency: 'gems' as const, amount: 420 } },
 ];
 

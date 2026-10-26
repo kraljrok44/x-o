@@ -1,6 +1,7 @@
 import jumpUrl from '../assets/audio/jump.mp3';
 import hitUrl from '../assets/audio/hit.mp3';
 import menuMusicUrl from '../assets/audio/menu-music.mp3';
+import unlockUrl from '../assets/audio/unlock.mp3';
 import { DEFAULT_AUDIO, type AudioSettings } from './AudioSettings';
 import { Rng } from '../shared/Rng';
 
@@ -41,13 +42,14 @@ export interface MusicTheme {
 const midi = (n: number) => 440 * Math.pow(2, (n - 69) / 12);
 
 /** Recorded clips (loaded lazily after the first user gesture, so they never delay boot). */
-const SAMPLE_URLS = { jump: jumpUrl, hit: hitUrl, menu: menuMusicUrl } as const;
+const SAMPLE_URLS = { jump: jumpUrl, hit: hitUrl, menu: menuMusicUrl, unlock: unlockUrl } as const;
 type SampleId = keyof typeof SAMPLE_URLS;
 
 /**
  * Sound effects are synthesised with the Web Audio API, except the jump and
  * hit sounds and the menu music, which are recorded clips. Synth versions
- * stand in until (or if) a clip fails to load. The context starts
+ * stand in until (or if) a clip fails to load. The unlock fanfare (chests,
+ * achievements, level-ups) is a recorded clip too. The context starts
  * suspended until the first user gesture.
  */
 export class AudioManager {
@@ -339,6 +341,7 @@ export class AudioManager {
         this.noise(0.35, 0.12, 400, 2500, 'bandpass');
         break;
       case 'unlock':
+        if (this.playSample('unlock', 0.7)) break;
         [67, 72, 76, 79, 84, 91].forEach((n, i) => this.tone('triangle', midi(n), midi(n), 0.3, 0.07, i * 0.07));
         break;
     }

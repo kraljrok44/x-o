@@ -6,6 +6,7 @@ import { dailyInfo } from '../progression/DailyRewardService';
 import { TRACK_IDS, trackInfo } from '../game/TrackManager';
 import { coinChip, gemChip, h } from './dom';
 import { t } from './i18n';
+import { showChestOpening } from './ChestOpening';
 import { topbar } from './Topbar';
 import type { Screen } from './UIRoot';
 
@@ -121,7 +122,7 @@ export function dailyPopup(ctx: AppContext): void {
     'div',
     { class: 'stack', style: 'align-items:center;text-align:center' },
     h('div', { style: 'font-size:56px' }, '🎁'),
-    h('div', { class: 'row' }, r.coins ? coinChip(r.coins) : null, r.gems ? gemChip(r.gems) : null, r.chest ? h('span', { class: 'chip' }, '🧰 Acorn Chest') : null),
+    h('div', { class: 'row' }, r.coins ? coinChip(r.coins) : null, r.gems ? gemChip(r.gems) : null, r.chest ? h('span', { class: 'chip' }, '🧰 Strongbox') : null),
     h('p', { class: 'muted small' }, t('Missing a day never resets your progress.')),
   );
   ctx.ui.modal(`${t('Daily calendar')} · ${t('Day {n}', { n: info.index + 1 })}`, body, [
@@ -130,7 +131,12 @@ export function dailyPopup(ctx: AppContext): void {
       kind: 'good',
       run: async () => {
         try {
+          const hadChest = !!dailyInfo(ctx.authority.profile, ctx.authority.now()).reward.chest;
           const g = await ctx.authority.claimDaily();
+          if (hadChest) {
+            await showChestOpening(ctx, g, t('Daily calendar'));
+            return;
+          }
           ctx.audio.play('coin');
           ctx.ui.toast(`+${g.coins} Coins${g.gems ? ` · +${g.gems} Gems` : ''}${g.items.length ? ' · new item!' : ''}`, 'gold');
         } catch (e) {

@@ -10,6 +10,7 @@ import { formatDuration } from '../shared/time';
 import { sidePanelLayout } from './CharacterSelect';
 import { h, priceChip } from './dom';
 import { t } from './i18n';
+import { showChestOpening } from './ChestOpening';
 import { topbar } from './Topbar';
 import type { Screen } from './UIRoot';
 
@@ -219,21 +220,7 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
       const r = await ctx.authority.buyOffer(o.id);
       ctx.audio.play('buy');
       if (o.kind === 'chest') {
-        const id = r.items[0] ?? r.duplicates[0]?.id;
-        const def = id ? COSMETIC_BY_ID[id] : undefined;
-        ctx.audio.play('unlock');
-        ctx.ui.modal(
-          o.name,
-          h(
-            'div',
-            { class: 'stack', style: 'align-items:center;text-align:center' },
-            def ? itemVisual(ctx, def) : null,
-            h('div', { class: 'card__name' }, def?.name ?? '?'),
-            def ? rarityLabel(def.rarity) : null,
-            r.duplicates.length ? h('p', { class: 'muted' }, `Duplicate → +${r.duplicates[0].coins} Coins`) : h('p', null, '✨ ' + t('Owned') + '!'),
-          ),
-          [{ label: 'OK', kind: 'primary' }],
-        );
+        await showChestOpening(ctx, r, o.name);
       } else ctx.ui.toast(`${t('Purchased!')} ${o.name}`, 'good');
       render();
     } catch (e) {

@@ -33,6 +33,69 @@ function drawHat(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monste
   ctx.rotate(0.12 + pose.wobbleA * 0.12);
   ctx.lineJoin = 'round';
   switch (m) {
+    case 'hat_cowboy':
+    case 'hat_tengallon':
+    case 'hat_sombrero': {
+      const tall = m === 'hat_tengallon' ? 1.5 : m === 'hat_sombrero' ? 0.85 : 1;
+      const brim = m === 'hat_sombrero' ? 1.55 : 1.05;
+      // Brim curling up at both ends.
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.62 * brim, 0.1);
+      ctx.quadraticCurveTo(-w * 0.5 * brim, -0.02, 0, -0.02);
+      ctx.quadraticCurveTo(w * 0.5 * brim, -0.02, w * 0.62 * brim, 0.1);
+      ctx.quadraticCurveTo(w * 0.45 * brim, 0.05, 0, 0.06);
+      ctx.quadraticCurveTo(-w * 0.45 * brim, 0.05, -w * 0.62 * brim, 0.1);
+      ctx.closePath();
+      outlined(ctx, shade(color, 0.08));
+      // Crown with the classic pinch on top.
+      const ch = w * 0.42 * tall;
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.3, 0.04);
+      ctx.quadraticCurveTo(-w * 0.34, ch * 0.8, -w * 0.18, ch);
+      ctx.quadraticCurveTo(0, ch * (m === 'hat_sombrero' ? 1.05 : 0.82), w * 0.18, ch);
+      ctx.quadraticCurveTo(w * 0.34, ch * 0.8, w * 0.3, 0.04);
+      ctx.closePath();
+      outlined(ctx, color);
+      // Band.
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.31, 0.1);
+      ctx.lineTo(w * 0.31, 0.1);
+      ctx.lineWidth = 0.06;
+      ctx.strokeStyle = m === 'hat_sombrero' ? '#e8473b' : shade(color, 0.55);
+      ctx.stroke();
+      if (m !== 'hat_sombrero') {
+        ctx.beginPath();
+        star(ctx, w * 0.12, 0.1, 0.035, 0.45, 5);
+        ctx.fillStyle = '#ffd23f';
+        ctx.fill();
+      }
+      break;
+    }
+    case 'hat_miner': {
+      ctx.beginPath();
+      ctx.ellipse(0, 0.03, w * 0.46, w * 0.38, 0, 0, Math.PI);
+      ctx.closePath();
+      outlined(ctx, color);
+      ctx.beginPath();
+      roundRect(ctx, -w * 0.55, -0.01, w * 1.1, 0.07, 0.03);
+      outlined(ctx, shade(color, 0.25));
+      // Lamp.
+      ctx.beginPath();
+      roundRect(ctx, w * 0.12, w * 0.1, 0.12, 0.1, 0.03);
+      outlined(ctx, '#3a3448');
+      ctx.beginPath();
+      ellipse(ctx, w * 0.12 + 0.11, w * 0.1 + 0.05, 0.035, 0.04);
+      ctx.fillStyle = '#ffe14d';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(w * 0.12 + 0.12, w * 0.1 + 0.08);
+      ctx.lineTo(w * 1.4, w * 0.28);
+      ctx.lineTo(w * 1.4, w * -0.08);
+      ctx.lineTo(w * 0.12 + 0.12, w * 0.1 + 0.02);
+      ctx.fillStyle = 'rgba(255,240,150,0.25)';
+      ctx.fill();
+      break;
+    }
     case 'hat_leaf': {
       ctx.beginPath();
       ctx.moveTo(0, 0);

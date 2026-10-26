@@ -353,12 +353,12 @@ export class RaceScene {
       ellipse(ctx, v.x + 0.05, v.y + 0.62, r, r);
       const g = ctx.createRadialGradient(v.x - 0.2, v.y + 0.9, 0.1, v.x, v.y + 0.62, r);
       g.addColorStop(0, 'rgba(255,255,255,0.5)');
-      g.addColorStop(0.7, 'rgba(155,140,255,0.15)');
-      g.addColorStop(1, 'rgba(120,200,255,0.55)');
+      g.addColorStop(0.7, 'rgba(255,210,90,0.15)');
+      g.addColorStop(1, 'rgba(255,190,60,0.55)');
       ctx.fillStyle = g;
       ctx.fill();
       ctx.lineWidth = 0.04;
-      ctx.strokeStyle = 'rgba(210,200,255,0.9)';
+      ctx.strokeStyle = 'rgba(255,220,120,0.95)';
       ctx.stroke();
       ctx.restore();
     }

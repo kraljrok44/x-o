@@ -6,12 +6,13 @@ import { formatDuration } from '../shared/time';
 import { offerRewardedAd } from './AdRewardDialog';
 import { gemChip, h, priceChip, progressBar } from './dom';
 import { t } from './i18n';
+import { showChestOpening } from './ChestOpening';
 import { topbar } from './Topbar';
 import type { Screen } from './UIRoot';
 
 function rewardLabel(r: SeasonReward): HTMLElement {
   if (r.cosmetic) return h('div', null, h('div', { style: 'font-size:24px' }, '🎁'), h('b', { class: 'small' }, COSMETIC_BY_ID[r.cosmetic]?.name ?? r.cosmetic));
-  if (r.chest) return h('div', null, h('div', { style: 'font-size:24px' }, '🧰'), h('span', { class: 'small' }, 'Acorn Chest'));
+  if (r.chest) return h('div', null, h('div', { style: 'font-size:24px' }, '🧰'), h('span', { class: 'small' }, 'Strongbox'));
   if (r.gems) return h('div', null, h('div', { style: 'font-size:24px' }, '💎'), h('span', { class: 'small' }, `${r.gems}`));
   return h('div', null, h('div', { style: 'font-size:24px' }, '🪙'), h('span', { class: 'small' }, `${r.coins ?? 0}`));
 }
@@ -20,9 +21,13 @@ export function seasonScreen(ctx: AppContext): Screen {
   const bar = topbar(ctx, { back: () => ctx.go('menu'), title: t('Season') });
   const content = h('div', { class: 'stack' });
 
-  const claim = async (tier: number, track: 'free' | 'premium') => {
+  const claim = async (tier: number, track: 'free' | 'premium', reward: SeasonReward) => {
     try {
       const g = await ctx.authority.claimSeasonTier(tier, track);
+      if (reward.chest) {
+        await showChestOpening(ctx, g, `${t('Tier')} ${tier} · Strongbox`);
+        return;
+      }
       ctx.audio.play('coin');
       ctx.ui.toast(`${t('Tier')} ${tier}: ${g.coins ? `+${g.coins} Coins ` : ''}${g.gems ? `+${g.gems} Gems ` : ''}${g.items.map((i) => COSMETIC_BY_ID[i]?.name).join(', ')}`, 'gold');
     } catch (e) {
@@ -55,13 +60,13 @@ export function seasonScreen(ctx: AppContext): Screen {
             'div',
             { class: `tier__cell ${isReached ? '' : 'locked'} ${freeClaimed ? 'claimed' : ''}` },
             rewardLabel(tier.free),
-            isReached && !freeClaimed ? h('button', { class: 'btn btn--good', onClick: () => claim(tier.tier, 'free') }, t('Claim')) : null,
+            isReached && !freeClaimed ? h('button', { class: 'btn btn--good', onClick: () => claim(tier.tier, 'free', tier.free) }, t('Claim')) : null,
           ),
           h(
             'div',
             { class: `tier__cell premium ${isReached && premium ? '' : 'locked'} ${premClaimed ? 'claimed' : ''}` },
             rewardLabel(tier.premium),
-            premium && isReached && !premClaimed ? h('button', { class: 'btn btn--good', onClick: () => claim(tier.tier, 'premium') }, t('Claim')) : !premium ? h('span', { class: 'small' }, '🔒') : null,
+            premium && isReached && !premClaimed ? h('button', { class: 'btn btn--good', onClick: () => claim(tier.tier, 'premium', tier.premium) }, t('Claim')) : !premium ? h('span', { class: 'small' }, '🔒') : null,
           ),
         ),
       );

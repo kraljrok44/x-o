@@ -53,7 +53,7 @@ export const EconomyConfig = {
   chests: {
     chest_acorn: {
       id: 'chest_acorn',
-      name: 'Acorn Chest',
+      name: 'Strongbox',
       price: { currency: 'coins' as const, amount: 250 },
       odds: { common: 70, rare: 25, epic: 5, legendary: 0 },
       /** Duplicate cosmetics are converted to coins at this share of their coin price. */

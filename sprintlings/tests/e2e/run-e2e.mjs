@@ -53,9 +53,9 @@ await test('layout adapts to a portrait phone screen', async () => {
 
 await test('shop: preview, buy with confirmation, equip', async () => {
   await app(() => window.sprintlings.go('shop'));
-  await page.waitForSelector('text=Acorn Helmet');
+  await page.waitForSelector('text=Prospector Helmet');
   const before = (await wallet()).coins;
-  await page.locator('.card', { hasText: 'Acorn Helmet' }).click();
+  await page.locator('.card', { hasText: 'Prospector Helmet' }).click();
   await page.getByRole('button', { name: /Buy for/ }).click();
   await page.locator('.modal').getByRole('button', { name: 'Buy', exact: true }).click();
   await page.waitForTimeout(500);

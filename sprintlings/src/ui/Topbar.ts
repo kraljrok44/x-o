@@ -19,7 +19,7 @@ export function topbar(ctx: AppContext, opts: { back?: () => void; title?: strin
   };
   const left = h('div', { class: 'topbar__left' });
   if (opts.back) left.append(h('button', { class: 'btn btn--icon backbtn', 'aria-label': t('Back'), onClick: opts.back }, '←'));
-  if (opts.title) left.append(h('h1', { class: 'panel__title', style: 'color:#fff;-webkit-text-stroke:3px #2a2147;paint-order:stroke fill;margin:0' }, opts.title));
+  if (opts.title) left.append(h('h1', { class: 'panel__title', style: 'color:#ffe7b0;-webkit-text-stroke:4px #3a1f10;paint-order:stroke fill;margin:0' }, opts.title));
   else left.append(h('div', { class: 'levelchip', title: t('Level {n}', { n: '' }) }, lvlNum, h('div', { class: 'levelchip__bar' }, lvlBar)));
   const el = h(
     'div',

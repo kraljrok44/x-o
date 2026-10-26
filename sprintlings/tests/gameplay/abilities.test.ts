@@ -12,7 +12,7 @@ function duo(length = 300, build?: Parameters<typeof testTrack>[1]) {
 const idle = [input({}), input({})];
 
 describe('abilities', () => {
-  it('Zephyr Dash speeds the racer up temporarily', () => {
+  it('Spur Dash speeds the racer up temporarily', () => {
     const sim = duo();
     for (let i = 0; i < 60; i++) sim.step(idle);
     sim.racers[0].item = 'dash';
@@ -24,7 +24,7 @@ describe('abilities', () => {
     expect(sim.racers[0].body.speed).toBeCloseTo(9, 1);
   });
 
-  it('Thistle Seeker homes in on the racer ahead and stuns it', () => {
+  it('Homing Rocket homes in on the racer ahead and stuns it', () => {
     const sim = duo();
     // b gets a head start.
     sim.racers[1].body.x = 12;
@@ -55,7 +55,7 @@ describe('abilities', () => {
     expect(hit).toBe(false);
   });
 
-  it('Bramble Snare stuns a follower who runs into it', () => {
+  it('Dynamite stuns a follower who runs into it', () => {
     const sim = duo();
     sim.racers[0].body.x = 10;
     sim.racers[0].item = 'snare';
@@ -68,7 +68,7 @@ describe('abilities', () => {
     expect(snared).toBe(true);
   });
 
-  it('Sticky Sap slows followers but not its owner', () => {
+  it('Tar Spill slows followers but not its owner', () => {
     const sim = duo();
     sim.racers[0].body.x = 14;
     sim.racers[0].item = 'sap';
@@ -117,7 +117,7 @@ describe('abilities', () => {
     expect(hit).toBe(false);
   });
 
-  it('Rune Boxes give leaders defensive and trailers offensive items more often', () => {
+  it('Loot crates give leaders defensive and trailers offensive items more often', () => {
     const sim = duo();
     const counts = [{} as Record<string, number>, {} as Record<string, number>];
     for (let i = 0; i < 4000; i++) {

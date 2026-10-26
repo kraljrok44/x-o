@@ -5,6 +5,7 @@ import { formatDuration, msUntilNextUtcDay } from '../shared/time';
 import { offerRewardedAd } from './AdRewardDialog';
 import { coinChip, gemChip, h, progressBar } from './dom';
 import { t } from './i18n';
+import { showChestOpening } from './ChestOpening';
 import { topbar } from './Topbar';
 import type { Screen } from './UIRoot';
 
@@ -99,7 +100,12 @@ export function questScreen(ctx: AppContext): Screen {
               class: 'btn btn--good',
               onClick: async () => {
                 try {
+                  const hadChest = !!dailyInfo(ctx.authority.profile, ctx.authority.now()).reward.chest;
                   const g = await ctx.authority.claimDaily();
+                  if (hadChest) {
+                    await showChestOpening(ctx, g, t('Daily calendar'));
+                    return;
+                  }
                   ctx.audio.play('coin');
                   ctx.ui.toast(`+${g.coins} Coins${g.gems ? ` · +${g.gems} Gems` : ''}${g.items.length ? ' · new item!' : ''}`, 'gold');
                 } catch (e) {
