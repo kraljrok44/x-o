@@ -1,5 +1,5 @@
 /**
- * Playable monsters. All share identical base movement stats; each has one
+ * Playable western critters: anthropomorphic animals in frontier outfits. All share identical base movement stats; each has one
  * small, situational passive so no monster is the best choice everywhere and
  * nothing that can be bought guarantees an advantage. Characters unlock with
  * Coins or account level only (never premium currency).
@@ -20,13 +20,22 @@ export interface PassiveDefinition {
   description: string;
 }
 
-export type BodyPlan = 'fluff' | 'antenna' | 'shaggy' | 'cyclops' | 'chomper' | 'yeti';
+export type BodyPlan = 'fox' | 'rabbit' | 'bear' | 'raccoon' | 'bull' | 'wolf';
 
 export interface CharacterPalette {
+  /** Fur. */
   body: string;
+  /** Light fur: muzzle, chest, inner ears. */
   belly: string;
+  /** Nose, horns, markings. */
   accent: string;
   eye: string;
+  /** Outfit. */
+  shirt: string;
+  vest: string;
+  pants: string;
+  boots: string;
+  scarf: string;
 }
 
 export interface CharacterDefinition {
@@ -34,7 +43,7 @@ export interface CharacterDefinition {
   name: string;
   species: string;
   tagline: string;
-  /** Which vector body plan the renderer draws (render/MonsterRig.ts). */
+  /** Which species the renderer draws (render/CharacterRig.ts). */
   bodyPlan: BodyPlan;
   palette: CharacterPalette;
   /** Alternate palettes unlockable as colour variants (shop category "colours"). */
@@ -48,31 +57,31 @@ export interface CharacterDefinition {
 }
 
 export const PASSIVES: Record<PassiveId, PassiveDefinition> = {
-  toughQuills: { id: 'toughQuills', name: 'Thick Fluff', description: 'Stumbles from obstacles are 15% shorter.' },
-  floaty: { id: 'floaty', name: 'Floaty Antennae', description: 'Hold jump while falling to drift down 15% slower.' },
-  steadyFeet: { id: 'steadyFeet', name: 'Steady Feet', description: 'Mud and sap affect you 35% less.' },
-  sparkSense: { id: 'sparkSense', name: 'Third Sense', description: 'Seekers chasing you home in 40% weaker.' },
-  hotStart: { id: 'hotStart', name: 'Hot Start', description: 'Your Zephyr Dash lasts 20% longer.' },
-  keenEyes: { id: 'keenEyes', name: 'Keen Eyes', description: 'Your Thistle Seekers home in 30% harder.' },
+  toughQuills: { id: 'toughQuills', name: 'Thick Hide', description: 'Stumbles from obstacles are 15% shorter.' },
+  floaty: { id: 'floaty', name: 'Big Ears', description: 'Hold jump while falling to drift down 15% slower.' },
+  steadyFeet: { id: 'steadyFeet', name: 'Steady Paws', description: 'Mud and tar slow you 35% less.' },
+  sparkSense: { id: 'sparkSense', name: 'Sly Sense', description: 'Rockets chasing you home in 40% weaker.' },
+  hotStart: { id: 'hotStart', name: 'Hot Start', description: 'Your Spur Dash lasts 20% longer.' },
+  keenEyes: { id: 'keenEyes', name: 'Keen Eyes', description: 'Your Homing Rockets home in 30% harder.' },
 };
 
 const ALL_SLOTS: CharacterDefinition['cosmeticSlots'] = ['hat', 'eyes', 'back', 'trail', 'emote'];
 
 /*
  * Ids are kept from the first release so existing saves keep their unlocks;
- * names and looks are the cartoon monster cast.
+ * names and looks are the western critter cast. Every design is original.
  */
 export const CHARACTERS: Record<CharacterId, CharacterDefinition> = {
   moss: {
     id: 'moss',
-    name: 'Bloop',
-    species: 'Puffball monster',
-    tagline: 'All fluff, no fear.',
-    bodyPlan: 'fluff',
-    palette: { body: '#2fc4b2', belly: '#bff5e9', accent: '#f6e7c1', eye: '#1d1a2b' },
+    name: 'Rusty',
+    species: 'Fox wrangler',
+    tagline: 'Quickest tail in the territory.',
+    bodyPlan: 'fox',
+    palette: { body: '#f08a3c', belly: '#fff4e2', accent: '#2a1d2e', eye: '#2a1d2e', shirt: '#f3e1b6', vest: '#8a4f2a', pants: '#3f6fb0', boots: '#6b3d22', scarf: '#d8343a' },
     variants: [
-      { id: 'moss_autumn', name: 'Ember Bloop', palette: { body: '#f08a3c', belly: '#ffe2bf', accent: '#fff3d6', eye: '#1d1a2b' } },
-      { id: 'moss_frost', name: 'Frost Bloop', palette: { body: '#8ec9ff', belly: '#eef6ff', accent: '#ffffff', eye: '#1d1a2b' } },
+      { id: 'moss_autumn', name: 'Silver Rusty', palette: { body: '#b9c2cf', belly: '#ffffff', accent: '#2a1d2e', eye: '#2a1d2e', shirt: '#5a7fc4', vest: '#3a3448', pants: '#2f3450', boots: '#1f1a26', scarf: '#ffcf33' } },
+      { id: 'moss_frost', name: 'Desert Rusty', palette: { body: '#e8c27a', belly: '#fff8e8', accent: '#3b2a1e', eye: '#2a1d2e', shirt: '#ffffff', vest: '#c2683a', pants: '#8a6a4a', boots: '#5a3a22', scarf: '#3fa7a0' } },
     ],
     passive: 'toughQuills',
     cosmeticSlots: ALL_SLOTS,
@@ -81,14 +90,14 @@ export const CHARACTERS: Record<CharacterId, CharacterDefinition> = {
   },
   kip: {
     id: 'kip',
-    name: 'Mimi',
-    species: 'Antenna sprite',
+    name: 'Jackie',
+    species: 'Jackrabbit rodeo star',
     tagline: 'Never quite touches the ground.',
-    bodyPlan: 'antenna',
-    palette: { body: '#ff7fb4', belly: '#ffd6e7', accent: '#ffe066', eye: '#2b2140' },
+    bodyPlan: 'rabbit',
+    palette: { body: '#c9b59a', belly: '#fff4ea', accent: '#ff8fae', eye: '#2b2140', shirt: '#e8473b', vest: '#f6e2c0', pants: '#7a5a3a', boots: '#a8743f', scarf: '#ffe066' },
     variants: [
-      { id: 'kip_dusk', name: 'Dusk Mimi', palette: { body: '#7d63c9', belly: '#e3d7ff', accent: '#ffb86b', eye: '#1b1430' } },
-      { id: 'kip_cocoa', name: 'Mint Mimi', palette: { body: '#5fd6a0', belly: '#d8fbe9', accent: '#ff8fb8', eye: '#1b1430' } },
+      { id: 'kip_dusk', name: 'Midnight Jackie', palette: { body: '#5f5a72', belly: '#d9d2ea', accent: '#ff9ec8', eye: '#1b1430', shirt: '#7d63c9', vest: '#2a2438', pants: '#3a3448', boots: '#1f1a26', scarf: '#ffb86b' } },
+      { id: 'kip_cocoa', name: 'Snowy Jackie', palette: { body: '#f4f1ec', belly: '#ffffff', accent: '#ff8fae', eye: '#1b1430', shirt: '#5fb0a0', vest: '#8a5a3c', pants: '#4a5a7a', boots: '#6b3d22', scarf: '#ff6f8a' } },
     ],
     passive: 'floaty',
     cosmeticSlots: ALL_SLOTS,
@@ -97,14 +106,14 @@ export const CHARACTERS: Record<CharacterId, CharacterDefinition> = {
   },
   pebble: {
     id: 'pebble',
-    name: 'Grumbo',
-    species: 'Shaggy canyon beast',
-    tagline: 'Big hair, bigger heart.',
-    bodyPlan: 'shaggy',
-    palette: { body: '#ff9a3c', belly: '#ffd9a8', accent: '#fff4dc', eye: '#20160f' },
+    name: 'Bruno',
+    species: 'Grizzly blacksmith',
+    tagline: 'Big paws, bigger heart.',
+    bodyPlan: 'bear',
+    palette: { body: '#9a6338', belly: '#e8c99a', accent: '#2a1d2e', eye: '#20160f', shirt: '#4f9e5a', vest: '#5a3a22', pants: '#6a5038', boots: '#3b2a1e', scarf: '#f2b233' },
     variants: [
-      { id: 'pebble_basalt', name: 'Storm Grumbo', palette: { body: '#5a6b8c', belly: '#b9c6e0', accent: '#ffe066', eye: '#0f0f14' } },
-      { id: 'pebble_jade', name: 'Jade Grumbo', palette: { body: '#4fb38a', belly: '#c4f0d9', accent: '#fff4dc', eye: '#10201b' } },
+      { id: 'pebble_basalt', name: 'Midnight Bruno', palette: { body: '#3f3a48', belly: '#a8a0b8', accent: '#1a1424', eye: '#0f0f14', shirt: '#c4473b', vest: '#2a2438', pants: '#3a3448', boots: '#1a1424', scarf: '#ffe066' } },
+      { id: 'pebble_jade', name: 'Honey Bruno', palette: { body: '#d9a24a', belly: '#fff0c8', accent: '#3b2a1e', eye: '#20160f', shirt: '#3f6fb0', vest: '#8a4f2a', pants: '#5a4a3a', boots: '#4a2e1a', scarf: '#e8473b' } },
     ],
     passive: 'steadyFeet',
     cosmeticSlots: ALL_SLOTS,
@@ -113,14 +122,14 @@ export const CHARACTERS: Record<CharacterId, CharacterDefinition> = {
   },
   lumi: {
     id: 'lumi',
-    name: 'Zib',
-    species: 'One-eyed glimmer imp',
-    tagline: 'Sees trouble coming.',
-    bodyPlan: 'cyclops',
-    palette: { body: '#9b6bff', belly: '#dcccff', accent: '#ffd23f', eye: '#2a1030' },
+    name: 'Bandit',
+    species: 'Raccoon card shark',
+    tagline: 'Always one step ahead of trouble.',
+    bodyPlan: 'raccoon',
+    palette: { body: '#9aa0ac', belly: '#f1f1f4', accent: '#2a2a33', eye: '#1a1424', shirt: '#8e5ad6', vest: '#2a2438', pants: '#4a4a5a', boots: '#2a1d2e', scarf: '#e8473b' },
     variants: [
-      { id: 'lumi_abyss', name: 'Abyss Zib', palette: { body: '#3a4fbf', belly: '#a9b6ff', accent: '#63ffd8', eye: '#0b0b24' } },
-      { id: 'lumi_gold', name: 'Sunny Zib', palette: { body: '#f2c14e', belly: '#fff2c4', accent: '#ff7eb6', eye: '#2a1a05' } },
+      { id: 'lumi_abyss', name: 'Dusky Bandit', palette: { body: '#6c6a80', belly: '#d8d6e8', accent: '#1a1424', eye: '#0b0b24', shirt: '#2f8f8a', vest: '#5a2a3a', pants: '#2f3450', boots: '#1a1424', scarf: '#ffcf33' } },
+      { id: 'lumi_gold', name: 'Golden Bandit', palette: { body: '#c8a878', belly: '#fff2d8', accent: '#3b2a1e', eye: '#2a1a05', shirt: '#ffffff', vest: '#b8862a', pants: '#5a3a22', boots: '#3b2a1e', scarf: '#3f6fb0' } },
     ],
     passive: 'sparkSense',
     cosmeticSlots: ALL_SLOTS,
@@ -129,14 +138,14 @@ export const CHARACTERS: Record<CharacterId, CharacterDefinition> = {
   },
   ember: {
     id: 'ember',
-    name: 'Chompy',
-    species: 'Grinning sprout monster',
+    name: 'Buck',
+    species: 'Bull bronco buster',
     tagline: 'Starts hot, stays hot.',
-    bodyPlan: 'chomper',
-    palette: { body: '#9bd63a', belly: '#e4f7b8', accent: '#3f9a3a', eye: '#1a0d08' },
+    bodyPlan: 'bull',
+    palette: { body: '#a8522f', belly: '#f2c9a8', accent: '#f6ead2', eye: '#1a0d08', shirt: '#f2d16b', vest: '#3f6fb0', pants: '#6a4a32', boots: '#3b2a1e', scarf: '#ffffff' },
     variants: [
-      { id: 'ember_teal', name: 'Lagoon Chompy', palette: { body: '#22b8c8', belly: '#c8fff7', accent: '#ffcc33', eye: '#06201e' } },
-      { id: 'ember_violet', name: 'Berry Chompy', palette: { body: '#e0559a', belly: '#ffd0e6', accent: '#7b2d8e', eye: '#170a24' } },
+      { id: 'ember_teal', name: 'Ink Buck', palette: { body: '#3a3440', belly: '#b8aec8', accent: '#f6ead2', eye: '#06061e', shirt: '#e8473b', vest: '#1f1a26', pants: '#3a3448', boots: '#1a1424', scarf: '#ffcf33' } },
+      { id: 'ember_violet', name: 'Palomino Buck', palette: { body: '#e8c08a', belly: '#fff4e0', accent: '#fffaf0', eye: '#1a0d08', shirt: '#5fb0a0', vest: '#8a4f2a', pants: '#3f6fb0', boots: '#5a3a22', scarf: '#d8343a' } },
     ],
     passive: 'hotStart',
     cosmeticSlots: ALL_SLOTS,
@@ -145,14 +154,14 @@ export const CHARACTERS: Record<CharacterId, CharacterDefinition> = {
   },
   hoot: {
     id: 'hoot',
-    name: 'Yobo',
-    species: 'Snowpeak yeti cub',
+    name: 'Lobo',
+    species: 'Wolf sheriff',
     tagline: 'Sees every shortcut twice.',
-    bodyPlan: 'yeti',
-    palette: { body: '#5fb0ff', belly: '#e6f3ff', accent: '#ffffff', eye: '#1a1424' },
+    bodyPlan: 'wolf',
+    palette: { body: '#7f8ba0', belly: '#e9eef5', accent: '#2a2a33', eye: '#1a1424', shirt: '#dfe7f2', vest: '#c9a46a', pants: '#3a4258', boots: '#4a2e1a', scarf: '#3f6fb0' },
     variants: [
-      { id: 'hoot_snow', name: 'Snowy Yobo', palette: { body: '#eef2f8', belly: '#ffffff', accent: '#9fd2ff', eye: '#141a24' } },
-      { id: 'hoot_moss', name: 'Mossy Yobo', palette: { body: '#6c9a4a', belly: '#e5e0b5', accent: '#fff3c4', eye: '#141a10' } },
+      { id: 'hoot_snow', name: 'Arctic Lobo', palette: { body: '#e9eef5', belly: '#ffffff', accent: '#3a4258', eye: '#141a24', shirt: '#3f6fb0', vest: '#f6ead2', pants: '#2f3450', boots: '#3b2a1e', scarf: '#e8473b' } },
+      { id: 'hoot_moss', name: 'Timber Lobo', palette: { body: '#8a6a4a', belly: '#e8d8b8', accent: '#2a1d1e', eye: '#141a10', shirt: '#4f9e5a', vest: '#5a3a22', pants: '#4a3a2a', boots: '#2a1d1e', scarf: '#ffcf33' } },
     ],
     passive: 'keenEyes',
     cosmeticSlots: ALL_SLOTS,

@@ -17,7 +17,7 @@ import { ThumbnailRenderer } from '../render/ThumbnailRenderer';
 import { achievementsScreen } from '../ui/AchievementsScreen';
 import { characterSelect } from '../ui/CharacterSelect';
 import { h } from '../ui/dom';
-import { setLanguage, t } from '../ui/i18n';
+import { t } from '../ui/i18n';
 import { inventoryScreen } from '../ui/InventoryScreen';
 import { mainMenu } from '../ui/MainMenu';
 import { modeSelect } from '../ui/ModeSelect';
@@ -83,8 +83,6 @@ export class Application implements AppContext {
   }
 
   async boot(): Promise<void> {
-    // The game ships in English only (portal audiences are international).
-    setLanguage('en');
     this.showLoading();
     this.progress(0.05);
     this.platform = await createPlatform();
@@ -100,7 +98,7 @@ export class Application implements AppContext {
     this.progress(0.25);
 
     const browserStore = await createBrowserStore();
-    this.settings = new LocalSettings(browserStore, defaultSettings(detectQuality(), 'en'));
+    this.settings = new LocalSettings(browserStore, defaultSettings(detectQuality()));
     await this.settings.load();
     document.body.classList.toggle('reduced-motion', this.settings.value.reducedMotion);
     this.audio.applySettings(this.settings.value.audio);
@@ -152,7 +150,7 @@ export class Application implements AppContext {
     this.platform.loadingStop();
     this.state.go('menu');
     this.go('menu');
-    this.audio.playMusic({ root: 60, scale: [0, 2, 4, 7, 9], tempo: 104, mood: 'bright' }, 7, 0.45);
+    this.audio.playMenuMusic();
     requestAnimationFrame(this.loop);
     this.analytics.track('boot', { platform: this.platform.id });
   }
@@ -286,7 +284,7 @@ export class Application implements AppContext {
     this.disposeRace();
     this.platform.gameplayStop();
     if (this.state.state !== 'menu') this.state.go('menu');
-    this.audio.playMusic({ root: 60, scale: [0, 2, 4, 7, 9], tempo: 104, mood: 'bright' }, 7, 0.45);
+    this.audio.playMenuMusic();
     this.go('menu');
   }
 }

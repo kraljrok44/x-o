@@ -1,7 +1,7 @@
 import type { CharacterPalette } from '../player/CharacterDefinition';
 import { COSMETIC_BY_ID } from '../shop/CosmeticCatalog';
 import { ellipse, mix, roundRect, shade, star, tint, type Ctx } from './draw';
-import type { CosmeticLayer, MonsterPose, RigAnchors } from './MonsterRig';
+import type { CosmeticLayer, MonsterPose, RigAnchors } from './CharacterRig';
 
 /**
  * Vector cosmetics drawn on the monster rig, in body space (+y up, origin

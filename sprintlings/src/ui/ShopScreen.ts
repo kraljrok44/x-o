@@ -18,7 +18,7 @@ type Tab = ShopCategory | 'gems';
 const TABS: [Tab, string][] = [
   ['hats', 'Hats'],
   ['eyes', 'Eyewear'],
-  ['back', 'Back_'],
+  ['back', 'Back'],
   ['trails', 'Trails'],
   ['emotes', 'Emotes'],
   ['colours', 'Colours'],

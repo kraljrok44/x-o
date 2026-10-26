@@ -3,8 +3,6 @@ import { DEFAULT_BINDINGS, sanitizeBindings, type KeyBindings } from '../input/I
 import type { DifficultyChoice } from '../game/RaceVerifier';
 import type { KeyValueStore } from './KeyValueStore';
 
-export type Language = 'en' | 'sl';
-
 /** Non-sensitive, device-local preferences (design doc section 18). */
 export interface Settings {
   graphics: 'low' | 'medium' | 'high';
@@ -14,13 +12,12 @@ export interface Settings {
   cameraShake: boolean;
   reducedMotion: boolean;
   showFps: boolean;
-  language: Language;
   difficulty: DifficultyChoice;
   lastTrack: string;
   analyticsConsent: 'unknown' | 'granted' | 'denied';
 }
 
-export function defaultSettings(graphics: Settings['graphics'], language: Language): Settings {
+export function defaultSettings(graphics: Settings['graphics']): Settings {
   return {
     graphics,
     audio: { ...DEFAULT_AUDIO },
@@ -29,7 +26,6 @@ export function defaultSettings(graphics: Settings['graphics'], language: Langua
     cameraShake: true,
     reducedMotion: false,
     showFps: false,
-    language,
     difficulty: 'auto',
     lastTrack: 'mossy_hollow',
     analyticsConsent: 'unknown',

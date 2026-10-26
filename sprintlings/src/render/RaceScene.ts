@@ -9,7 +9,7 @@ import { cosmeticLayers, paletteFor, trailStyle } from './Cosmetics2D';
 import { ellipse, rgba, roundRect, type Ctx } from './draw';
 import type { GameRenderer } from './GameRenderer';
 import { MonsterAnimator, emoteStyle } from './MonsterAnimator';
-import { drawMonster, makeAnchors, monsterHeight, type RigAnchors } from './MonsterRig';
+import { drawMonster, makeAnchors, monsterHeight, type RigAnchors } from './CharacterRig';
 import { Particles } from './Particles';
 import { WorldPainter } from './WorldPainter';
 

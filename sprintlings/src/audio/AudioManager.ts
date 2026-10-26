@@ -1,3 +1,6 @@
+import jumpUrl from '../assets/audio/jump.mp3';
+import hitUrl from '../assets/audio/hit.mp3';
+import menuMusicUrl from '../assets/audio/menu-music.mp3';
 import { DEFAULT_AUDIO, type AudioSettings } from './AudioSettings';
 import { Rng } from '../shared/Rng';
 
@@ -37,10 +40,15 @@ export interface MusicTheme {
 
 const midi = (n: number) => 440 * Math.pow(2, (n - 69) / 12);
 
+/** Recorded clips (loaded lazily after the first user gesture, so they never delay boot). */
+const SAMPLE_URLS = { jump: jumpUrl, hit: hitUrl, menu: menuMusicUrl } as const;
+type SampleId = keyof typeof SAMPLE_URLS;
+
 /**
- * All sound is synthesised at runtime with the Web Audio API (no audio
- * files), which keeps the download tiny and every sound original.
- * The context starts suspended until the first user gesture.
+ * Sound effects are synthesised with the Web Audio API, except the jump and
+ * hit sounds and the menu music, which are recorded clips. Synth versions
+ * stand in until (or if) a clip fails to load. The context starts
+ * suspended until the first user gesture.
  */
 export class AudioManager {
   private ctx: AudioContext | null = null;
@@ -58,6 +66,11 @@ export class AudioManager {
   private melody: number[] = [];
   private glimmerCombo = 0;
   private lastGlimmer = 0;
+  private readonly samples = new Map<SampleId, AudioBuffer>();
+  private samplesRequested = false;
+  private menuSource: AudioBufferSourceNode | null = null;
+  private menuGain: GainNode | null = null;
+  private wantMenuMusic = false;
 
   /** Must be called from a user gesture handler at least once. */
   unlock(): void {
@@ -81,6 +94,78 @@ export class AudioManager {
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     }
     if (this.ctx.state === 'suspended' && this.suspendedReasons.size === 0) void this.ctx.resume();
+    this.loadSamples();
+  }
+
+  private loadSamples(): void {
+    if (this.samplesRequested || !this.ctx) return;
+    this.samplesRequested = true;
+    const ctx = this.ctx;
+    for (const [id, url] of Object.entries(SAMPLE_URLS) as [SampleId, string][]) {
+      fetch(url)
+        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+        .then((buf) => ctx.decodeAudioData(buf))
+        .then((audio) => {
+          this.samples.set(id, audio);
+          if (id === 'menu' && this.wantMenuMusic) this.startMenuMusic();
+        })
+        .catch(() => {
+          /* keep the synthesised fallback */
+        });
+    }
+  }
+
+  private playSample(id: SampleId, vol: number, pan = 0, rate = 1): boolean {
+    const buf = this.samples.get(id);
+    if (!buf || !this.ctx) return false;
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+    const g = this.ctx.createGain();
+    g.gain.value = vol;
+    let node: AudioNode = src.connect(g);
+    if (pan !== 0 && this.ctx.createStereoPanner) {
+      const p = this.ctx.createStereoPanner();
+      p.pan.value = pan;
+      node = node.connect(p);
+    }
+    node.connect(this.sfxBus);
+    src.start();
+    return true;
+  }
+
+  /** Loops the recorded menu track (replaces the procedural music). */
+  playMenuMusic(): void {
+    this.wantMenuMusic = true;
+    this.stopMusic();
+    this.startMenuMusic();
+  }
+
+  private startMenuMusic(): void {
+    const buf = this.samples.get('menu');
+    if (!this.ctx || !buf || this.menuSource) return;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0, this.ctx.currentTime);
+    g.gain.linearRampToValueAtTime(0.9, this.ctx.currentTime + 1.2);
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.connect(g).connect(this.musicBus);
+    src.start();
+    this.menuSource = src;
+    this.menuGain = g;
+  }
+
+  private stopMenuMusic(): void {
+    this.wantMenuMusic = false;
+    if (!this.ctx || !this.menuSource || !this.menuGain) return;
+    const t = this.ctx.currentTime;
+    this.menuGain.gain.cancelScheduledValues(t);
+    this.menuGain.gain.setValueAtTime(this.menuGain.gain.value, t);
+    this.menuGain.gain.linearRampToValueAtTime(0, t + 0.5);
+    this.menuSource.stop(t + 0.55);
+    this.menuSource = null;
+    this.menuGain = null;
   }
 
   get unlocked(): boolean {
@@ -159,6 +244,7 @@ export class AudioManager {
     const v = local;
     switch (id) {
       case 'jump':
+        if (this.playSample('jump', 0.55 * v, pan)) break;
         this.tone('triangle', 330, 720, 0.16, 0.22 * v, 0, pan);
         this.tone('sine', 660, 1100, 0.08, 0.06 * v, 0.02, pan);
         break;
@@ -199,10 +285,12 @@ export class AudioManager {
         this.tone('sine', 330, 110, 0.3, 0.08 * v, 0.06);
         break;
       case 'hit':
+        if (this.playSample('hit', 0.8 * v, pan)) break;
         this.noise(0.22, 0.32 * v, 2200, 200);
         this.tone('square', 240, 70, 0.24, 0.1 * v, 0, pan);
         break;
       case 'bonk':
+        if (this.playSample('hit', 0.6 * v, pan, 0.85)) break;
         this.tone('triangle', 180, 90, 0.18, 0.3 * v, 0, pan);
         this.noise(0.08, 0.25 * v, 1500, 300);
         break;
@@ -260,6 +348,7 @@ export class AudioManager {
 
   /** Starts a procedural loop for the given theme. `seed` varies the melody per track. */
   playMusic(theme: MusicTheme, seed: number, intensity = 1): void {
+    this.stopMenuMusic();
     this.musicTheme = theme;
     this.musicIntensity = intensity;
     const rng = new Rng(seed);

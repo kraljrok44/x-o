@@ -6,7 +6,7 @@ import { cosmeticLayers, paletteFor } from './Cosmetics2D';
 import { ellipse, shade, type Ctx } from './draw';
 import type { GameRenderer } from './GameRenderer';
 import { MonsterAnimator, emoteStyle } from './MonsterAnimator';
-import { drawMonster, makeAnchors } from './MonsterRig';
+import { drawMonster, makeAnchors } from './CharacterRig';
 
 export interface ShowcaseLoadout {
   characterId: CharacterId;

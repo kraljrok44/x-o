@@ -2,7 +2,7 @@ import { CHARACTERS, type CharacterId } from '../player/CharacterDefinition';
 import { COSMETIC_BY_ID } from '../shop/CosmeticCatalog';
 import { cosmeticLayers, paletteFor } from './Cosmetics2D';
 import type { GameRenderer } from './GameRenderer';
-import { drawMonster, makeAnchors, neutralPose, planSpec } from './MonsterRig';
+import { drawMonster, makeAnchors, monsterHeight, neutralPose } from './CharacterRig';
 
 /** Renders monster and cosmetic portraits into cached data URLs for the DOM UI. */
 export class ThumbnailRenderer {
@@ -22,9 +22,8 @@ export class ThumbnailRenderer {
     const ctx = this.canvas.getContext('2d')!;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.size, this.size);
-    const spec = planSpec(def.bodyPlan);
-    const height = spec.cy + spec.ry + (cosmetics.hat ? 0.55 : 0.3);
-    const scale = closeUp ? this.size / 1.35 : this.size / Math.max(1.45, height + 0.15);
+    const height = monsterHeight(def.bodyPlan) + (cosmetics.hat ? 0.3 : 0.1);
+    const scale = closeUp ? this.size / 0.95 : this.size / Math.max(1.45, height + 0.15);
     const pose = neutralPose();
     pose.facing = 1;
     pose.mouth = 'happy';
@@ -34,7 +33,7 @@ export class ThumbnailRenderer {
     pose.armFar = 0.5;
     ctx.translate(this.size / 2, closeUp ? this.size * 1.05 : this.size - (this.size - height * scale) / 2 - 4);
     ctx.scale(scale, -scale);
-    if (closeUp) ctx.translate(0, -0.35);
+    if (closeUp) ctx.translate(0, -0.62);
     drawMonster(ctx, def.bodyPlan, paletteFor(def.palette, def.variants, variantId), pose, { flat: false, shadow: !closeUp, shadowDrop: 0 }, cosmeticLayers(cosmetics), makeAnchors());
     const url = this.canvas.toDataURL('image/png');
     this.cache.set(key, url);

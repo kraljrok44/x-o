@@ -14,7 +14,7 @@ type Slot = LoadoutSlot | 'variant';
 const SLOTS: [Slot, string][] = [
   ['hat', 'Hats'],
   ['eyes', 'Eyewear'],
-  ['back', 'Back_'],
+  ['back', 'Back'],
   ['trail', 'Trails'],
   ['emote', 'Emotes'],
   ['variant', 'Colours'],

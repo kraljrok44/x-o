@@ -1,5 +1,5 @@
 import { damp, Spring } from './draw';
-import { neutralPose, type MonsterPose } from './MonsterRig';
+import { neutralPose, type MonsterPose } from './CharacterRig';
 
 export type EmoteStyle = 'wave' | 'spin' | 'cheer' | 'dance' | 'backflip' | 'flex';
 
