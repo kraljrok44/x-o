@@ -422,7 +422,7 @@ html, body { background: #2a160b; }
 .hud-team-slot.done { background: repeating-conic-gradient(#fff 0 25%, #2a1d2e 0 50%) 0 0 / 12px 12px; }
 .hud-team-slot.done img { opacity: 0.35; }
 .hud-vs { font-family: var(--font-display); color: #fff1cf; -webkit-text-stroke: 2px var(--line); paint-order: stroke fill; font-size: 18px; padding: 0 4px; }
-.hud-feed { position: absolute; top: calc(90px + var(--safe-top)); right: 12px; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; pointer-events: none; }
+.hud-feed { position: absolute; top: calc(130px + var(--safe-top)); right: 12px; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; pointer-events: none; }
 .hud-feed-line { display: flex; gap: 6px; align-items: center; font-weight: 700; font-size: 13px; padding: 2px 8px; border-radius: 8px; background: rgba(42,22,11,0.55); color: #fff; transition: opacity 0.6s; }
 .hud-feed-line .mine { color: #8fe36a; }
 .hud-feed-line .rival { color: #ff8a7a; }
@@ -444,3 +444,11 @@ html, body { background: #2a160b; }
 .hud-special .key { position: absolute; bottom: -12px; font-size: 12px; font-weight: 700; background: var(--paper); border: 2px solid var(--line); border-radius: 8px; padding: 1px 6px; }
 body.touch-on .hud-special { right: 128px; bottom: calc(160px + var(--safe-bottom)); }
 @media (max-height: 480px) { body.touch-on .hud-special { right: 250px; bottom: calc(22px + var(--safe-bottom)); } }
+
+.hud-track-title { position: absolute; top: 60%; left: 50%; transform: translateX(-50%); font-family: var(--font-display); font-size: clamp(26px, 5vw, 46px); color: #ffe08a; -webkit-text-stroke: 5px #3a1f10; paint-order: stroke fill; text-shadow: 0 5px 0 #3a1f10; white-space: nowrap; animation: cdpop 0.6s ease-out; }
+.hud-emotes { position: absolute; left: calc(12px + env(safe-area-inset-left, 0px)); bottom: calc(16px + var(--safe-bottom)); display: flex; gap: 6px; }
+.hud-emote { position: relative; font-family: var(--font-display); font-size: 13px; padding: 6px 10px; border-radius: 12px; border: 3px solid #3a1f10; background: var(--grain), linear-gradient(#fff6de, #ecd5a8); color: #3a1f10; box-shadow: 0 3px 0 #3a1f10; cursor: pointer; text-align: left; }
+.hud-emote:active { transform: translateY(2px); box-shadow: 0 1px 0 #3a1f10; }
+.hud-emote .key { margin-left: 6px; font-size: 10px; opacity: 0.7; }
+.hud-spectate { position: absolute; bottom: calc(24px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; padding: 8px 12px; border-radius: 14px; border: 3px solid #3a1f10; background: rgba(58,31,16,0.75); color: #fff1cf; font-weight: 700; white-space: nowrap; }
+body.touch-on .hud-emotes { bottom: auto; top: 30%; flex-direction: column; }

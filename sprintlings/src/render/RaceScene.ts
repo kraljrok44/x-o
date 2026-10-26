@@ -32,6 +32,9 @@ class RacerVisual {
   trailT = 0;
   celebrating = false;
   readonly ribbon: number[] = [];
+  /** Quick-chat speech bubble and how long it stays. */
+  bubble = '';
+  bubbleT = 0;
 
   constructor(readonly racer: Racer) {
     const def = CHARACTERS[racer.characterId];
@@ -88,6 +91,8 @@ export class RaceScene {
   /** Short-lived lasso ropes (racer indices) and lightning bolts. */
   private readonly ropes: { from: number; to: number; life: number }[] = [];
   private readonly bolts: { x: number; y: number; life: number }[] = [];
+  /** Racer the camera follows (the local one, or whoever is spectated after finishing). */
+  follow: number;
   /** Camera shake on hits (Settings: camera shake / reduced motion). */
   shakeEnabled = true;
   private readonly lowQ: boolean;
@@ -97,6 +102,7 @@ export class RaceScene {
     private readonly sim: RaceSimulation,
     readonly localIndex: number,
   ) {
+    this.follow = localIndex;
     this.lowQ = gr.quality === 'low';
     this.bg = new Background(sim.track.biome, gr.quality);
     this.world = new WorldPainter(sim.track, BIOME_THEMES[sim.track.biome], gr.quality);
@@ -189,7 +195,7 @@ export class RaceScene {
           this.bolts.push({ x: e.x, y: e.y, life: 0.35 });
           p.emit({ kind: 'spark', x: e.x, y: e.y + 0.4, color: '#ffe14d', count: 14, speed: 5, size: 0.12, life: 0.5 });
         } else {
-          p.emit({ kind: 'ring', x: e.x, y: e.y + 0.3, color: '#ffb020', count: 1, speed: 0, size: 1.6, life: 0.4 });
+          p.emit({ kind: 'ring', x: e.x, y: e.y + 0.3, color: '#ffb020', count: 1, speed: 0, size: 0.7, life: 0.35 });
           p.emit({ kind: 'puff', x: e.x, y: e.y + 0.3, color: '#ff7a3d', count: 14, speed: 5, size: 0.24, life: 0.5 });
           p.emit({ kind: 'puff', x: e.x, y: e.y + 0.4, color: 'rgba(70,60,60,0.8)', count: 10, speed: 2.5, dir: Math.PI / 2, spread: 1.4, size: 0.3, life: 0.9 });
           this.world.addScorch(e.x, e.y);
@@ -263,14 +269,15 @@ export class RaceScene {
 
     for (const v of this.visuals) v.interpolate(alpha);
     const me = this.visuals[this.localIndex];
-    const mb = me.racer.body;
+    const fv = this.visuals[this.follow] ?? me;
+    const mb = fv.racer.body;
 
     // --- camera ----------------------------------------------------------------
-    if (mb.grounded && mb.phase === 'run') this.groundRef = me.y;
-    const above = Math.max(0, me.y - this.groundRef - 1.2);
+    if (mb.grounded && mb.phase === 'run') this.groundRef = fv.y;
+    const above = Math.max(0, fv.y - this.groundRef - 1.2);
     const targetY = this.groundRef + 1.0 + above * 0.7;
     const lead = mb.phase === 'finished' ? 0 : 1.2 + Math.min(1.2, mb.speed * 0.08);
-    cam.follow(dt, me.x + lead, targetY);
+    cam.follow(dt, fv.x + lead, targetY);
     cam.updateShake(dt, this.shakeEnabled);
 
     // --- backdrop (screen space) -------------------------------------------------
@@ -304,7 +311,8 @@ export class RaceScene {
     // --- overlays (screen space) ---------------------------------------------------
     cam.applyScreen(ctx, pr);
     for (const v of this.visuals) this.drawTag(ctx, v, v === me);
-    this.drawOffscreen(ctx, me);
+    for (const v of this.visuals) this.drawBubble(ctx, v, dt);
+    this.drawOffscreen(ctx, fv);
   }
 
   private drawStrikes(ctx: Ctx, dt: number): void {
@@ -519,6 +527,16 @@ export class RaceScene {
     ctx.font = `600 ${fs}px Fredoka, system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
+    if (local && this.sim.time < 2) {
+      const label = r.name;
+      const tw = ctx.measureText(label).width + 14;
+      ctx.beginPath();
+      roundRect(ctx, x - tw / 2, y - fs - 30, tw, fs + 6, 8);
+      ctx.fillStyle = 'rgba(200,120,30,0.9)';
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(label, x, y - 26);
+    }
     if (local) {
       // Bouncing marker over the player.
       const bob = Math.sin(this.time * 5) * 3;
@@ -568,6 +586,44 @@ export class RaceScene {
       ctx.textBaseline = 'middle';
       ctx.fillText(ab.icon, bx, by + 1);
     }
+  }
+
+  /** Shows a quick-chat line over a racer for a moment. */
+  say(index: number, text: string): void {
+    const v = this.visuals[index];
+    if (!v) return;
+    v.bubble = text;
+    v.bubbleT = 2;
+    v.anim.onHappy();
+  }
+
+  private drawBubble(ctx: Ctx, v: RacerVisual, dt: number): void {
+    if (v.bubbleT <= 0) return;
+    v.bubbleT -= dt;
+    const cam = this.camera;
+    const x = cam.sx(v.x);
+    if (x < -80 || x > cam.width + 80) return;
+    const pop = Math.min(1, (2 - v.bubbleT) * 8);
+    const y = cam.sy(v.y + v.height + 0.25) - 52;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, v.bubbleT * 3);
+    ctx.font = `700 ${15 * pop}px Rye, Fredoka, system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(v.bubble).width + 18;
+    ctx.beginPath();
+    roundRect(ctx, x - tw / 2, y - 15 * pop, tw, 30 * pop, 12);
+    ctx.moveTo(x - 6, y + 14 * pop);
+    ctx.lineTo(x, y + 24 * pop);
+    ctx.lineTo(x + 6, y + 14 * pop);
+    ctx.fillStyle = '#fff6de';
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#3a1f10';
+    ctx.stroke();
+    ctx.fillStyle = '#3a1f10';
+    ctx.fillText(v.bubble, x, y + 1);
+    ctx.restore();
   }
 
   /** Arrows at the screen edges for racers out of view, with the gap in metres. */

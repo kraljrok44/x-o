@@ -9,6 +9,9 @@ import { formatRaceTime } from '../shared/time';
 import { h } from './dom';
 import { ordinal, t } from './i18n';
 
+/** Quick-chat lines (keys 1-4). */
+export const EMOTES = ['Howdy!', 'Yeehaw!', 'Oops!', 'GG!'] as const;
+
 /**
  * Minimal in-race HUD: position, progress, held ability, hazard warnings.
  * No ads or purchase prompts ever appear here.
@@ -27,6 +30,11 @@ export class RaceHUD {
   private readonly special = h('div', { class: 'hud-special' });
   private readonly specialRing = h('div', { class: 'ring' });
   private readonly countdown = h('div', { class: 'hud-countdown hidden' });
+  private readonly trackTitle = h('div', { class: 'hud-track-title hidden' });
+  private readonly emotes = h('div', { class: 'hud-emotes interactive' });
+  private readonly spectate = h('div', { class: 'hud-spectate interactive hidden' });
+  /** Called with the quick-chat slot (0-3) when an emote button is pressed. */
+  onEmote: ((slot: number) => void) | null = null;
   private readonly warning = h('div', { class: 'hud-warning hidden' });
   private readonly hint = h('div', { class: 'hud-hint hidden' });
   private readonly fps = h('div', { class: 'hud-fps hidden' });
@@ -70,6 +78,16 @@ export class RaceHUD {
       this.special.classList.add('interactive');
       input.bindTouchButton(this.special, 'special');
     }
+    this.trackTitle.textContent = sim.track.data.name;
+    EMOTES.forEach((em, i) => {
+      const b = h('button', { class: 'hud-emote', title: em }, h('span', null, em), touchMode ? null : h('span', { class: 'key' }, String(i + 1)));
+      b.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.onEmote?.(i);
+      });
+      this.emotes.append(b);
+    });
     this.pauseBtn = h('button', { class: 'btn btn--icon interactive hud-pause', 'aria-label': t('Paused') }, '⏸');
     this.touch = h('div', { class: `touch interactive ${touchMode ? '' : 'hidden'}` });
     const btn = (cls: string, label: string) => h('div', { class: `touch-btn ${cls}` }, label);
@@ -96,6 +114,9 @@ export class RaceHUD {
       this.ability,
       this.special,
       this.countdown,
+      this.trackTitle,
+      this.emotes,
+      this.spectate,
       this.warning,
       this.hint,
       this.fps,
@@ -121,6 +142,19 @@ export class RaceHUD {
     const c = h('div', { class: 'hud-callout' }, text);
     this.el.append(c);
     setTimeout(() => c.remove(), 1200);
+  }
+
+  /** After finishing: "Spectating <name>" with a skip button (null hides it). */
+  showSpectate(name: string | null, onSkip: () => void): void {
+    if (name === null) {
+      this.spectate.classList.add('hidden');
+      return;
+    }
+    const skip = h('button', { class: 'btn btn--primary' }, t('Skip') + ' ▶');
+    skip.addEventListener('click', onSkip);
+    this.spectate.replaceChildren(h('span', null, '👁 ' + t('Spectating {name}', { name })), skip);
+    this.spectate.classList.remove('hidden');
+    this.emotes.classList.add('hidden');
   }
 
   setHint(text: string | null): void {
@@ -194,6 +228,7 @@ export class RaceHUD {
     let cd = '';
     if (sim.phase === 'countdown') cd = String(Math.ceil((sim.countdownTicks - sim.tick) / 60));
     else if (sim.time < 0.7) cd = t('GO');
+    this.trackTitle.classList.toggle('hidden', sim.phase !== 'countdown');
     if (cd !== this.last.cd) {
       this.last.cd = cd;
       this.countdown.textContent = cd;

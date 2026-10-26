@@ -15,7 +15,7 @@ import { BIOME_THEMES } from '../render/BiomeTheme';
 import { RaceScene } from '../render/RaceScene';
 import { h } from '../ui/dom';
 import { t } from '../ui/i18n';
-import { RaceHUD } from '../ui/RaceHUD';
+import { EMOTES, RaceHUD } from '../ui/RaceHUD';
 import type { Screen } from '../ui/UIRoot';
 import type { AppContext } from './AppContext';
 
@@ -57,8 +57,35 @@ export class RaceController {
     this.touch = touch;
     this.hud = new RaceHUD(this.sim, 0, ctx.input, touch, s.showFps, (r) => ctx.thumbs.portrait(r.characterId, r.variantId, {}, true));
     this.hud.pauseBtn.addEventListener('click', () => this.pause());
+    this.hud.onEmote = (slot) => this.emote(0, slot);
+    ctx.input.onEmote = (slot) => this.emote(0, slot);
     this.tutorial = !ctx.authority.profile.tutorialDone;
     this.scene.shakeEnabled = s.cameraShake && !s.reducedMotion;
+  }
+
+  private lastEmote = -10;
+
+  /** Quick chat bubble (purely cosmetic, never touches the simulation). */
+  private emote(index: number, slot: number): void {
+    if (this.phase === 'results' || this.phase === 'lobby') return;
+    if (index === 0) {
+      const now = performance.now() / 1000;
+      if (now - this.lastEmote < 1.2) return;
+      this.lastEmote = now;
+    }
+    this.scene.say(index, EMOTES[slot]);
+    if (index === 0) this.ctx.audio.play('click');
+  }
+
+  /** Bots chat a little: brag after a hit, grumble when hit, GG at the finish. */
+  private botChat(e: RaceEvent): void {
+    const bot = (i: number) => i > 0 && !!this.sim.racers[i] && !this.sim.racers[i].isPlayer;
+    const roll = (p: number) => Math.random() < p;
+    if ((e.type === 'abilityHit' || e.type === 'seekerHit') && e.special !== 'pickpocket') {
+      if (bot(e.value) && roll(0.35)) this.emote(e.value, 1);
+      else if (bot(e.racer) && roll(0.25)) this.emote(e.racer, 2);
+    } else if (e.type === 'finish' && bot(e.racer) && roll(e.value === 1 ? 0.7 : 0.3)) this.emote(e.racer, e.value === 1 ? 1 : 3);
+    else if (e.type === 'go') for (const r of this.sim.racers) if (bot(r.index) && roll(0.2)) this.emote(r.index, 0);
   }
 
   private buzz(ms: number): void {
@@ -135,6 +162,7 @@ export class RaceController {
   }
 
   quit(): void {
+    this.ctx.input.onEmote = null;
     this.ctx.input.enabled = false;
     this.ctx.platform.gameplayStop();
     this.phase = 'results';
@@ -156,6 +184,7 @@ export class RaceController {
       }
       if (steps === MAX_STEPS_PER_FRAME) this.acc = 0;
       if (this.phase === 'finishing') {
+        this.updateSpectate(dt);
         this.finishTimer -= dt;
         if (this.finishTimer <= 0 || this.sim.phase === 'done') this.settle();
       } else if (this.sim.phase === 'done') this.settle();
@@ -199,6 +228,7 @@ export class RaceController {
     const me = this.sim.racers[0].body;
     for (const e of events) {
       this.feed(e);
+      this.botChat(e);
       if (e.type === 'countdown') {
         if (e.value > 0) a.play('beep');
         continue;
@@ -301,12 +331,37 @@ export class RaceController {
     this.ctx.platform.gameplayStop();
     this.finishTimer = 2.6;
     this.hud.setHint(null);
+    // Watch the rest of the field run in (up to 20 s), or skip straight to results.
+    if (this.sim.racers.some((r) => r.finishTime === null)) this.finishTimer = 20;
+    this.spectateDelay = 2.2;
+  }
+
+  private spectateDelay = 0;
+
+  /** Follows the best-placed racer still running. */
+  private updateSpectate(dt: number): void {
+    if (this.spectateDelay > 0) {
+      this.spectateDelay -= dt;
+      return;
+    }
+    const sim = this.sim;
+    const next = sim.standings.find((i) => sim.racers[i].finishTime === null);
+    if (next === undefined) {
+      this.finishTimer = Math.min(this.finishTimer, 1.5);
+      return;
+    }
+    if (this.scene.follow !== next) {
+      this.scene.follow = next;
+      this.hud.showSpectate(sim.racers[next].name, () => this.settle());
+    }
   }
 
   /** Fast-forwards the remaining racers, then hands the race to the authority for verification. */
   private settle(): void {
     if (this.settled) return;
     this.settled = true;
+    this.hud.showSpectate(null, () => {});
+    this.ctx.input.onEmote = null;
     this.ctx.input.enabled = false;
     this.ctx.platform.gameplayStop();
     const idle = NO_INPUT;

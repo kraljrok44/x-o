@@ -403,8 +403,66 @@ export class WorldPainter {
     }
   }
 
+  /** Cheering critter spectators lined up at the start and the finish. */
+  private drawCrowd(ctx: Ctx, x0: number, x1: number, left: number, right: number, time: number): void {
+    const colors = ['#f08a3c', '#c9b59a', '#9a6338', '#9aa0ac', '#a8522f', '#7f8ba0', '#e8c27a', '#5f5a72'];
+    const shirts = ['#d8343a', '#3f6fb0', '#4f9e5a', '#f2b233', '#8e5ad6', '#f3e1b6'];
+    for (let x = x0; x <= x1; x += 0.62) {
+      if (x < left - 1 || x > right + 1) continue;
+      const g = this.track.solidTop(x);
+      if (Number.isNaN(g)) continue;
+      const k = Math.floor(hash(x * 4.7) * 997);
+      const back = k % 2 === 0;
+      const sc = back ? 0.5 : 0.6;
+      const hop = Math.max(0, Math.sin(time * (5 + (k % 4)) + k)) * 0.18;
+      const cx = x + (back ? 0.3 : 0);
+      const by = g + hop + (back ? 0.25 : 0);
+      ctx.save();
+      ctx.globalAlpha = back ? 0.75 : 1;
+      // Body with shirt.
+      ctx.beginPath();
+      roundRect(ctx, cx - 0.22 * sc, by, 0.44 * sc, 0.75 * sc, 0.15 * sc);
+      ctx.fillStyle = shirts[k % shirts.length];
+      ctx.fill();
+      ctx.lineWidth = 0.04;
+      ctx.strokeStyle = this.th.outline;
+      ctx.stroke();
+      // Waving arms.
+      const wave = Math.sin(time * 9 + k) * 0.4;
+      ctx.beginPath();
+      ctx.moveTo(cx - 0.2 * sc, by + 0.6 * sc);
+      ctx.lineTo(cx - 0.45 * sc, by + (1.1 + wave * 0.3) * sc);
+      ctx.moveTo(cx + 0.2 * sc, by + 0.6 * sc);
+      ctx.lineTo(cx + 0.45 * sc, by + (1.1 - wave * 0.3) * sc);
+      ctx.lineWidth = 0.09 * sc;
+      ctx.strokeStyle = colors[k % colors.length];
+      ctx.stroke();
+      // Head with ears.
+      const hy = by + 0.98 * sc;
+      ctx.fillStyle = colors[(k >> 2) % colors.length];
+      ctx.beginPath();
+      ellipse(ctx, cx - 0.16 * sc, hy + 0.26 * sc, 0.08 * sc, 0.14 * sc);
+      ellipse(ctx, cx + 0.16 * sc, hy + 0.26 * sc, 0.08 * sc, 0.14 * sc);
+      ctx.fill();
+      ctx.beginPath();
+      ellipse(ctx, cx, hy, 0.27 * sc, 0.25 * sc);
+      ctx.fill();
+      ctx.lineWidth = 0.04;
+      ctx.strokeStyle = this.th.outline;
+      ctx.stroke();
+      ctx.fillStyle = '#20160f';
+      ctx.beginPath();
+      ellipse(ctx, cx - 0.09 * sc, hy + 0.03 * sc, 0.035 * sc, 0.045 * sc);
+      ellipse(ctx, cx + 0.09 * sc, hy + 0.03 * sc, 0.035 * sc, 0.045 * sc);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
   drawStartFinish(ctx: Ctx, left: number, right: number, time: number): void {
     const len = this.track.length;
+    if (left < 6) this.drawCrowd(ctx, -6, -1.2, left, right, time);
+    if (right > len - 8) this.drawCrowd(ctx, len + 2.4, len + 9, left, right, time);
     if (left < 3 && right > -3) {
       const y = this.track.solidTop(1.2);
       drawSign(ctx, 1.2, y, 'START', time, this.th.outline);

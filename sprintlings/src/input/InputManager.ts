@@ -56,6 +56,8 @@ export class InputManager {
   private readonly out: TickInput = { jumpHeld: false, down: false, use: false, special: false };
   enabled = false;
   onPause: (() => void) | null = null;
+  /** Quick chat: keys 1-4 during a race. */
+  onEmote: ((slot: number) => void) | null = null;
   /** Called on any input so the app can unlock audio etc. */
   onActivity: (() => void) | null = null;
   private capture: ((code: string) => void) | null = null;
@@ -144,6 +146,11 @@ export class InputManager {
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
     if (down && e.repeat && this.codeToAction.get(e.code) !== 'pause') {
       if (this.codeToAction.has(e.code)) e.preventDefault();
+      return;
+    }
+    if (down && this.enabled && /^Digit[1-4]$/.test(e.code) && !this.codeToAction.has(e.code)) {
+      this.onEmote?.(Number(e.code.slice(5)) - 1);
+      e.preventDefault();
       return;
     }
     const used = this.handle(e.code, down);
