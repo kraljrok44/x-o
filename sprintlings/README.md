@@ -38,8 +38,10 @@ Test PostgreSQL se zažene, ko je nastavljen `TEST_DATABASE_URL` (prazna testna 
 | Dejanje | Tipkovnica / miška | Dotik | Igralni plošček |
 | --- | --- | --- | --- |
 | Skok (drži = višji skok) | Space, W, ↑, levi klik | gumb SKOK, tap, poteg navzgor | A |
-| Spust skozi ploščad / hitrejši padec | S, ↓ | gumb ▼, poteg navzdol | D-pad / palica navzdol |
-| Sposobnost | E, D, →, levi Shift, desni klik | gumb sposobnosti, poteg naprej | X / RB |
+| Spust skozi ploščad / drsenje / hitrejši padec | S, ↓ (drži) | gumb ▼, poteg navzdol | D-pad / palica navzdol |
+| Predmet (powerup) | E, D, →, levi Shift, desni klik | gumb predmeta, poteg naprej | X / RB |
+| Posebnost živali | Q, F, ← | okrogel gumb z živaljo | Y / LB |
+| Hitri klepet | 1–4 | gumbi Howdy!/Yeehaw!/Oops!/GG! | – |
 | Premor | Escape, P | gumb ⏸ | Start |
 
 Tipke je mogoče spremeniti v Nastavitvah. Pritisk skoka točno ob »START« da startni pospešek.
@@ -98,6 +100,10 @@ Ključne odločitve:
 - **Pošteno gibanje**: če v zraku zadeneš rob stopnice tik pod vrhom, te igra dvigne nanj (ne pade več skozi tla); po zadetku sledi kratka utripajoča zaščita, zato te zaporedne ovire (npr. kotaleči se sodi) ne morejo ujeti v zanko.
 - **Pasti nasprotnikov** (dinamit, katran, raketa) so namenoma kričečih barv z belim robom, utripajočim rdečim obročem in opozorilnim znakom, da se ne zlijejo z okolico.
 - **Skrinje** (Strongbox iz trgovine, sezone ali koledarja) se odprejo z animacijo in zvokom.
+- **Posebnosti živali** (lasten gumb s časom ohlajanja, `Q`/`F`/`←`, gamepad Y): Rusty – Quick Getaway (kratek pospešek), Jackie – Double Hop (skok v zraku), Bruno – Iron Hide (ščit 2,5 s), Bandit – Pickpocket (ukrade predmet bližnjemu tekmecu), Buck – Stampede (naskok, ki podre tekmece), Lobo – Howl (upočasni bližnje tekmece). Uporabljajo jih tudi računalniški tekmeci.
+- **Predmeti**: Spur Dash, Tin Star Shield, Homing Rocket, Dynamite, Tar Spill ter novi Lasso (takoj omami najbližjega tekmeca spredaj), Thunder Cloud (po opozorilu udari vodilnega) in Bomb (vržena v loku, eksplodira ob pristanku, pusti ožgano sled). Pred raketami se lahko izmakneš z drsenjem.
+- **Predstavitev dirke**: odštevanje z imenom proge, navijači na startu in cilju, ime igralca na startu, hitri klepet (`1`–`4` ali gumbi: Howdy!/Yeehaw!/Oops!/GG!, tekmeci odgovarjajo), kill feed, po prihodu v cilj gledanje preostalih tekmecev (gumb Skip).
+- **Lestvica**: trofeje (1. +30, 2. +16, 3. −4, 4. −10, odhod −12, Duos zmaga ekipe +24; vadba ne šteje) in šest lig od Tenderfoot do Legend of the West; vsaka žival ima svojo raven (Animal Level, do 20). Rezultati prikažejo Animal Rank in Animal Level, meni pa ligo s pregledom vseh lig. Pred dirko je zaslon »Riding into … in« s karticami igralcev, trofejami, delitvijo VS pri Duos in nasvetom.
 - **Tekmovalci se ne zaletavajo drug v drugega** (tečejo drug skozi drugega, kot je običajno v tem žanru), zato te tekmec ne more poriniti v prepad. Tekmeci zunaj zaslona so označeni s puščicami in razdaljo.
 
 ## Ekonomija in monetizacija
@@ -155,6 +161,7 @@ Glavne poti: `POST /api/auth/guest`, `GET /api/profile`, `POST /api/race/start`,
 - **Zmogljivost** je bila v tem okolju merjena samo v brezglavem Chromiumu s programskim rasterizatorjem (~45–50 sličic/s pri 1280×720); na napravah z grafičnim pospeševanjem je pričakovano 60. Simulacija s tremi AI tekmeci porabi okoli 0,2–0,7 ms na korak na CPU.
 - **Jezik**: igra je samo v angleščini (slovenski prevod je bil na željo odstranjen).
 - **Sezona 2** ima samo osnovne (generirane) nagrade.
+- **Klani, prijatelji, klepet med igralci, zabave (party) in prave spletne Duos tekme** niso izvedljivi brez delujočega spletnega strežnika za igralce v živo; partner in tekmeci v Duos so računalniški. Trofeje tekmecev v predsobi so samo prikaz.
 
 ## Licenca in viri
 
