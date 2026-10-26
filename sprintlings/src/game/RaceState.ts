@@ -1,6 +1,6 @@
 import { GameplayConfig } from '../config/GameplayConfig';
 import type { AbilityId } from '../abilities/AbilityDefinition';
-import type { CharacterId } from '../player/CharacterDefinition';
+import type { CharacterId, SpecialId } from '../player/CharacterDefinition';
 import type { PassiveModifiers } from '../player/CharacterAbilities';
 
 export type RacerPhase = 'grid' | 'run' | 'fall' | 'respawn' | 'finished';
@@ -11,6 +11,8 @@ export interface TickInput {
   /** Held: drop through one-way platforms / fall faster. */
   down: boolean;
   use: boolean;
+  /** Press: fire the animal's own special ability. */
+  special?: boolean;
 }
 
 export const NO_INPUT: Readonly<TickInput> = Object.freeze({ jumpHeld: false, down: false, use: false });
@@ -72,6 +74,12 @@ export interface RacerBody {
   blocked: boolean;
   /** Holding down on solid ground: a low slide that ducks flying projectiles. */
   sliding: boolean;
+  /** Slowed by a rival's howl (seconds left). */
+  slow: number;
+  /** Bull stampede: dash that knocks over rivals it touches (seconds left). */
+  stampede: number;
+  /** Rabbit double hop is still available in this airtime. */
+  airHop: boolean;
 }
 
 /** Current hitbox height (lower while sliding). */
@@ -111,6 +119,9 @@ export function makeBody(x: number, y: number): RacerBody {
     onPad: false,
     blocked: false,
     sliding: false,
+    slow: 0,
+    stampede: 0,
+    airHop: false,
   };
 }
 
@@ -134,6 +145,8 @@ export interface Racer {
   body: RacerBody;
   item: AbilityId | null;
   abilityCooldown: number;
+  /** Seconds until the animal special can be used again. */
+  specialCooldown: number;
   finishTime: number | null;
   stats: RacerStats;
   /** Per-racer glimmer pickup flags (index = glimmer index in track data). */
@@ -178,7 +191,32 @@ export interface SapEntity {
   alive: boolean;
 }
 
-export type Entity = SeekerEntity | SnareEntity | SapEntity;
+/** Storm cloud hovering over a target, striking when the timer runs out. */
+export interface ThunderEntity {
+  kind: 'thunder';
+  id: number;
+  owner: number;
+  target: number;
+  x: number;
+  y: number;
+  ttl: number;
+  alive: boolean;
+}
+
+/** Lobbed bomb: flies on a gravity arc, blasts on landing or when the fuse ends. */
+export interface BombEntity {
+  kind: 'bomb';
+  id: number;
+  owner: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  ttl: number;
+  alive: boolean;
+}
+
+export type Entity = SeekerEntity | SnareEntity | SapEntity | ThunderEntity | BombEntity;
 
 export type RaceEventType =
   | 'countdown'
@@ -197,6 +235,10 @@ export type RaceEventType =
   | 'seekerHit'
   /** A racer was hit by a rival's powerup (value = attacker, ability = which). */
   | 'abilityHit'
+  /** An explosion or lightning strike at (x, y): value 0 = bomb, 1 = thunder. */
+  | 'blast'
+  /** An animal special was used (value = character special index, see CharacterDefinition). */
+  | 'special'
   | 'seekerExpire'
   | 'glimmer'
   | 'boostPad'
@@ -211,6 +253,8 @@ export interface RaceEvent {
   value: number;
   /** Optional ability involved. */
   ability: AbilityId | null;
+  /** Optional animal special involved (stampede / pickpocket hits). */
+  special?: SpecialId | null;
   /** Position of the event in track space. */
   x: number;
   y: number;

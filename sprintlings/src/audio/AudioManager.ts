@@ -30,7 +30,11 @@ export type SfxId =
   | 'bounce'
   | 'boost'
   | 'whoosh'
-  | 'unlock';
+  | 'unlock'
+  | 'boom'
+  | 'thunder'
+  | 'lasso'
+  | 'howl';
 
 export interface MusicTheme {
   root: number;
@@ -339,6 +343,24 @@ export class AudioManager {
         break;
       case 'whoosh':
         this.noise(0.35, 0.12, 400, 2500, 'bandpass');
+        break;
+      case 'boom':
+        this.noise(0.6, 0.4 * v, 1800, 60, 'lowpass', 0);
+        this.tone('sine', 120, 35, 0.5, 0.35 * v, 0, pan);
+        break;
+      case 'thunder':
+        this.noise(0.12, 0.35 * v, 6000, 2000, 'highpass');
+        this.noise(1.0, 0.3 * v, 900, 50, 'lowpass', 0.05);
+        this.tone('sawtooth', 90, 40, 0.6, 0.08 * v, 0.05, pan);
+        break;
+      case 'howl':
+        this.tone('sine', 300, 620, 0.35, 0.16 * v, 0, pan);
+        this.tone('sine', 620, 420, 0.7, 0.14 * v, 0.33, pan);
+        this.tone('triangle', 900, 700, 0.6, 0.03 * v, 0.33, pan);
+        break;
+      case 'lasso':
+        this.noise(0.3, 0.16 * v, 600, 3500, 'bandpass');
+        this.tone('triangle', 500, 250, 0.18, 0.08 * v, 0.2, pan);
         break;
       case 'unlock':
         if (this.playSample('unlock', 0.7)) break;

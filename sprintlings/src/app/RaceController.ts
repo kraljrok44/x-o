@@ -1,3 +1,5 @@
+import { SPECIAL_IDS } from '../abilities/SpecialAbility';
+import { SPECIALS } from '../player/CharacterDefinition';
 import { TICK_DT } from '../config/GameplayConfig';
 import { AIController } from '../ai/AIController';
 import { ABILITIES, type AbilityId } from '../abilities/AbilityDefinition';
@@ -17,7 +19,7 @@ import { RaceHUD } from '../ui/RaceHUD';
 import type { Screen } from '../ui/UIRoot';
 import type { AppContext } from './AppContext';
 
-const ABILITY_SFX: Record<AbilityId, SfxId> = { dash: 'dash', shield: 'shield', seeker: 'seeker', snare: 'snare', sap: 'sap' };
+const ABILITY_SFX: Record<AbilityId, SfxId> = { dash: 'dash', shield: 'shield', seeker: 'seeker', snare: 'snare', sap: 'sap', lasso: 'lasso', thunder: 'thunder', bomb: 'whoosh' };
 const MAX_STEPS_PER_FRAME = 5;
 
 export type RacePhaseUI = 'lobby' | 'racing' | 'paused' | 'finishing' | 'results';
@@ -183,7 +185,7 @@ export class RaceController {
       }
     } else if (e.type === 'abilityHit') {
       owner = e.value;
-      icon = e.ability ? ABILITIES[e.ability].icon : '💥';
+      icon = e.special ? SPECIALS[e.special].icon : e.ability ? ABILITIES[e.ability].icon : '💥';
     } else if (e.type === 'finish') {
       this.hud.feed(victim.name, '🏁', t('Finished'), mine(e.racer), mine(e.racer));
       return;
@@ -239,6 +241,25 @@ export class RaceController {
           a.play('bonk', vol, pan);
           if (local) this.buzz(50);
           break;
+        case 'blast':
+          a.play(e.value === 1 ? 'thunder' : 'boom', Math.max(vol, near ? 0.5 : 0), pan);
+          if (local) this.buzz(60);
+          break;
+        case 'abilityHit':
+          if (e.special === 'pickpocket') {
+            a.play('item', vol, pan);
+            if (local) this.hud.callout('🦝 ' + t('Your powerup was stolen!'));
+            if (e.value === 0) this.hud.callout('🦝 ' + t('Stolen!'));
+            break;
+          }
+          a.play('hit', vol, pan);
+          if (local) this.buzz(40);
+          break;
+        case 'special': {
+          const id = SPECIAL_IDS[e.value];
+          a.play(id === 'howl' ? 'howl' : id === 'ironHide' ? 'shield' : id === 'doubleHop' ? 'jump' : id === 'pickpocket' ? 'item' : 'dash', vol, pan);
+          break;
+        }
         case 'shieldBlock':
           a.play('block', vol, pan);
           break;

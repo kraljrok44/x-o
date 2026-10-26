@@ -427,3 +427,20 @@ html, body { background: #2a160b; }
 .hud-feed-line .mine { color: #8fe36a; }
 .hud-feed-line .rival { color: #ff8a7a; }
 .hud-feed-line.fade { opacity: 0; }
+
+/* Animal special: round badge with a cooldown ring, next to the powerup slot. */
+.hud-special {
+  position: absolute; right: calc(124px + env(safe-area-inset-right, 0px)); bottom: calc(22px + var(--safe-bottom));
+  width: 74px; height: 74px; border-radius: 50%; border: 4px solid var(--line); overflow: hidden;
+  background: var(--grain), radial-gradient(#ffe9a8, #d8a24a); display: grid; place-items: center;
+  box-shadow: 0 5px 0 var(--line); font-size: 34px;
+}
+.hud-special { overflow: visible; }
+.hud-special .ring { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; }
+.hud-special .icon { position: relative; filter: drop-shadow(0 2px 0 rgba(0,0,0,0.3)); }
+.hud-special:not(.ready) .icon { filter: grayscale(0.7); opacity: 0.7; }
+.hud-special.usable { animation: glow 1s infinite alternate; }
+.hud-special .name { position: absolute; top: -20px; font-size: 11px; font-weight: 700; white-space: nowrap; color: #fff; -webkit-text-stroke: 1.5px var(--line); paint-order: stroke fill; }
+.hud-special .key { position: absolute; bottom: -12px; font-size: 12px; font-weight: 700; background: var(--paper); border: 2px solid var(--line); border-radius: 8px; padding: 1px 6px; }
+body.touch-on .hud-special { right: 128px; bottom: calc(160px + var(--safe-bottom)); }
+@media (max-height: 480px) { body.touch-on .hud-special { right: 250px; bottom: calc(22px + var(--safe-bottom)); } }

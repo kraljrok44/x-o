@@ -5,7 +5,8 @@ import type { CharacterId } from '../player/CharacterDefinition';
 import { stepBody } from '../player/PlayerMovement';
 import { enterFinished, startRunning } from '../player/PlayerStateMachine';
 import { collectItemBoxes, tryUseAbility } from '../abilities/AbilityController';
-import { stepSeekers } from '../abilities/ProjectileSystem';
+import { stepStampedes, trySpecial } from '../abilities/SpecialAbility';
+import { stepBombs, stepSeekers, stepThunder } from '../abilities/ProjectileSystem';
 import { AbilityTuning, type AbilityId } from '../abilities/AbilityDefinition';
 import type { MovementWorld, BodyInput } from '../physics/PhysicsWorld';
 import { makeBodyInput } from '../physics/PhysicsWorld';
@@ -103,6 +104,7 @@ export class RaceSimulation implements MovementWorld {
         body: makeBody(x, y),
         item: null,
         abilityCooldown: 0,
+        specialCooldown: 0,
         finishTime: null,
         stats: emptyStats(),
         glimmerTaken: new Uint8Array(this.track.data.glimmers.length),
@@ -155,6 +157,7 @@ export class RaceSimulation implements MovementWorld {
     e.racer = racer;
     e.value = value;
     e.ability = null;
+    e.special = null;
     e.x = x;
     e.y = y;
     this.events.push(e);
@@ -172,6 +175,10 @@ export class RaceSimulation implements MovementWorld {
       case 'seekerHit':
         r.stats.hitsTaken++;
         break;
+      case 'abilityHit':
+        r.stats.hitsTaken++;
+        if (this.racers[value]) this.racers[value].stats.hitsLanded++;
+        break;
       case 'shieldBlock':
         r.stats.shieldBlocks++;
         break;
@@ -181,6 +188,12 @@ export class RaceSimulation implements MovementWorld {
       default:
         break;
     }
+  }
+
+  /** `victim` was hit by `attacker`'s powerup. */
+  emitAbilityHit(victim: number, attacker: number, ability: AbilityId): void {
+    this.emit('abilityHit', victim, attacker, this.racers[victim].body);
+    this.events[this.events.length - 1].ability = ability;
   }
 
   emitAbility(racer: number, ability: AbilityId): void {
@@ -238,14 +251,19 @@ export class RaceSimulation implements MovementWorld {
       racer.prevJumpHeld = input.jumpHeld;
       racer.prevDownHeld = input.down;
       if (racer.abilityCooldown > 0) racer.abilityCooldown = Math.max(0, racer.abilityCooldown - dt);
+      if (racer.specialCooldown > 0) racer.specialCooldown = Math.max(0, racer.specialCooldown - dt);
 
       stepBody(racer.body, bi, racer.mods, this, racer.index, dt);
       if (input.use) tryUseAbility(this, racer);
+      if (input.special) trySpecial(this, racer);
     }
+    stepStampedes(this);
 
     stepSeekers(this, dt);
+    stepThunder(this, dt);
+    stepBombs(this, dt);
     for (const e of this.entities) {
-      if (e.kind === 'seeker' || !e.alive) continue;
+      if (e.kind === 'seeker' || e.kind === 'thunder' || e.kind === 'bomb' || !e.alive) continue;
       e.ttl -= dt;
       if (e.ttl <= 0) e.alive = false;
     }

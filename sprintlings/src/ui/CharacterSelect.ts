@@ -1,5 +1,5 @@
 import type { AppContext } from '../app/AppContext';
-import { CHARACTERS, CHARACTER_IDS, PASSIVES, type CharacterId } from '../player/CharacterDefinition';
+import { CHARACTERS, CHARACTER_IDS, PASSIVES, SPECIALS, type CharacterId } from '../player/CharacterDefinition';
 import { visibleLoadout } from '../economy/InventoryService';
 import { h, priceChip } from './dom';
 import { t } from './i18n';
@@ -96,6 +96,17 @@ export function characterSelect(ctx: AppContext): Screen {
       h('div', { class: 'row row--between' }, h('h2', { class: 'panel__title' }, c.name), h('span', { class: 'chip' }, c.species)),
       h('p', { class: 'muted', style: 'margin:4px 0 10px' }, c.tagline),
       h('div', { class: 'list-item' }, h('div', { style: 'font-size:28px' }, '✨'), h('div', { class: 'list-item__body' }, h('div', { class: 'list-item__title' }, `${t('Passive')}: ${passive.name}`), h('div', { class: 'small muted' }, passive.description))),
+      h(
+        'div',
+        { class: 'list-item' },
+        h('div', { style: 'font-size:28px' }, SPECIALS[c.special].icon),
+        h(
+          'div',
+          { class: 'list-item__body' },
+          h('div', { class: 'list-item__title' }, `${t('Special')}: ${SPECIALS[c.special].name}`),
+          h('div', { class: 'small muted' }, `${SPECIALS[c.special].description} ${t('Cooldown {n} s', { n: SPECIALS[c.special].cooldown })}`),
+        ),
+      ),
       h('p', { class: 'small muted' }, t('All monsters share the same speed and jump. Passives are small, situational perks.')),
       actions,
     );

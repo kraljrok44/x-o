@@ -38,6 +38,27 @@ export interface CharacterPalette {
   scarf: string;
 }
 
+export type SpecialId = 'quickDash' | 'doubleHop' | 'ironHide' | 'pickpocket' | 'stampede' | 'howl';
+
+export interface SpecialDefinition {
+  id: SpecialId;
+  name: string;
+  icon: string;
+  description: string;
+  /** Seconds before it can be used again. */
+  cooldown: number;
+}
+
+/** Every animal has one active special on its own button, with a cooldown. */
+export const SPECIALS: Record<SpecialId, SpecialDefinition> = {
+  quickDash: { id: 'quickDash', name: 'Quick Getaway', icon: '🦊', description: 'A short burst of speed.', cooldown: 12 },
+  doubleHop: { id: 'doubleHop', name: 'Double Hop', icon: '🐰', description: 'Jump again in mid-air.', cooldown: 8 },
+  ironHide: { id: 'ironHide', name: 'Iron Hide', icon: '🐻', description: 'Shrug off the next hit for 2.5 s.', cooldown: 16 },
+  pickpocket: { id: 'pickpocket', name: 'Pickpocket', icon: '🦝', description: 'Steal the powerup of the nearest rival (8 m).', cooldown: 14 },
+  stampede: { id: 'stampede', name: 'Stampede', icon: '🐂', description: 'Charge ahead and knock over rivals you touch.', cooldown: 16 },
+  howl: { id: 'howl', name: 'Howl', icon: '🐺', description: 'Rivals within 10 m run 30% slower for 1.5 s.', cooldown: 15 },
+};
+
 export interface CharacterDefinition {
   id: CharacterId;
   name: string;
@@ -49,6 +70,7 @@ export interface CharacterDefinition {
   /** Alternate palettes unlockable as colour variants (shop category "colours"). */
   variants: { id: string; name: string; palette: CharacterPalette }[];
   passive: PassiveId;
+  special: SpecialId;
   /** Cosmetic slots the body plan supports. */
   cosmeticSlots: ('hat' | 'eyes' | 'back' | 'trail' | 'emote')[];
   unlock: { coins: number; level: number } | 'starter';
@@ -84,6 +106,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDefinition> = {
       { id: 'moss_frost', name: 'Desert Rusty', palette: { body: '#e8c27a', belly: '#fff8e8', accent: '#3b2a1e', eye: '#2a1d2e', shirt: '#ffffff', vest: '#c2683a', pants: '#8a6a4a', boots: '#5a3a22', scarf: '#3fa7a0' } },
     ],
     passive: 'toughQuills',
+    special: 'quickDash',
     cosmeticSlots: ALL_SLOTS,
     unlock: 'starter',
     homeBiome: 'forest',
@@ -100,6 +123,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDefinition> = {
       { id: 'kip_cocoa', name: 'Snowy Jackie', palette: { body: '#f4f1ec', belly: '#ffffff', accent: '#ff8fae', eye: '#1b1430', shirt: '#5fb0a0', vest: '#8a5a3c', pants: '#4a5a7a', boots: '#6b3d22', scarf: '#ff6f8a' } },
     ],
     passive: 'floaty',
+    special: 'doubleHop',
     cosmeticSlots: ALL_SLOTS,
     unlock: 'starter',
     homeBiome: 'forest',
@@ -116,6 +140,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDefinition> = {
       { id: 'pebble_jade', name: 'Honey Bruno', palette: { body: '#d9a24a', belly: '#fff0c8', accent: '#3b2a1e', eye: '#20160f', shirt: '#3f6fb0', vest: '#8a4f2a', pants: '#5a4a3a', boots: '#4a2e1a', scarf: '#e8473b' } },
     ],
     passive: 'steadyFeet',
+    special: 'ironHide',
     cosmeticSlots: ALL_SLOTS,
     unlock: { coins: 600, level: 3 },
     homeBiome: 'canyon',
@@ -132,6 +157,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDefinition> = {
       { id: 'lumi_gold', name: 'Golden Bandit', palette: { body: '#c8a878', belly: '#fff2d8', accent: '#3b2a1e', eye: '#2a1a05', shirt: '#ffffff', vest: '#b8862a', pants: '#5a3a22', boots: '#3b2a1e', scarf: '#3f6fb0' } },
     ],
     passive: 'sparkSense',
+    special: 'pickpocket',
     cosmeticSlots: ALL_SLOTS,
     unlock: { coins: 900, level: 5 },
     homeBiome: 'crystal',
@@ -148,6 +174,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDefinition> = {
       { id: 'ember_violet', name: 'Palomino Buck', palette: { body: '#e8c08a', belly: '#fff4e0', accent: '#fffaf0', eye: '#1a0d08', shirt: '#5fb0a0', vest: '#8a4f2a', pants: '#3f6fb0', boots: '#5a3a22', scarf: '#d8343a' } },
     ],
     passive: 'hotStart',
+    special: 'stampede',
     cosmeticSlots: ALL_SLOTS,
     unlock: { coins: 1500, level: 8 },
     homeBiome: 'canyon',
@@ -164,6 +191,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDefinition> = {
       { id: 'hoot_moss', name: 'Timber Lobo', palette: { body: '#8a6a4a', belly: '#e8d8b8', accent: '#2a1d1e', eye: '#141a10', shirt: '#4f9e5a', vest: '#5a3a22', pants: '#4a3a2a', boots: '#2a1d1e', scarf: '#ffcf33' } },
     ],
     passive: 'keenEyes',
+    special: 'howl',
     cosmeticSlots: ALL_SLOTS,
     unlock: { coins: 2200, level: 11 },
     homeBiome: 'crystal',

@@ -1,6 +1,7 @@
 import { GameplayConfig } from '../config/GameplayConfig';
 import { ABILITIES, AbilityTuning, ITEM_WEIGHTS_BY_POSITION, type AbilityId } from './AbilityDefinition';
-import { findSeekerTarget } from './ProjectileSystem';
+import { findSeekerTarget, nearestRivalAhead } from './ProjectileSystem';
+import { applyHit } from './StatusEffectSystem';
 import type { RaceSimulation } from '../game/RaceManager';
 import type { Racer } from '../game/RaceState';
 
@@ -52,6 +53,41 @@ export function tryUseAbility(sim: RaceSimulation, racer: Racer): UseResult {
       sim.entities.push({ kind: 'sap', id: sim.nextEntityId++, owner: racer.index, x0: x1 - AbilityTuning.sap.length, x1, y: g, ttl: ABILITIES.sap.duration, alive: true });
       break;
     }
+    case 'lasso': {
+      if (b.stun > 0) return 'invalid';
+      const target = nearestRivalAhead(sim, racer.index, AbilityTuning.lasso.range);
+      if (target < 0) return 'invalid';
+      const tr = sim.racers[target];
+      const outcome = applyHit(tr.body, tr.mods, 320000 + sim.tick, AbilityTuning.lasso.stun, false);
+      if (outcome === 'stunned') {
+        // Yanked back a little toward the thrower.
+        tr.body.speed = 0;
+        sim.emitAbilityHit(target, racer.index, 'lasso');
+      } else if (outcome === 'blocked') sim.emit('shieldBlock', target, 0, tr.body);
+      break;
+    }
+    case 'thunder': {
+      // Strikes whoever leads the race, unless that is you or your partner.
+      const leader = sim.standings.find((i) => sim.racers[i].body.phase !== 'finished');
+      if (leader === undefined || sim.sameTeam(leader, racer.index)) return 'invalid';
+      const lb = sim.racers[leader].body;
+      sim.entities.push({ kind: 'thunder', id: sim.nextEntityId++, owner: racer.index, target: leader, x: lb.x, y: lb.y, ttl: AbilityTuning.thunder.warn, alive: true });
+      break;
+    }
+    case 'bomb':
+      if (b.stun > 0) return 'invalid';
+      sim.entities.push({
+        kind: 'bomb',
+        id: sim.nextEntityId++,
+        owner: racer.index,
+        x: b.x + 0.3,
+        y: b.y + 1.0,
+        vx: Math.max(0, b.speed) + AbilityTuning.bomb.vx * 0.45,
+        vy: AbilityTuning.bomb.vy,
+        ttl: AbilityTuning.bomb.fuse,
+        alive: true,
+      });
+      break;
   }
   racer.item = null;
   racer.abilityCooldown = ABILITIES[item].cooldown;

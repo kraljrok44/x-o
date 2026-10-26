@@ -1,6 +1,8 @@
 import { Rng } from '../shared/Rng';
 import { GameplayConfig } from '../config/GameplayConfig';
-import { findSeekerTarget, incomingSeekers } from '../abilities/ProjectileSystem';
+import { findSeekerTarget, incomingSeekers, nearestRivalAhead } from '../abilities/ProjectileSystem';
+import { AbilityTuning } from '../abilities/AbilityDefinition';
+import { specialOf, specialReady } from '../abilities/SpecialAbility';
 import type { RaceSimulation } from '../game/RaceManager';
 import type { SeekerEntity, TickInput } from '../game/RaceState';
 import { DIFFICULTIES, type DifficultyId, type DifficultyProfile } from './DifficultyProfile';
@@ -16,7 +18,7 @@ export class AIController {
   readonly profile: DifficultyProfile;
   private readonly planner = new HazardPlanner();
   private readonly rng: Rng;
-  private readonly out: TickInput = { jumpHeld: false, down: false, use: false };
+  private readonly out: TickInput = { jumpHeld: false, down: false, use: false, special: false };
   private readonly incoming: SeekerEntity[] = [];
   private plan: Plan = NOOP;
   private planStart = -1000;
@@ -30,6 +32,8 @@ export class AIController {
   private mistakeUntil = -1;
   private lastIncidents = 0;
   private itemSince = -1;
+  private specialSince = -1;
+  private groundY = 0;
   private countdownPressTick: number;
 
   constructor(
@@ -56,7 +60,7 @@ export class AIController {
 
   decide(sim: RaceSimulation): TickInput {
     const o = this.out;
-    o.down = o.use = false;
+    o.down = o.use = o.special = false;
     const racer = sim.racers[this.index];
     const body = racer.body;
     const tick = sim.tick;
@@ -100,7 +104,54 @@ export class AIController {
     }
     o.jumpHeld = tick < this.holdUntil;
     o.use = this.decideItem(sim);
+    o.special = !o.use && this.decideSpecial(sim);
     return o;
+  }
+
+  /** Animal specials, used with the same reaction delay as powerups. */
+  private decideSpecial(sim: RaceSimulation): boolean {
+    const racer = sim.racers[this.index];
+    if (!specialReady(sim, racer)) {
+      this.specialSince = -1;
+      return false;
+    }
+    if (this.specialSince < 0) this.specialSince = sim.time;
+    if (sim.time - this.specialSince < this.profile.itemDelay) return false;
+    const b = racer.body;
+    if (b.grounded) this.groundY = b.y;
+    const rivals = sim.racers.filter((r) => !sim.sameTeam(r.index, this.index) && r.body.phase === 'run');
+    let use = false;
+    switch (specialOf(racer)) {
+      case 'quickDash':
+        use = this.lastIncidents === 0 && !needsPlanning(sim, this.index, 12);
+        break;
+      case 'stampede':
+        use = !needsPlanning(sim, this.index, 10) && rivals.some((r) => r.body.x - b.x > 0.3 && r.body.x - b.x < 5 && Math.abs(r.body.y - b.y) < 1);
+        break;
+      case 'doubleHop': {
+        // Save a fall: falling with no ground close below a little ahead.
+        // Only when clearly dropping into a pit (well below take-off, nothing underneath).
+        if (b.vy < -2 && b.y < this.groundY - 2) {
+          const g0 = sim.track.groundBelow(b.x, b.y, -1, true);
+          const g1 = sim.track.groundBelow(b.x + 1.5, b.y, -1, true);
+          use = Number.isNaN(g0) && Number.isNaN(g1);
+        }
+        break;
+      }
+      case 'ironHide': {
+        const storm = sim.entities.some((e) => e.alive && e.kind === 'thunder' && e.target === this.index);
+        use = storm || this.incoming.some((s) => s.x > b.x - 10) || needsPlanning(sim, this.index, 4);
+        break;
+      }
+      case 'pickpocket':
+        use = true;
+        break;
+      case 'howl':
+        use = rivals.some((r) => Math.hypot(r.body.x - b.x, r.body.y - b.y) < 8);
+        break;
+    }
+    if (use) this.specialSince = -1;
+    return use;
   }
 
   private replan(sim: RaceSimulation, tick: number): void {
@@ -168,13 +219,30 @@ export class AIController {
         use = b.stun <= 0 && this.lastIncidents === 0 && !needsPlanning(sim, this.index, 15);
         break;
       case 'shield': {
-        const threat = this.incoming.some((s) => s.x > b.x - 12);
+        const storm = sim.entities.some((e) => e.alive && e.kind === 'thunder' && e.target === this.index);
+        const threat = storm || this.incoming.some((s) => s.x > b.x - 12);
         use = threat || this.lastIncidents > 0 || heldFor > 14;
         break;
       }
       case 'seeker': {
         const t = findSeekerTarget(sim, this.index);
         use = b.stun <= 0 && t >= 0 && sim.racers[t].body.x - b.x < 40;
+        break;
+      }
+      case 'lasso':
+        use = b.stun <= 0 && nearestRivalAhead(sim, this.index, AbilityTuning.lasso.range) >= 0;
+        break;
+      case 'thunder': {
+        const leader = sim.standings.find((i) => sim.racers[i].body.phase !== 'finished');
+        use = leader !== undefined && !sim.sameTeam(leader, this.index);
+        break;
+      }
+      case 'bomb': {
+        // Lob it at a rival a few units ahead on the same level.
+        use =
+          b.stun <= 0 &&
+          (sim.racers.some((r) => !sim.sameTeam(r.index, this.index) && r.body.phase === 'run' && r.body.x - b.x > 1.5 && r.body.x - b.x < 7 && Math.abs(r.body.y - b.y) < 1.5) ||
+            heldFor > 12);
         break;
       }
       case 'snare':

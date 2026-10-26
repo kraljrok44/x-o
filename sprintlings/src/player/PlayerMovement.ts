@@ -94,6 +94,7 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
     if (body.dash > 0) boost = Math.max(boost, 1.55);
     if (body.padBoost > 0) boost = Math.max(boost, cfg.boostPad.factor);
     target *= boost;
+    if (body.slow > 0) target *= 0.7;
   }
   body.speed = approach(body.speed, target, (body.speed < target ? cfg.movement.accel : cfg.movement.decel) * dt);
 
@@ -117,6 +118,7 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
   } else body.x = nx;
 
   // --- vertical ----------------------------------------------------------------
+  if (body.grounded) body.airHop = true;
   if (body.grounded) {
     const g = groundUnder(track, body, body.x, prevY);
     if (Number.isNaN(g) || body.y - g > cfg.jump.snapDown) {
@@ -141,6 +143,7 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
     body.jumpAge = 0;
     body.cutPending = false;
     body.pieceId = -1;
+    body.airHop = true;
     world.emit('jump', racer, 0, body);
   }
 

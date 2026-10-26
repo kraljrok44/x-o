@@ -57,7 +57,7 @@ describe('determinism and replays', () => {
   it('rejects malformed input logs', () => {
     expect(validateInputLog([[5, 1], [3, 0]], 1000)).toBe(false);
     expect(validateInputLog([[5, 99]], 1000)).toBe(false);
-    expect(validateInputLog([[5, 4]], 1000)).toBe(false);
+    expect(validateInputLog([[5, 16]], 1000)).toBe(false);
     expect(validateInputLog('nope', 1000)).toBe(false);
     expect(validateInputLog([[2000, 1]], 1000)).toBe(false);
   });

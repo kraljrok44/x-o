@@ -3,7 +3,8 @@ import type { RaceSimulation } from '../game/RaceManager';
 import type { Racer } from '../game/RaceState';
 import type { InputManager } from '../input/InputManager';
 import { keyLabel } from '../input/InputManager';
-import { CHARACTERS } from '../player/CharacterDefinition';
+import { CHARACTERS, SPECIALS } from '../player/CharacterDefinition';
+import { specialReady } from '../abilities/SpecialAbility';
 import { formatRaceTime } from '../shared/time';
 import { h } from './dom';
 import { ordinal, t } from './i18n';
@@ -22,6 +23,9 @@ export class RaceHUD {
   private readonly ability = h('div', { class: 'hud-ability empty' });
   private readonly abilityIcon = h('span');
   private readonly abilityName = h('span', { class: 'name' });
+  /** Animal special button with a cooldown ring. */
+  private readonly special = h('div', { class: 'hud-special' });
+  private readonly specialRing = h('div', { class: 'ring' });
   private readonly countdown = h('div', { class: 'hud-countdown hidden' });
   private readonly warning = h('div', { class: 'hud-warning hidden' });
   private readonly hint = h('div', { class: 'hud-hint hidden' });
@@ -31,7 +35,7 @@ export class RaceHUD {
   private readonly teamSlots: HTMLElement[] = [];
   private readonly touch: HTMLElement;
   readonly pauseBtn: HTMLButtonElement;
-  private last = { place: '', time: '', glim: -1, item: 'x', cd: '', warn: false, hint: '' };
+  private last = { place: '', time: '', glim: -1, item: 'x', cd: '', warn: false, hint: '', ring: '' };
   private fpsAcc = 0;
   private fpsFrames = 0;
 
@@ -59,6 +63,13 @@ export class RaceHUD {
     }
     const abilityKey = keyLabel(input.getBindings().ability[0]);
     this.ability.append(this.abilityName, this.abilityIcon, h('span', { class: 'key' }, touchMode ? '' : abilityKey));
+    const sp = SPECIALS[CHARACTERS[sim.racers[localIndex].characterId].special];
+    this.special.title = `${sp.name}: ${sp.description}`;
+    this.special.append(this.specialRing, h('span', { class: 'icon' }, sp.icon), h('span', { class: 'name' }, sp.name), h('span', { class: 'key' }, touchMode ? '' : keyLabel(input.getBindings().special[0])));
+    if (touchMode) {
+      this.special.classList.add('interactive');
+      input.bindTouchButton(this.special, 'special');
+    }
     this.pauseBtn = h('button', { class: 'btn btn--icon interactive hud-pause', 'aria-label': t('Paused') }, '⏸');
     this.touch = h('div', { class: `touch interactive ${touchMode ? '' : 'hidden'}` });
     const btn = (cls: string, label: string) => h('div', { class: `touch-btn ${cls}` }, label);
@@ -83,6 +94,7 @@ export class RaceHUD {
       this.feedEl,
       this.touch,
       this.ability,
+      this.special,
       this.countdown,
       this.warning,
       this.hint,
@@ -167,6 +179,16 @@ export class RaceHUD {
         this.ability.classList.remove('ready');
         this.ability.style.borderColor = '';
       }
+    }
+    // Special cooldown ring.
+    const spDef = SPECIALS[CHARACTERS[me.characterId].special];
+    const frac = me.specialCooldown > 0 ? me.specialCooldown / spDef.cooldown : 0;
+    const ringKey = `${Math.round(frac * 60)}|${specialReady(sim, me) ? 1 : 0}`;
+    if (ringKey !== this.last.ring) {
+      this.last.ring = ringKey;
+      this.specialRing.style.background = frac > 0 ? `conic-gradient(rgba(42,22,11,0.72) ${frac * 360}deg, transparent 0)` : 'none';
+      this.special.classList.toggle('ready', frac === 0);
+      this.special.classList.toggle('usable', specialReady(sim, me));
     }
     // Countdown.
     let cd = '';

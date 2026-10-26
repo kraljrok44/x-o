@@ -1,6 +1,6 @@
 import type { TickInput } from '../game/RaceState';
 
-export type InputAction = 'jump' | 'down' | 'ability' | 'pause';
+export type InputAction = 'jump' | 'down' | 'ability' | 'special' | 'pause';
 
 export type KeyBindings = Record<InputAction, string[]>;
 
@@ -8,13 +8,15 @@ export const DEFAULT_BINDINGS: KeyBindings = {
   jump: ['Space', 'KeyW', 'ArrowUp'],
   down: ['KeyS', 'ArrowDown'],
   ability: ['KeyE', 'ShiftLeft', 'KeyD', 'ArrowRight'],
+  special: ['KeyQ', 'KeyF', 'ArrowLeft'],
   pause: ['Escape', 'KeyP'],
 };
 
 export const ACTION_LABELS: Record<InputAction, string> = {
   jump: 'Jump',
   down: 'Drop down',
-  ability: 'Use ability',
+  ability: 'Use powerup',
+  special: 'Animal special',
   pause: 'Pause',
 };
 
@@ -50,8 +52,8 @@ export class InputManager {
   private downSources = new Set<string>();
   /** Ticks a swipe-down keeps "down" held (long enough to drop through a platform). */
   private downPulse = 0;
-  private latched = { use: false, jumpTap: false, downTap: false };
-  private readonly out: TickInput = { jumpHeld: false, down: false, use: false };
+  private latched = { use: false, special: false, jumpTap: false, downTap: false };
+  private readonly out: TickInput = { jumpHeld: false, down: false, use: false, special: false };
   enabled = false;
   onPause: (() => void) | null = null;
   /** Called on any input so the app can unlock audio etc. */
@@ -125,6 +127,7 @@ export class InputManager {
     }
     if (!down) return true;
     if (action === 'ability') this.latched.use = true;
+    if (action === 'special') this.latched.special = true;
     return true;
   }
 
@@ -217,7 +220,7 @@ export class InputManager {
   }
 
   /** Wires an on-screen touch button (instant response on touchstart). */
-  bindTouchButton(el: HTMLElement, action: 'jump' | 'down' | 'ability'): void {
+  bindTouchButton(el: HTMLElement, action: 'jump' | 'down' | 'ability' | 'special'): void {
     const id = `btn_${action}_${Math.random().toString(36).slice(2, 6)}`;
     const down = (e: Event) => {
       e.preventDefault();
@@ -231,7 +234,8 @@ export class InputManager {
       } else if (action === 'down') {
         this.latched.downTap = true;
         this.downSources.add(id);
-      } else this.latched.use = true;
+      } else if (action === 'special') this.latched.special = true;
+      else this.latched.use = true;
     };
     const up = (e: Event) => {
       e.preventDefault();
@@ -253,7 +257,7 @@ export class InputManager {
     const pad = pads && Array.from(pads).find((p) => p && p.connected);
     if (!pad) return;
     const b = (i: number) => !!pad.buttons[i]?.pressed;
-    const now = [b(0), b(13) || pad.axes[1] > 0.6, b(2) || b(5) || b(1), b(9)];
+    const now = [b(0), b(13) || pad.axes[1] > 0.6, b(2) || b(5) || b(1), b(9), b(3) || b(4)];
     const edge = (i: number) => now[i] && !this.padPrev[i];
     if (now[0]) {
       if (!this.jumpSources.has('pad')) this.latched.jumpTap = true;
@@ -265,6 +269,7 @@ export class InputManager {
     } else this.downSources.delete('pad');
     if (edge(2)) this.latched.use = true;
     if (edge(3)) this.onPause?.();
+    if (edge(4)) this.latched.special = true;
     this.padPrev = now;
   }
 
@@ -273,8 +278,8 @@ export class InputManager {
     this.pollGamepad();
     const o = this.out;
     if (!this.enabled) {
-      o.jumpHeld = o.down = o.use = false;
-      this.latched.use = this.latched.jumpTap = this.latched.downTap = false;
+      o.jumpHeld = o.down = o.use = o.special = false;
+      this.latched.use = this.latched.special = this.latched.jumpTap = this.latched.downTap = false;
       this.downPulse = 0;
       return o;
     }
@@ -283,7 +288,8 @@ export class InputManager {
     o.down = this.downSources.size > 0 || this.latched.downTap || this.downPulse > 0;
     if (this.downPulse > 0) this.downPulse--;
     o.use = this.latched.use;
-    this.latched.use = this.latched.jumpTap = this.latched.downTap = false;
+    o.special = this.latched.special;
+    this.latched.use = this.latched.special = this.latched.jumpTap = this.latched.downTap = false;
     return o;
   }
 
@@ -292,6 +298,6 @@ export class InputManager {
     this.jumpSources.clear();
     this.downSources.clear();
     this.downPulse = 0;
-    this.latched = { use: false, jumpTap: false, downTap: false };
+    this.latched = { use: false, special: false, jumpTap: false, downTap: false };
   }
 }

@@ -31,6 +31,7 @@ export function applyHit(
   body.invuln = Math.max(body.invuln, body.stun + GameplayConfig.stun.recoveryInvuln);
   body.speed *= GameplayConfig.stun.hitSpeedFactor;
   body.dash = 0;
+  body.stampede = 0;
   body.padBoost = 0;
   body.jumpBuffer = 0;
   body.vy = Math.min(body.vy, 2);
@@ -50,6 +51,8 @@ export function tickStatuses(body: RacerBody, dt: number): void {
   if (body.stun > 0) body.stun = Math.max(0, body.stun - dt);
   if (body.invuln > 0) body.invuln = Math.max(0, body.invuln - dt);
   if (body.dash > 0) body.dash = Math.max(0, body.dash - dt);
+  if (body.slow > 0) body.slow = Math.max(0, body.slow - dt);
+  if (body.stampede > 0) body.stampede = Math.max(0, body.stampede - dt);
   if (body.padBoost > 0) body.padBoost = Math.max(0, body.padBoost - dt);
   if (body.shield > 0) body.shield = Math.max(0, body.shield - dt);
   if (body.lastHitTimer > 0) body.lastHitTimer = Math.max(0, body.lastHitTimer - dt);

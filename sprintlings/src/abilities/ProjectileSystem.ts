@@ -80,3 +80,71 @@ export function incomingSeekers(sim: RaceSimulation, racer: number, out: SeekerE
   for (const e of sim.entities) if (e.kind === 'seeker' && e.alive && e.target === racer) out.push(e);
   return out;
 }
+
+/** Storm clouds follow their target and strike when the warning runs out. */
+export function stepThunder(sim: RaceSimulation, dt: number): void {
+  for (const e of sim.entities) {
+    if (e.kind !== 'thunder' || !e.alive) continue;
+    const target = sim.racers[e.target];
+    const tb = target.body;
+    e.x = tb.x;
+    e.y = tb.y;
+    e.ttl -= dt;
+    if (tb.phase === 'finished') {
+      e.alive = false;
+      continue;
+    }
+    if (e.ttl > 0) continue;
+    e.alive = false;
+    sim.emitAt('blast', e.target, 1, tb.x, tb.y);
+    if (tb.phase !== 'run') continue;
+    const outcome = applyHit(tb, target.mods, 300000 + e.id, AbilityTuning.thunder.stun, false);
+    if (outcome === 'stunned') sim.emitAbilityHit(e.target, e.owner, 'thunder');
+    else if (outcome === 'blocked') sim.emit('shieldBlock', e.target, e.id, tb);
+  }
+}
+
+/** Lobbed bombs fly on a gravity arc and blast on landing or when the fuse burns out. */
+export function stepBombs(sim: RaceSimulation, dt: number): void {
+  const tune = AbilityTuning.bomb;
+  for (const e of sim.entities) {
+    if (e.kind !== 'bomb' || !e.alive) continue;
+    const prevY = e.y;
+    e.vy -= GameplayConfig.jump.gravity * dt;
+    e.x += e.vx * dt;
+    e.y += e.vy * dt;
+    e.ttl -= dt;
+    const g = sim.track.groundBelow(e.x, Math.max(prevY, e.y) + 0.05, -1, true);
+    const landed = !Number.isNaN(g) && e.y <= g && e.vy < 0;
+    if (landed) e.y = g;
+    if (!landed && e.ttl > 0 && e.y > -6 && !sim.track.solidAt(e.x, e.y)) continue;
+    e.alive = false;
+    sim.emitAt('blast', e.owner, 0, e.x, e.y);
+    for (const r of sim.racers) {
+      if (sim.sameTeam(r.index, e.owner) || r.body.phase !== 'run') continue;
+      const b = r.body;
+      const dx = b.x - e.x;
+      const dy = b.y + bodyHeight(b) / 2 - (e.y + 0.3);
+      if (dx * dx + dy * dy > tune.radius * tune.radius) continue;
+      const outcome = applyHit(b, r.mods, 310000 + e.id, tune.stun, false);
+      if (outcome === 'stunned') sim.emitAbilityHit(r.index, e.owner, 'bomb');
+      else if (outcome === 'blocked') sim.emit('shieldBlock', r.index, e.id, b);
+    }
+  }
+}
+
+/** Nearest rival ahead within `range` (roughly the same height band), or -1. */
+export function nearestRivalAhead(sim: RaceSimulation, owner: number, range: number): number {
+  const me = sim.racers[owner].body;
+  let best = -1;
+  let bestGap = Infinity;
+  for (const r of sim.racers) {
+    if (sim.sameTeam(r.index, owner) || r.body.phase !== 'run') continue;
+    const gap = r.body.x - me.x;
+    if (gap > 0.2 && gap < range && Math.abs(r.body.y - me.y) < 2.5 && gap < bestGap) {
+      bestGap = gap;
+      best = r.index;
+    }
+  }
+  return best;
+}

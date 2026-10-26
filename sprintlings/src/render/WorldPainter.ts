@@ -104,6 +104,39 @@ export class WorldPainter {
     this.boxPopped.set(index, time);
   }
 
+  /** Scorch marks and splats left on the ground (kept for the rest of the race). */
+  private readonly decals: { x: number; y: number; r: number; color: string; seed: number }[] = [];
+
+  addScorch(x: number, y: number): void {
+    const g = this.track.groundBelow(x, y + 0.5, -1, true);
+    if (Number.isNaN(g)) return;
+    this.decals.push({ x, y: g, r: 1.1, color: 'rgba(30,20,18,0.55)', seed: this.decals.length * 13.7 + x });
+    if (this.decals.length > 40) this.decals.shift();
+  }
+
+  addSplat(x: number, y: number, color: string): void {
+    const g = this.track.groundBelow(x, y + 0.5, -1, true);
+    if (Number.isNaN(g)) return;
+    this.decals.push({ x, y: g, r: 0.7, color, seed: this.decals.length * 7.1 + x });
+    if (this.decals.length > 40) this.decals.shift();
+  }
+
+  drawDecals(ctx: Ctx, left: number, right: number): void {
+    for (const d of this.decals) {
+      if (d.x + d.r < left || d.x - d.r > right) continue;
+      ctx.beginPath();
+      ctx.ellipse(d.x, d.y + 0.02, d.r, 0.09, 0, 0, Math.PI * 2);
+      ctx.fillStyle = d.color;
+      ctx.fill();
+      for (let k = 0; k < 5; k++) {
+        const ox = (hash(d.seed + k) - 0.5) * d.r * 2.4;
+        ctx.beginPath();
+        ellipse(ctx, d.x + ox, d.y + 0.03, 0.06 + hash(d.seed + k * 3) * 0.1, 0.035);
+        ctx.fill();
+      }
+    }
+  }
+
   // --- terrain ---------------------------------------------------------------------
 
   drawPitShade(ctx: Ctx, left: number, right: number, bottom: number): void {
@@ -1007,6 +1040,63 @@ export class WorldPainter {
         ctx.fill();
         drawWarning(ctx, 0, 1.25 + Math.sin(time * 6) * 0.05);
         ctx.restore();
+      } else if (e.kind === 'bomb') {
+        ctx.save();
+        ctx.translate(e.x, e.y + 0.25);
+        ctx.rotate(time * 9);
+        ctx.beginPath();
+        ellipse(ctx, 0, 0, 0.3, 0.3);
+        ctx.lineWidth = 0.1;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+        ctx.fillStyle = '#26222e';
+        ctx.fill();
+        ctx.beginPath();
+        ellipse(ctx, -0.1, 0.1, 0.08, 0.06);
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.fill();
+        ctx.fillStyle = '#8a8f9c';
+        ctx.fillRect(-0.08, 0.27, 0.16, 0.08);
+        ctx.beginPath();
+        star(ctx, 0, 0.45, 0.09 + pulse * 0.05, 0.4, 6, time * 10);
+        ctx.fillStyle = pulse > 0.5 ? '#ffd23f' : '#ff6a2e';
+        ctx.fill();
+        ctx.restore();
+      } else if (e.kind === 'thunder') {
+        // Storm cloud hovering over the leader, then a red warning beam.
+        const cy = e.y + 4.2;
+        ctx.save();
+        const warn = 1 - Math.max(0, e.ttl) / 1.0;
+        ctx.globalAlpha *= 0.25 + 0.35 * warn + 0.2 * pulse;
+        ctx.fillStyle = '#ff2e2e';
+        ctx.fillRect(e.x - 0.22, e.y, 0.44, cy - e.y);
+        ctx.restore();
+        for (const [dx, dy, r] of [
+          [-0.55, 0, 0.42],
+          [0, 0.18, 0.55],
+          [0.55, 0, 0.42],
+          [0.25, -0.12, 0.38],
+          [-0.25, -0.12, 0.38],
+        ]) {
+          ctx.beginPath();
+          ellipse(ctx, e.x + dx, cy + dy, r, r * 0.8);
+          ctx.fillStyle = '#3c3a4e';
+          ctx.fill();
+        }
+        ctx.beginPath();
+        ellipse(ctx, e.x - 0.1, cy + 0.28, 0.35, 0.18);
+        ctx.fillStyle = '#5a5872';
+        ctx.fill();
+        if (pulse > 0.8) {
+          ctx.beginPath();
+          ctx.moveTo(e.x + 0.1, cy - 0.3);
+          ctx.lineTo(e.x - 0.1, cy - 0.7);
+          ctx.lineTo(e.x + 0.08, cy - 0.7);
+          ctx.lineTo(e.x - 0.12, cy - 1.15);
+          ctx.lineWidth = 0.07;
+          ctx.strokeStyle = '#ffe14d';
+          ctx.stroke();
+        }
       } else {
         const fade = Math.min(1, e.ttl / 0.6);
         ctx.save();

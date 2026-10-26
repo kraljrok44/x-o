@@ -10,7 +10,7 @@ export type ClientMessage =
   | { t: 'hello'; token: string }
   | { t: 'queue'; trackId?: string }
   | { t: 'leave' }
-  /** bits: 1 jump held, 2 left, 4 right, 8 use (same as RaceReplay). */
+  /** bits: 1 jump held, 2 down held, 4 special, 8 use (same as RaceReplay). */
   | { t: 'input'; tick: number; bits: number };
 
 export interface RoomInfo {

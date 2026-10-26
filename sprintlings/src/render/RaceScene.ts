@@ -1,3 +1,4 @@
+import { SPECIAL_IDS } from '../abilities/SpecialAbility';
 import { ABILITIES } from '../abilities/AbilityDefinition';
 import { CHARACTERS } from '../player/CharacterDefinition';
 import type { RaceSimulation } from '../game/RaceManager';
@@ -84,6 +85,9 @@ export class RaceScene {
   private readonly particles: Particles;
   private time = 0;
   private groundRef = 0;
+  /** Short-lived lasso ropes (racer indices) and lightning bolts. */
+  private readonly ropes: { from: number; to: number; life: number }[] = [];
+  private readonly bolts: { x: number; y: number; life: number }[] = [];
   /** Camera shake on hits (Settings: camera shake / reduced motion). */
   shakeEnabled = true;
   private readonly lowQ: boolean;
@@ -138,8 +142,59 @@ export class RaceScene {
       case 'seekerHit':
         v?.anim.onHit();
         p.emit({ kind: 'star', x: e.x, y: e.y + 0.8, color: '#ffe14d', count: 6, speed: 3, size: 0.14, life: 0.6, gravity: 4 });
-        if (e.type === 'seekerHit') p.emit({ kind: 'puff', x: e.x, y: e.y + 0.6, color: '#ff7a3d', count: 8, speed: 3, size: 0.18, life: 0.4 });
+        if (e.type === 'seekerHit') {
+          p.emit({ kind: 'puff', x: e.x, y: e.y + 0.6, color: '#ff7a3d', count: 8, speed: 3, size: 0.18, life: 0.4 });
+          this.world.addScorch(e.x, e.y);
+        }
         if (local) this.camera.shake(0.12);
+        break;
+      case 'abilityHit': {
+        if (e.special === 'pickpocket') {
+          p.emit({ kind: 'spark', x: e.x, y: e.y + 0.9, color: '#ffe14d', count: 8, speed: 2.5, size: 0.1, life: 0.5 });
+          break;
+        }
+        v?.anim.onHit();
+        p.emit({ kind: 'star', x: e.x, y: e.y + 0.8, color: '#ffe14d', count: 6, speed: 3, size: 0.14, life: 0.6, gravity: 4 });
+        if (e.ability === 'lasso') {
+          const from = this.sim.racers[e.value]?.body;
+          if (from) this.ropes.push({ from: e.value, to: e.racer, life: 0.45 });
+        }
+        if (local) this.camera.shake(0.12);
+        break;
+      }
+      case 'special':
+        switch (SPECIAL_IDS[e.value]) {
+          case 'quickDash':
+          case 'stampede':
+            p.emit({ kind: 'line', x: e.x - 0.3, y: e.y + 0.5, color: 'rgba(255,214,120,0.95)', count: 8, speed: 4, dir: Math.PI, spread: 0.3, size: 0.22, life: 0.4 });
+            p.emit({ kind: 'puff', x: e.x - 0.2, y: e.y + 0.1, color: 'rgba(210,170,110,0.85)', count: 8, speed: 2, dir: Math.PI, spread: 1, size: 0.18, life: 0.5 });
+            break;
+          case 'doubleHop':
+            p.emit({ kind: 'ring', x: e.x, y: e.y, color: '#ffffff', count: 1, speed: 0, size: 0.45, life: 0.35 });
+            p.emit({ kind: 'puff', x: e.x, y: e.y, color: 'rgba(255,255,255,0.9)', count: 6, speed: 2, dir: -Math.PI / 2, spread: 1.4, size: 0.12, life: 0.35 });
+            break;
+          case 'ironHide':
+            p.emit({ kind: 'ring', x: e.x, y: e.y + 0.6, color: '#b8c4d8', count: 1, speed: 0, size: 0.6, life: 0.45 });
+            break;
+          case 'howl':
+            for (let k = 0; k < 3; k++) p.emit({ kind: 'ring', x: e.x + 0.2, y: e.y + 1.0, color: '#cfe0ff', count: 1, speed: 0, size: 1 + k * 1.2, life: 0.5 + k * 0.15 });
+            p.emit({ kind: 'note', x: e.x + 0.3, y: e.y + 1.2, color: '#cfe0ff', count: 3, speed: 1.2, dir: Math.PI / 2, spread: 1, size: 0.18, life: 0.8 });
+            break;
+          default:
+            break;
+        }
+        break;
+      case 'blast':
+        if (e.value === 1) {
+          this.bolts.push({ x: e.x, y: e.y, life: 0.35 });
+          p.emit({ kind: 'spark', x: e.x, y: e.y + 0.4, color: '#ffe14d', count: 14, speed: 5, size: 0.12, life: 0.5 });
+        } else {
+          p.emit({ kind: 'ring', x: e.x, y: e.y + 0.3, color: '#ffb020', count: 1, speed: 0, size: 1.6, life: 0.4 });
+          p.emit({ kind: 'puff', x: e.x, y: e.y + 0.3, color: '#ff7a3d', count: 14, speed: 5, size: 0.24, life: 0.5 });
+          p.emit({ kind: 'puff', x: e.x, y: e.y + 0.4, color: 'rgba(70,60,60,0.8)', count: 10, speed: 2.5, dir: Math.PI / 2, spread: 1.4, size: 0.3, life: 0.9 });
+          this.world.addScorch(e.x, e.y);
+        }
+        if (Math.abs(e.x - this.sim.racers[this.localIndex].body.x) < 10) this.camera.shake(0.1);
         break;
       case 'shieldBlock':
         p.emit({ kind: 'ring', x: e.x, y: e.y + 0.6, color: '#9b8cff', count: 1, speed: 0, size: 0.5, life: 0.45 });
@@ -232,6 +287,7 @@ export class RaceScene {
     if (!this.lowQ) this.world.drawDecor(ctx, L, R, this.time);
     this.world.drawStartFinish(ctx, L, R, this.time);
     this.world.drawPlatforms(ctx, L, R);
+    this.world.drawDecals(ctx, L, R);
     this.world.drawHazards(ctx, L, R, raceTime);
     this.world.drawItemBoxes(ctx, L, R, this.time, sim.itemBoxReadyAt, raceTime);
     this.world.drawGlimmers(ctx, L, R, this.time, me.racer.glimmerTaken);
@@ -243,11 +299,65 @@ export class RaceScene {
     this.particles.draw(ctx, L, R);
     for (const v of this.visuals) if (v !== me) this.drawRacer(ctx, v, dt, false);
     this.drawRacer(ctx, me, dt, true);
+    this.drawStrikes(ctx, dt);
 
     // --- overlays (screen space) ---------------------------------------------------
     cam.applyScreen(ctx, pr);
     for (const v of this.visuals) this.drawTag(ctx, v, v === me);
     this.drawOffscreen(ctx, me);
+  }
+
+  private drawStrikes(ctx: Ctx, dt: number): void {
+    for (let i = this.ropes.length - 1; i >= 0; i--) {
+      const r = this.ropes[i];
+      r.life -= dt;
+      if (r.life <= 0) {
+        this.ropes.splice(i, 1);
+        continue;
+      }
+      const a = this.visuals[r.from];
+      const b = this.visuals[r.to];
+      const ax = a.x + 0.3;
+      const ay = a.y + 0.9;
+      const bx = b.x;
+      const by = b.y + 0.7;
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.quadraticCurveTo((ax + bx) / 2, Math.max(ay, by) + 0.9 * r.life, bx, by);
+      ctx.lineWidth = 0.07;
+      ctx.strokeStyle = '#c9a063';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(bx, by, 0.32, 0.14, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    for (let i = this.bolts.length - 1; i >= 0; i--) {
+      const s = this.bolts[i];
+      s.life -= dt;
+      if (s.life <= 0) {
+        this.bolts.splice(i, 1);
+        continue;
+      }
+      const top = s.y + 4;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, s.life / 0.2);
+      for (const [w, c] of [
+        [0.32, 'rgba(255,240,140,0.5)'],
+        [0.1, '#ffffff'],
+      ] as const) {
+        ctx.beginPath();
+        ctx.moveTo(s.x, top);
+        let x = s.x;
+        for (let k = 1; k <= 6; k++) {
+          x = s.x + (((k * 37 + Math.floor(this.time * 30)) % 7) / 7 - 0.5) * 0.7;
+          ctx.lineTo(k === 6 ? s.x : x, top - ((top - s.y) * k) / 6);
+        }
+        ctx.lineWidth = w;
+        ctx.strokeStyle = c;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
   }
 
   private updateTrail(v: RacerVisual, dt: number): void {

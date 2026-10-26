@@ -7,7 +7,7 @@
  * invalid-use rules) is spelled out per ability so balance discussions have
  * one source of truth.
  */
-export type AbilityId = 'dash' | 'shield' | 'seeker' | 'snare' | 'sap';
+export type AbilityId = 'dash' | 'shield' | 'seeker' | 'snare' | 'sap' | 'lasso' | 'thunder' | 'bomb';
 
 export interface AbilityDefinition {
   id: AbilityId;
@@ -120,19 +120,70 @@ export const ABILITIES: Record<AbilityId, AbilityDefinition> = {
     color: '#6a4aa8',
     icon: '🛢',
   },
+  lasso: {
+    id: 'lasso',
+    name: 'Lasso',
+    description: 'Ropes the nearest rival just ahead and yanks them off their feet.',
+    activationTime: 0,
+    duration: 0,
+    range: 7,
+    speed: 0,
+    targeting: 'nearestAhead',
+    counterplay: 'Keep your distance from rivals behind, or carry a shield.',
+    cooldown: 0.5,
+    feedback: { sound: 'snare', visual: 'rope snaps from the thrower to the target' },
+    network: 'input-event',
+    invalidUse: 'Ignored when no rival is within reach ahead; charge is kept.',
+    color: '#c98a4b',
+    icon: '🪢',
+  },
+  thunder: {
+    id: 'thunder',
+    name: 'Thunder Cloud',
+    description: 'A storm cloud chases the race leader and strikes after a warning.',
+    activationTime: 1,
+    duration: 1,
+    range: 0,
+    speed: 0,
+    targeting: 'nearestAhead',
+    counterplay: 'Raise a shield when the cloud and its red warning beam appear over you.',
+    cooldown: 0.5,
+    feedback: { sound: 'seeker', visual: 'dark cloud, red warning beam, lightning flash' },
+    network: 'server-spawned-entity',
+    invalidUse: 'Ignored when you or your team already lead; charge is kept.',
+    color: '#7f8ba0',
+    icon: '⛈',
+  },
+  bomb: {
+    id: 'bomb',
+    name: 'Cannonball Bomb',
+    description: 'Lobs a fizzing bomb forward that blasts everyone near where it lands.',
+    activationTime: 0,
+    duration: 1.4,
+    range: 8,
+    speed: 9,
+    targeting: 'self',
+    counterplay: 'Watch the arc and stay clear of the landing spot.',
+    cooldown: 0.5,
+    feedback: { sound: 'seeker', visual: 'black bomb with lit fuse, explosion burst' },
+    network: 'server-spawned-entity',
+    invalidUse: 'Ignored while stunned, falling or respawning; charge is kept.',
+    color: '#2a2a33',
+    icon: '💣',
+  },
 };
 
-export const ABILITY_IDS: readonly AbilityId[] = ['dash', 'shield', 'seeker', 'snare', 'sap'];
+export const ABILITY_IDS: readonly AbilityId[] = ['dash', 'shield', 'seeker', 'snare', 'sap', 'lasso', 'thunder', 'bomb'];
 
 /**
  * Loot crate roll weights by race position (index 0 = leader). Trailing racers
  * get more offensive/catch-up tools, leaders more defensive ones.
  */
 export const ITEM_WEIGHTS_BY_POSITION: readonly Record<AbilityId, number>[] = [
-  { dash: 10, shield: 30, seeker: 10, snare: 30, sap: 20 },
-  { dash: 20, shield: 22, seeker: 25, snare: 18, sap: 15 },
-  { dash: 30, shield: 15, seeker: 30, snare: 15, sap: 10 },
-  { dash: 40, shield: 10, seeker: 35, snare: 10, sap: 5 },
+  { dash: 10, shield: 28, seeker: 8, snare: 26, sap: 18, lasso: 4, thunder: 0, bomb: 6 },
+  { dash: 16, shield: 18, seeker: 18, snare: 14, sap: 10, lasso: 10, thunder: 6, bomb: 8 },
+  { dash: 22, shield: 12, seeker: 20, snare: 10, sap: 6, lasso: 12, thunder: 10, bomb: 8 },
+  { dash: 28, shield: 8, seeker: 22, snare: 6, sap: 4, lasso: 12, thunder: 14, bomb: 6 },
 ];
 
 export const AbilityTuning = {
@@ -148,4 +199,7 @@ export const AbilityTuning = {
   },
   snare: { offsetBehind: 1.6, halfWidth: 0.45, height: 0.7 },
   sap: { offsetBehind: 1.5, length: 4.2 },
+  lasso: { range: 7, stun: 0.75 },
+  thunder: { warn: 1.0, stun: 1.0 },
+  bomb: { vx: 9, vy: 7, radius: 1.6, stun: 0.85, fuse: 1.4 },
 } as const;
