@@ -157,6 +157,20 @@ describe('collisions', () => {
     expect(sim.racers[0].body.x).toBeGreaterThan(45);
   });
 
+  it('holding down on solid ground slides with a low hitbox; jumping costs a little speed', () => {
+    const sim = solo();
+    const body = sim.racers[0].body;
+    run(sim, 60);
+    run(sim, 20, input({ down: true }));
+    expect(body.sliding).toBe(true);
+    expect(body.speed).toBeCloseTo(9, 1);
+    run(sim, 5);
+    expect(body.sliding).toBe(false);
+    run(sim, 10, input({ jumpHeld: true }));
+    expect(body.grounded).toBe(false);
+    expect(body.speed).toBeLessThan(9 * 0.96);
+  });
+
   it('a shield absorbs one hit', () => {
     const sim = solo((c) => c.log(15));
     sim.racers[0].item = 'shield';

@@ -193,7 +193,7 @@ export const SEGMENTS: SegmentTemplate[] = [
     tags: ['medium'],
     pickupRule: 'Glimmers follow the spring launch arc.',
     build(c) {
-      c.run(8).pad('spring', 6.8).glimmerArc(6.8, 6, 16).gap(9).run(15);
+      c.run(8).pad('spring', 6.8).glimmerArc(6.8, 6, 16).gap(8.5).run(15.5);
     },
   }),
   seg({
@@ -309,7 +309,7 @@ export const SEGMENTS: SegmentTemplate[] = [
     tags: ['medium'],
     pickupRule: 'Glimmers trace both spring arcs.',
     build(c) {
-      c.run(8).pad('spring', 6.8).gap(9).run(6).pad('spring', 22.3).gap(9).run(8);
+      c.run(8).pad('spring', 6.8).gap(8.5).run(6.5).pad('spring', 22.3).gap(8.5).run(8.5);
       c.glimmerArc(6.8, 6, 16).glimmerArc(22.3, 6, 16);
     },
   }),

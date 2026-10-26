@@ -10,7 +10,7 @@ import {
   type Point,
 } from '../obstacles/ObstacleBase';
 import type { Track } from '../game/Track';
-import type { RacerBody } from '../game/RaceState';
+import { bodyHeight, type RacerBody } from '../game/RaceState';
 
 export interface ContactResult {
   /** Damaging hazard touched this tick, or null. */
@@ -31,7 +31,7 @@ const tmp: Point = { x: 0, y: 0 };
 /** Racer box vs circle overlap. */
 function circleHit(body: RacerBody, cx: number, cy: number, r: number): boolean {
   const nx = Math.max(body.x - hb.halfWidth, Math.min(cx, body.x + hb.halfWidth));
-  const ny = Math.max(body.y, Math.min(cy, body.y + hb.height));
+  const ny = Math.max(body.y, Math.min(cy, body.y + bodyHeight(body)));
   const dx = cx - nx;
   const dy = cy - ny;
   return dx * dx + dy * dy < r * r;
@@ -39,7 +39,7 @@ function circleHit(body: RacerBody, cx: number, cy: number, r: number): boolean 
 
 /** Racer box vs axis-aligned box. */
 function boxHit(body: RacerBody, x0: number, x1: number, y0: number, y1: number): boolean {
-  return body.x + hb.halfWidth > x0 && body.x - hb.halfWidth < x1 && body.y + hb.height > y0 && body.y < y1;
+  return body.x + hb.halfWidth > x0 && body.x - hb.halfWidth < x1 && body.y + bodyHeight(body) > y0 && body.y < y1;
 }
 
 /**

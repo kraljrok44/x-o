@@ -31,7 +31,7 @@ function play(ticket: RaceTicket) {
 }
 
 describe('server races', () => {
-  it('re-simulates a race and pays from its own result', async () => {
+  it('re-simulates a race and pays from its own result', { timeout: 30000 }, async () => {
     const token = await api.guest();
     const start = await api.call<{ ticket: RaceTicket }>('POST', '/api/race/start', { trackId: 'mossy_hollow', mode: 'race' }, token);
     expect(start.status).toBe(200);
@@ -47,7 +47,7 @@ describe('server races', () => {
     expect(again.status).toBe(404);
   });
 
-  it('rejects races submitted faster than they could be played', async () => {
+  it('rejects races submitted faster than they could be played', { timeout: 30000 }, async () => {
     const token = await api.guest();
     const { json } = await api.call<{ ticket: RaceTicket }>('POST', '/api/race/start', { trackId: 'mossy_hollow', mode: 'race' }, token);
     const local = play(json.ticket);

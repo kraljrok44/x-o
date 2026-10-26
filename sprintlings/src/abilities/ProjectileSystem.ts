@@ -3,7 +3,7 @@ import { ABILITIES, AbilityTuning } from './AbilityDefinition';
 import { applyHit } from './StatusEffectSystem';
 import { approach } from '../shared/math';
 import type { RaceSimulation } from '../game/RaceManager';
-import type { SeekerEntity } from '../game/RaceState';
+import { bodyHeight, type SeekerEntity } from '../game/RaceState';
 
 const hb = GameplayConfig.hitbox;
 const tune = AbilityTuning.seeker;
@@ -62,7 +62,7 @@ function stepSeeker(sim: RaceSimulation, e: SeekerEntity, dt: number): void {
     const b = r.body;
     if (b.phase !== 'run') continue;
     if (Math.abs(b.x - e.x) > hb.halfWidth + tune.radius) continue;
-    if (e.y < b.y - tune.radius || e.y > b.y + hb.height + tune.radius) continue;
+    if (e.y < b.y - tune.radius || e.y > b.y + bodyHeight(b) + tune.radius) continue;
     const outcome = applyHit(b, r.mods, 100000 + e.id, GameplayConfig.stun.projectile, false);
     if (outcome === 'ignored') continue;
     e.alive = false;

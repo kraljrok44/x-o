@@ -4,11 +4,9 @@ import { findSeekerTarget, incomingSeekers } from '../abilities/ProjectileSystem
 import type { RaceSimulation } from '../game/RaceManager';
 import type { SeekerEntity, TickInput } from '../game/RaceState';
 import { DIFFICULTIES, type DifficultyId, type DifficultyProfile } from './DifficultyProfile';
-import { HazardPlanner, needsPlanning, type Plan } from './HazardPlanner';
+import { DROP_TICKS, HazardPlanner, needsPlanning, type Plan } from './HazardPlanner';
 
 const NOOP: Plan = { jumpTick: -1, hold: 0, drop: false };
-/** Ticks down is held when a plan drops through a platform. */
-const DROP_TICKS = 4;
 
 /**
  * Drives one computer racer. Produces the same TickInput a human would, so
@@ -28,6 +26,7 @@ export class AIController {
   private pressHold = 0;
   private pressTick = -1000;
   private blockedTicks = 0;
+  private downTicks = DROP_TICKS;
   private mistakeUntil = -1;
   private lastIncidents = 0;
   private itemSince = -1;
@@ -75,7 +74,7 @@ export class AIController {
 
     const k = tick - this.planStart;
     const p = this.plan;
-    o.down = p.drop && k < DROP_TICKS;
+    o.down = p.drop && k < this.downTicks;
     if (p.jumpTick >= 0 && k === Math.max(0, p.jumpTick + this.jitter)) {
       this.pressAt = tick;
       this.pressHold = p.hold;
@@ -117,6 +116,7 @@ export class AIController {
     }
     const heldTicks = Math.max(0, this.holdUntil - tick);
     const results = this.planner.plan(sim, this.index, this.profile.horizon, heldTicks, this.profile.greed, this.incoming);
+    this.downTicks = this.planner.downTicks;
     const best = results[0];
     const noop = results.find((r) => !r.plan.drop && r.plan.jumpTick < 0) ?? best;
     this.lastIncidents = best.incidents + (best.fell ? 1 : 0);

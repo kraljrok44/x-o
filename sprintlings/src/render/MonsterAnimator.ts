@@ -34,6 +34,8 @@ export interface AnimInput {
   blocked: boolean;
   /** Crouch, ready to go (last second of the countdown). */
   ready: boolean;
+  /** Baseball slide under flying trouble. */
+  sliding?: boolean;
 }
 
 const STRIDE = 1.3;
@@ -269,6 +271,20 @@ export class MonsterAnimator {
       leanTarget = -0.15;
       armN = -1.9 + Math.sin(time * 14) * 0.3;
       armF = -1.5 - Math.sin(time * 14) * 0.3;
+    }
+    if (racing && s.sliding) {
+      // Feet first, leaning back, one hand trailing on the ground.
+      rot = -0.85;
+      hop = -0.26;
+      bob = -0.05;
+      nfx = 0.32;
+      nfy = 0.02;
+      ffx = 0.18;
+      ffy = 0.0;
+      armN = -1.2;
+      armF = 2.2;
+      leanTarget = -0.1;
+      squashTarget = 0.9;
     }
     if (s.phase === 'fall') {
       armN = -2.8 + Math.sin(time * 25) * 0.3;

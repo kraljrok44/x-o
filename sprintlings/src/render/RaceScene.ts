@@ -394,6 +394,7 @@ export class RaceScene {
       boosting: b.dash > 0 || b.padBoost > 0,
       blocked: b.blocked,
       ready: b.phase === 'grid' && countdownLeft < 1.1,
+      sliding: b.sliding,
     };
   }
 

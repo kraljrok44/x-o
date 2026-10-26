@@ -149,7 +149,7 @@ export class SegmentContext {
   }
 
   pendulum(dx: number, phase = 0, period = 2.6): this {
-    this.draft.hazards.push({ id: this.id(), kind: 'pendulum', x: this.x0 + dx, y: 0, pivotLift: 5.2, length: 4.3, amplitude: 1.0, radius: 0.55, period, phase });
+    this.draft.hazards.push({ id: this.id(), kind: 'pendulum', x: this.x0 + dx, y: 0, pivotLift: 5.5, length: 4.3, amplitude: 1.0, radius: 0.55, period, phase });
     return this;
   }
 

@@ -42,11 +42,15 @@ export const GameplayConfig = {
     fastFallScale: 1.9,
     /** After dropping through a one-way platform it is ignored this long. */
     dropThroughTime: 0.25,
+    /** Running speed is multiplied by this while airborne: jumping costs a little time. */
+    airSpeedFactor: 0.95,
   },
 
   hitbox: {
     halfWidth: 0.36,
     height: 1.1,
+    /** Height while sliding: ducks under head-height projectiles. */
+    slideHeight: 0.55,
   },
 
   stun: {

@@ -1,3 +1,4 @@
+import { GameplayConfig } from '../config/GameplayConfig';
 import type { AbilityId } from '../abilities/AbilityDefinition';
 import type { CharacterId } from '../player/CharacterDefinition';
 import type { PassiveModifiers } from '../player/CharacterAbilities';
@@ -69,6 +70,13 @@ export interface RacerBody {
   onPad: boolean;
   /** Pressing against a wall this tick (for animation). */
   blocked: boolean;
+  /** Holding down on solid ground: a low slide that ducks flying projectiles. */
+  sliding: boolean;
+}
+
+/** Current hitbox height (lower while sliding). */
+export function bodyHeight(b: RacerBody): number {
+  return b.sliding ? GameplayConfig.hitbox.slideHeight : GameplayConfig.hitbox.height;
 }
 
 export function makeBody(x: number, y: number): RacerBody {
@@ -102,6 +110,7 @@ export function makeBody(x: number, y: number): RacerBody {
     fallFromX: 0,
     onPad: false,
     blocked: false,
+    sliding: false,
   };
 }
 

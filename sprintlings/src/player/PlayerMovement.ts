@@ -90,7 +90,7 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
   if (body.stun > 0) target = 0.8;
   else {
     target = cfg.movement.baseSpeed * terrainSpeedFactor(body.terrain, body, mods);
-    let boost = 1;
+    let boost = body.grounded ? 1 : cfg.jump.airSpeedFactor;
     if (body.dash > 0) boost = Math.max(boost, 1.55);
     if (body.padBoost > 0) boost = Math.max(boost, cfg.boostPad.factor);
     target *= boost;
@@ -178,6 +178,9 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
       }
     }
   }
+
+  // Slide: hold down on solid ground (on a platform, down drops through instead).
+  body.sliding = body.grounded && input.downHeld && body.stun <= 0 && !(body.pieceId >= 0 && track.isOneWay(body.pieceId));
 
   // --- hazards -------------------------------------------------------------------
   resolveHazardContacts(track, body, world.time, contact);

@@ -142,8 +142,8 @@ export const AbilityTuning = {
     /** Vertical homing speed toward the target (u/s). */
     homing: 3.2,
     radius: 0.36,
-    /** Cruising height above the target's feet. */
-    height: 0.45,
+    /** Cruising height above the target's feet: head height, so a slide ducks under it. */
+    height: 0.95,
     acquireRange: 70,
   },
   snare: { offsetBehind: 1.6, halfWidth: 0.45, height: 0.7 },

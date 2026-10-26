@@ -3,7 +3,7 @@ import { ABILITIES, AbilityTuning } from '../abilities/AbilityDefinition';
 import { stepBody } from '../player/PlayerMovement';
 import { makeBodyInput, type BodyInput, type MovementWorld } from '../physics/PhysicsWorld';
 import type { Track } from '../game/Track';
-import { copyBody, makeBody, type RaceEventType, type RacerBody, type SeekerEntity } from '../game/RaceState';
+import { bodyHeight, copyBody, makeBody, type RaceEventType, type RacerBody, type SeekerEntity } from '../game/RaceState';
 import type { RaceSimulation } from '../game/RaceManager';
 import { approach } from '../shared/math';
 
@@ -13,7 +13,7 @@ export interface Plan {
   jumpTick: number;
   /** How many ticks jump is held once pressed. */
   hold: number;
-  /** Press down at the start of the plan (drop through the platform underfoot). */
+  /** Hold down from the start of the plan: drops through a platform, or slides on solid ground. */
   drop: boolean;
 }
 
@@ -29,8 +29,9 @@ const MID_HOLD = 14;
 const SHORT_HOLD = 6;
 const JUMP_TICKS = [-1, 0, 3, 7, 12, 18, 26, 36, 48];
 const SETTLE_TICKS = 50;
-/** Ticks down is held for a drop plan. */
-const DROP_TICKS = 4;
+/** Ticks down is held for a drop (on a platform) or a slide (on solid ground). */
+export const DROP_TICKS = 4;
+export const SLIDE_TICKS = 30;
 
 /** Side-effect-free MovementWorld used for look-ahead rollouts. */
 class PredictionWorld implements MovementWorld {
@@ -96,7 +97,7 @@ class PredictionWorld implements MovementWorld {
         continue;
       }
       if (Math.abs(body.x - s.x) > hb.halfWidth + r) continue;
-      if (s.y < body.y - r || s.y > body.y + hb.height + r) continue;
+      if (s.y < body.y - r || s.y > body.y + bodyHeight(body) + r) continue;
       s.alive = false;
       if (body.shield > 0) {
         body.shield = 0;
@@ -132,6 +133,8 @@ export class HazardPlanner {
   private readonly results: PlanScore[] = [];
   private readonly glimmerSeen = new Set<number>();
   evaluations = 0;
+  /** How long the current batch of down-plans holds down. */
+  downTicks = DROP_TICKS;
 
   constructor() {
     for (const drop of [false, true]) {
@@ -159,9 +162,10 @@ export class HazardPlanner {
     incoming: readonly SeekerEntity[],
   ): PlanScore[] {
     const body = sim.racers[racer].body;
-    const canDrop = body.grounded && body.pieceId >= 0 && sim.track.isOneWay(body.pieceId);
+    const onPlatform = body.pieceId >= 0 && sim.track.isOneWay(body.pieceId);
+    this.downTicks = onPlatform ? DROP_TICKS : SLIDE_TICKS;
     for (const res of this.results) {
-      if (res.plan.drop && !canDrop) {
+      if (res.plan.drop && !body.grounded) {
         res.score = -Infinity;
         res.incidents = 99;
         res.fell = true;
@@ -233,7 +237,7 @@ export class HazardPlanner {
         }
       }
       const held = k < holdEnd;
-      const down = p.drop && k < DROP_TICKS;
+      const down = p.drop && k < this.downTicks;
       const inp = this.input;
       inp.jumpPressed = held && !prevHeld;
       inp.jumpReleased = !held && prevHeld;
@@ -262,7 +266,7 @@ export class HazardPlanner {
     score -= incidents * 40;
     score -= w.blocked * 6;
     if (doomed) score -= 500;
-    if (p.drop) score -= 0.2;
+    if (p.drop) score -= 0.25;
     if (p.jumpTick >= 0) score -= 0.15 + p.jumpTick * 0.002;
     score += greed * (glimmers * 0.6 + box * 3);
     res.score = score;

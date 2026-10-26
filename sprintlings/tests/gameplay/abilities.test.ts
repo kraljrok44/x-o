@@ -38,21 +38,32 @@ describe('abilities', () => {
     expect(sim.racers[0].stats.hitsLanded).toBe(1);
   });
 
-  it('a seeker can be dodged by jumping over it', () => {
+  it('a rocket flies at head height and can be dodged by sliding under it', () => {
     const sim = duo();
     sim.racers[1].body.x = 10;
     sim.racers[0].item = 'seeker';
     sim.step([input({ use: true }), input({})]);
     let hit = false;
-    let holdUntil = -1;
+    let slid = false;
     for (let i = 0; i < 200; i++) {
       const sk = sim.entities.find((e) => e.kind === 'seeker' && e.alive);
       const b = sim.racers[1].body;
-      // Jump at the last moment and hold: the seeker can't climb as fast as a jump.
-      if (holdUntil < 0 && sk && sk.kind === 'seeker' && sk.x > b.x - 2.2) holdUntil = i + 40;
-      for (const e of sim.step([input({}), input({ jumpHeld: i < holdUntil })])) if (e.type === 'seekerHit') hit = true;
+      const near = !!sk && sk.kind === 'seeker' && sk.x > b.x - 3 && sk.x < b.x + 1.5;
+      for (const e of sim.step([input({}), input({ down: near })])) if (e.type === 'seekerHit') hit = true;
+      if (b.sliding) slid = true;
     }
+    expect(slid).toBe(true);
     expect(hit).toBe(false);
+  });
+
+  it('a rocket hits a racer who just keeps running', () => {
+    const sim = duo();
+    sim.racers[1].body.x = 10;
+    sim.racers[0].item = 'seeker';
+    sim.step([input({ use: true }), input({})]);
+    let hit = false;
+    for (let i = 0; i < 200 && !hit; i++) for (const e of sim.step(idle)) if (e.type === 'seekerHit') hit = true;
+    expect(hit).toBe(true);
   });
 
   it('Dynamite stuns a follower who runs into it', () => {
