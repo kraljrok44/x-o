@@ -79,6 +79,18 @@ describe('new powerups', () => {
   });
 });
 
+describe('powerup lifetime', () => {
+  it('an unused powerup fizzles out after its lifetime', () => {
+    const sim = duo();
+    sim.racers[0].item = 'lasso';
+    const ev = run(sim, 60 * 9);
+    expect(sim.racers[0].item).toBe('lasso');
+    ev.push(...run(sim, 60 * 2));
+    expect(sim.racers[0].item).toBeNull();
+    expect(ev.some((e) => e.type === 'itemExpire' && e.racer === 0)).toBe(true);
+  });
+});
+
 describe('animal specials', () => {
   it('fox Quick Getaway speeds up and goes on cooldown', () => {
     const sim = duo('moss');

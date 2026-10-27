@@ -80,6 +80,11 @@ export interface RacerBody {
   stampede: number;
   /** Rabbit double hop is still available in this airtime. */
   airHop: boolean;
+  /** This racer's own rolling barrel: hazard id (-1 none) and when it started. */
+  rollId: number;
+  rollStart: number;
+  /** x of the last barrel hazard this racer has triggered. */
+  rollPassX: number;
 }
 
 /** Current hitbox height (lower while sliding). */
@@ -122,6 +127,9 @@ export function makeBody(x: number, y: number): RacerBody {
     slow: 0,
     stampede: 0,
     airHop: false,
+    rollId: -1,
+    rollStart: 0,
+    rollPassX: -1e9,
   };
 }
 
@@ -144,6 +152,8 @@ export interface Racer {
   mods: PassiveModifiers;
   body: RacerBody;
   item: AbilityId | null;
+  /** Seconds left before the held powerup fizzles out unused. */
+  itemTime: number;
   abilityCooldown: number;
   /** Seconds until the animal special can be used again. */
   specialCooldown: number;
@@ -235,6 +245,8 @@ export type RaceEventType =
   | 'seekerHit'
   /** A racer was hit by a rival's powerup (value = attacker, ability = which). */
   | 'abilityHit'
+  /** A held powerup ran out of time unused. */
+  | 'itemExpire'
   /** An explosion or lightning strike at (x, y): value 0 = bomb, 1 = thunder. */
   | 'blast'
   /** An animal special was used (value = character special index, see CharacterDefinition). */

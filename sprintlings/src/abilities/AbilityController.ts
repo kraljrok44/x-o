@@ -1,5 +1,5 @@
 import { GameplayConfig } from '../config/GameplayConfig';
-import { ABILITIES, AbilityTuning, ITEM_WEIGHTS_BY_POSITION, type AbilityId } from './AbilityDefinition';
+import { ABILITIES, AbilityTuning, ITEM_LIFETIME, ITEM_WEIGHTS_BY_POSITION, type AbilityId } from './AbilityDefinition';
 import { findSeekerTarget, nearestRivalAhead } from './ProjectileSystem';
 import { applyHit } from './StatusEffectSystem';
 import type { RaceSimulation } from '../game/RaceManager';
@@ -116,6 +116,7 @@ export function collectItemBoxes(sim: RaceSimulation): void {
       if (box.y < b.y - 0.4 || box.y > b.y + GameplayConfig.hitbox.height + 0.4) continue;
       sim.itemBoxReadyAt[i] = sim.time + GameplayConfig.itemBox.respawnSeconds;
       racer.item = rollItem(sim, sim.placeOf(racer.index));
+      racer.itemTime = ITEM_LIFETIME;
       racer.stats.itemBoxes++;
       sim.emit('itemPickup', racer.index, i, b);
       break;

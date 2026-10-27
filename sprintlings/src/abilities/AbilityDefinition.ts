@@ -186,6 +186,9 @@ export const ITEM_WEIGHTS_BY_POSITION: readonly Record<AbilityId, number>[] = [
   { dash: 28, shield: 8, seeker: 22, snare: 6, sap: 4, lasso: 12, thunder: 14, bomb: 6 },
 ];
 
+/** A held powerup expires after this many seconds, so it never sticks with you. */
+export const ITEM_LIFETIME = 10;
+
 export const AbilityTuning = {
   dash: { speedFactor: 1.55 },
   seeker: {

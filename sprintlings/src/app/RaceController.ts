@@ -275,6 +275,9 @@ export class RaceController {
           a.play(e.value === 1 ? 'thunder' : 'boom', Math.max(vol, near ? 0.5 : 0), pan);
           if (local) this.buzz(60);
           break;
+        case 'itemExpire':
+          if (local) this.hud.callout('⌛ ' + t('Powerup fizzled out'));
+          break;
         case 'abilityHit':
           if (e.special === 'pickpocket') {
             a.play('item', vol, pan);

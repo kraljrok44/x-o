@@ -4,6 +4,7 @@ import type { Entity } from '../game/RaceState';
 import {
   CRUSHER_BLOCK,
   boulderPosition,
+  type BarrelState,
   crusherLift,
   crusherWarning,
   flameState,
@@ -510,14 +511,15 @@ export class WorldPainter {
 
   // --- hazards -----------------------------------------------------------------------
 
-  drawHazards(ctx: Ctx, left: number, right: number, time: number): void {
+  /** `viewer` is the racer whose own rolling barrels are shown. */
+  drawHazards(ctx: Ctx, left: number, right: number, time: number, viewer: BarrelState): void {
     const track = this.track;
     const hz = track.data.hazards;
     const end = right + track.maxHazardReach;
-    for (let i = track.firstHazardIndex(left); i < hz.length && hz[i].x <= end; i++) this.drawHazard(ctx, hz[i], Math.max(0, time));
+    for (let i = track.firstHazardIndex(left); i < hz.length && hz[i].x <= end; i++) this.drawHazard(ctx, hz[i], Math.max(0, time), viewer);
   }
 
-  private drawHazard(ctx: Ctx, h: Hazard, t: number): void {
+  private drawHazard(ctx: Ctx, h: Hazard, t: number, viewer: BarrelState): void {
     const th = this.th;
     const ol = th.outline;
     ctx.lineJoin = 'round';
@@ -786,7 +788,7 @@ export class WorldPainter {
         break;
       }
       case 'boulder': {
-        const bx = boulderPosition(h, t);
+        const bx = boulderPosition(h, t, viewer);
         if (bx === null) break;
         const r = h.radius;
         const fade = Math.min(1, (h.x + h.travel - bx) / 1.2, (bx - (h.x - h.travel / 3)) / 0.8 + 0.2);

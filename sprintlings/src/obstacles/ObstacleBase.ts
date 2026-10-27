@@ -89,7 +89,11 @@ export interface PendulumHazard extends HazardBase {
   phase: number;
 }
 
-/** Boulders rolling toward the racers on flat ground, repeating. */
+/**
+ * A barrel that rolls toward a racer. Every racer triggers its own single
+ * barrel when it comes within BARREL_TRIGGER of the hazard; only that racer
+ * sees it and only that racer can be hit by it.
+ */
 export interface BoulderHazard extends HazardBase {
   kind: 'boulder';
   radius: number;
@@ -178,11 +182,20 @@ export function pendulumBall(h: PendulumHazard, t: number, out: Point): Point {
   return out;
 }
 
-/** Current x of a boulder, or null if none is rolling at time t. */
-export function boulderPosition(h: BoulderHazard, t: number): number | null {
-  const dist = mod(t + h.phase, h.period) * h.speed;
-  const total = h.travel * (4 / 3);
-  if (dist > total) return null;
+/** Distance before the hazard at which a racer sets its barrel rolling. */
+export const BARREL_TRIGGER = 11;
+
+/** Per-racer barrel state (kept on the racer body). */
+export interface BarrelState {
+  rollId: number;
+  rollStart: number;
+}
+
+/** Current x of the racer's own barrel for this hazard, or null if it is not rolling. */
+export function boulderPosition(h: BoulderHazard, t: number, s: BarrelState): number | null {
+  if (s.rollId !== h.id) return null;
+  const dist = (t - s.rollStart) * h.speed;
+  if (dist < 0 || dist > h.travel * (4 / 3) + BARREL_TRIGGER * 0.5) return null;
   return h.x + h.travel - dist;
 }
 
@@ -195,7 +208,7 @@ export function isDamaging(kind: HazardKind): boolean {
 export function hazardExtent(h: Hazard): [number, number] {
   switch (h.kind) {
     case 'boulder':
-      return [h.x - h.travel / 3 - h.radius - 1, h.x + h.travel + h.radius + 1];
+      return [h.x - Math.max(h.travel / 3 + h.radius + 1, BARREL_TRIGGER + 1), h.x + h.travel + h.radius + 1];
     case 'saw':
       return [h.x - h.radius - (h.axis === 'x' ? h.amplitude : 0), h.x + h.radius + (h.axis === 'x' ? h.amplitude : 0)];
     case 'pendulum':

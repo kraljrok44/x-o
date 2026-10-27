@@ -1,4 +1,4 @@
-import { ABILITIES } from '../abilities/AbilityDefinition';
+import { ABILITIES, ITEM_LIFETIME } from '../abilities/AbilityDefinition';
 import type { RaceSimulation } from '../game/RaceManager';
 import type { Racer } from '../game/RaceState';
 import type { InputManager } from '../input/InputManager';
@@ -26,6 +26,8 @@ export class RaceHUD {
   private readonly ability = h('div', { class: 'hud-ability empty' });
   private readonly abilityIcon = h('span');
   private readonly abilityName = h('span', { class: 'name' });
+  /** Drains while a powerup is held; it fizzles out when empty. */
+  private readonly abilityTimer = h('span', { class: 'timer' });
   /** Animal special button with a cooldown ring. */
   private readonly special = h('div', { class: 'hud-special' });
   private readonly specialRing = h('div', { class: 'ring' });
@@ -43,7 +45,7 @@ export class RaceHUD {
   private readonly teamSlots: HTMLElement[] = [];
   private readonly touch: HTMLElement;
   readonly pauseBtn: HTMLButtonElement;
-  private last = { place: '', time: '', glim: -1, item: 'x', cd: '', warn: false, hint: '', ring: '' };
+  private last = { place: '', time: '', glim: -1, item: 'x', cd: '', warn: false, hint: '', ring: '', itemLeft: -1 };
   private fpsAcc = 0;
   private fpsFrames = 0;
 
@@ -70,7 +72,7 @@ export class RaceHUD {
       this.progress.append(dot);
     }
     const abilityKey = keyLabel(input.getBindings().ability[0]);
-    this.ability.append(this.abilityName, this.abilityIcon, h('span', { class: 'key' }, touchMode ? '' : abilityKey));
+    this.ability.append(this.abilityTimer, this.abilityName, this.abilityIcon, h('span', { class: 'key' }, touchMode ? '' : abilityKey));
     const sp = SPECIALS[CHARACTERS[sim.racers[localIndex].characterId].special];
     this.special.title = `${sp.name}: ${sp.description}`;
     this.special.append(this.specialRing, h('span', { class: 'icon' }, sp.icon), h('span', { class: 'name' }, sp.name), h('span', { class: 'key' }, touchMode ? '' : keyLabel(input.getBindings().special[0])));
@@ -213,6 +215,13 @@ export class RaceHUD {
         this.ability.classList.remove('ready');
         this.ability.style.borderColor = '';
       }
+    }
+    const left = me.item ? Math.max(0, Math.min(1, me.itemTime / ITEM_LIFETIME)) : 0;
+    const tk = Math.round(left * 100);
+    if (tk !== this.last.itemLeft) {
+      this.last.itemLeft = tk;
+      this.abilityTimer.style.transform = `scaleX(${left})`;
+      this.ability.classList.toggle('expiring', !!me.item && me.itemTime < 3);
     }
     // Special cooldown ring.
     const spDef = SPECIALS[CHARACTERS[me.characterId].special];

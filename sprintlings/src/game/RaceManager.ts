@@ -5,6 +5,7 @@ import type { CharacterId } from '../player/CharacterDefinition';
 import { stepBody } from '../player/PlayerMovement';
 import { enterFinished, startRunning } from '../player/PlayerStateMachine';
 import { collectItemBoxes, tryUseAbility } from '../abilities/AbilityController';
+import { ITEM_LIFETIME } from '../abilities/AbilityDefinition';
 import { stepStampedes, trySpecial } from '../abilities/SpecialAbility';
 import { stepBombs, stepSeekers, stepThunder } from '../abilities/ProjectileSystem';
 import { AbilityTuning, type AbilityId } from '../abilities/AbilityDefinition';
@@ -103,6 +104,7 @@ export class RaceSimulation implements MovementWorld {
         mods: passiveModifiers(r.characterId),
         body: makeBody(x, y),
         item: null,
+        itemTime: 0,
         abilityCooldown: 0,
         specialCooldown: 0,
         finishTime: null,
@@ -252,6 +254,16 @@ export class RaceSimulation implements MovementWorld {
       racer.prevDownHeld = input.down;
       if (racer.abilityCooldown > 0) racer.abilityCooldown = Math.max(0, racer.abilityCooldown - dt);
       if (racer.specialCooldown > 0) racer.specialCooldown = Math.max(0, racer.specialCooldown - dt);
+      if (racer.item && racer.body.phase === 'run') {
+        // A powerup handed over without a timer starts a fresh one.
+        if (racer.itemTime <= 0) racer.itemTime = ITEM_LIFETIME;
+        racer.itemTime -= dt;
+        if (racer.itemTime <= 0) {
+          this.emit('itemExpire', racer.index, 0, racer.body);
+          this.events[this.events.length - 1].ability = racer.item;
+          racer.item = null;
+        }
+      }
 
       stepBody(racer.body, bi, racer.mods, this, racer.index, dt);
       if (input.use) tryUseAbility(this, racer);

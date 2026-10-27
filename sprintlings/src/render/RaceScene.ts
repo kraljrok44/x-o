@@ -295,7 +295,7 @@ export class RaceScene {
     this.world.drawStartFinish(ctx, L, R, this.time);
     this.world.drawPlatforms(ctx, L, R);
     this.world.drawDecals(ctx, L, R);
-    this.world.drawHazards(ctx, L, R, raceTime);
+    this.world.drawHazards(ctx, L, R, raceTime, me.racer.body);
     this.world.drawItemBoxes(ctx, L, R, this.time, sim.itemBoxReadyAt, raceTime);
     this.world.drawGlimmers(ctx, L, R, this.time, me.racer.glimmerTaken);
     this.world.drawEntities(ctx, sim.entities, this.time);

@@ -3,6 +3,7 @@ import { CHARACTERS, SPECIALS, type SpecialId } from '../player/CharacterDefinit
 import type { RaceSimulation } from '../game/RaceManager';
 import type { Racer } from '../game/RaceState';
 import { applyHit } from './StatusEffectSystem';
+import { ITEM_LIFETIME } from './AbilityDefinition';
 
 export const SPECIAL_IDS: readonly SpecialId[] = ['quickDash', 'doubleHop', 'ironHide', 'pickpocket', 'stampede', 'howl'];
 
@@ -75,6 +76,7 @@ export function trySpecial(sim: RaceSimulation, racer: Racer): boolean {
     case 'pickpocket': {
       const victim = sim.racers[pickpocketTarget(sim, racer)];
       racer.item = victim.item;
+      racer.itemTime = ITEM_LIFETIME;
       victim.item = null;
       sim.emitAt('abilityHit', victim.index, racer.index, victim.body.x, victim.body.y);
       sim.events[sim.events.length - 1].special = id;

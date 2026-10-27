@@ -174,7 +174,7 @@ export const SEGMENTS: SegmentTemplate[] = [
     difficulty: 3,
     tags: ['hard'],
     build(c) {
-      c.run(40).boulder(26, 0).boulder(26, 1.6).glimmerLine(5, 15, 0.6, 2);
+      c.run(40).boulder(26).glimmerLine(5, 15, 0.6, 2);
     },
   }),
   seg({
@@ -278,7 +278,7 @@ export const SEGMENTS: SegmentTemplate[] = [
     tags: ['hard'],
     pickupRule: 'The high plank dodges the rolling barrels.',
     build(c) {
-      c.run(44).boulder(30, 0).boulder(30, 1.6).platform(8, 26, PLAT);
+      c.run(44).boulder(30).platform(8, 26, PLAT);
       c.glimmerLine(10, 32, PLAT + 0.6, 1.6);
     },
   }),

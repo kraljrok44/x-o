@@ -1,5 +1,6 @@
 import { GameplayConfig } from '../config/GameplayConfig';
 import {
+  BARREL_TRIGGER,
   boulderPosition,
   CRUSHER_BLOCK,
   crusherLift,
@@ -93,7 +94,12 @@ export function resolveHazardContacts(track: Track, body: RacerBody, t: number, 
         break;
       }
       case 'boulder': {
-        const bx = boulderPosition(h, t);
+        if (body.rollPassX < h.x && body.x >= h.x - BARREL_TRIGGER) {
+          body.rollPassX = h.x;
+          body.rollId = h.id;
+          body.rollStart = t;
+        }
+        const bx = boulderPosition(h, t, body);
         if (bx !== null) {
           const g = track.groundBelow(bx, 50, -1, false);
           if (!Number.isNaN(g) && circleHit(body, bx, g + h.radius, h.radius)) out.hit = h;
