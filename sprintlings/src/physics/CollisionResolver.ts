@@ -72,6 +72,9 @@ export function resolveHazardContacts(track: Track, body: RacerBody, t: number, 
       case 'spikes':
         if (boxHit(body, h.x - h.halfWidth, h.x + h.halfWidth, h.y, h.y + h.height)) out.hit = h;
         break;
+      case 'beam':
+        if (boxHit(body, h.x - h.halfWidth, h.x + h.halfWidth, h.y + h.clearance, h.y + h.top)) out.hit = h;
+        break;
       case 'flame':
         if (flameState(h, t) === 'active' && boxHit(body, h.x - h.halfWidth, h.x + h.halfWidth, h.y, h.y + h.height)) out.hit = h;
         break;
@@ -116,6 +119,7 @@ export function stunFor(kind: Hazard['kind']): number {
   const st = GameplayConfig.stun;
   switch (kind) {
     case 'log':
+    case 'beam':
       return st.log;
     case 'spikes':
       return st.spikes;

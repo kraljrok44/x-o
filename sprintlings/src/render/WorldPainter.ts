@@ -247,6 +247,10 @@ export class WorldPainter {
     const th = this.th;
     for (const p of this.platforms) {
       if (p.x1 < left || p.x0 > right) continue;
+      if (p.style === 'cloud') {
+        this.drawCloudPlatform(ctx, p.x0, p.x1, p.y0);
+        continue;
+      }
       const y = p.y0;
       const h = 0.32;
       // Hanging vines/ropes for floaty charm.
@@ -283,6 +287,45 @@ export class WorldPainter {
       ctx.strokeStyle = th.grass;
       ctx.stroke();
     }
+  }
+
+  /** Standable cloud: flat walkable top at y, puffy underside, a soft shadow below. */
+  private drawCloudPlatform(ctx: Ctx, x0: number, x1: number, y: number): void {
+    const w = x1 - x0;
+    const n = Math.max(2, Math.round(w / 0.9));
+    const puffs = (grow: number) => {
+      ctx.beginPath();
+      for (let k = 0; k <= n; k++) {
+        const x = x0 + (k / n) * w;
+        const r = (0.34 + hash(x * 3.1) * 0.14) * (k === 0 || k === n ? 0.85 : 1) + grow;
+        ctx.moveTo(x + r, y - 0.28);
+        ctx.arc(x, y - 0.28, r, 0, Math.PI * 2);
+      }
+      ctx.rect(x0, y - 0.28 - grow, w, 0.28 + grow * 2);
+    };
+    // Outline pass, then fill, so the merged puffs share one outline.
+    puffs(0.06);
+    ctx.fillStyle = this.th.outline;
+    ctx.fill();
+    puffs(0);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    // Blue-grey belly and a bright top edge to read as the surface.
+    ctx.beginPath();
+    for (let k = 0; k <= n; k++) {
+      const x = x0 + (k / n) * w;
+      ctx.moveTo(x + 0.3, y - 0.45);
+      ctx.ellipse(x, y - 0.45, 0.3, 0.12, 0, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = '#d6e4f5';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x0 + 0.05, y - 0.03);
+    ctx.lineTo(x1 - 0.05, y - 0.03);
+    ctx.lineWidth = 0.08;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#fffbe8';
+    ctx.stroke();
   }
 
   drawDecor(ctx: Ctx, left: number, right: number, time: number): void {
@@ -516,7 +559,115 @@ export class WorldPainter {
     const track = this.track;
     const hz = track.data.hazards;
     const end = right + track.maxHazardReach;
-    for (let i = track.firstHazardIndex(left); i < hz.length && hz[i].x <= end; i++) this.drawHazard(ctx, hz[i], Math.max(0, time), viewer);
+    const t = Math.max(0, time);
+    for (let i = track.firstHazardIndex(left); i < hz.length && hz[i].x <= end; i++) {
+      this.drawDanger(ctx, hz[i], t, viewer);
+      this.drawHazard(ctx, hz[i], t, viewer);
+    }
+  }
+
+  private readonly dangerPt: Point = { x: 0, y: 0 };
+
+  /**
+   * Pulsing red glow behind everything that can knock you over, plus hazard
+   * tape on the ground under ground obstacles, so hazards never blend into
+   * the scenery (which uses similar shapes, e.g. background cacti).
+   */
+  private drawDanger(ctx: Ctx, h: Hazard, t: number, viewer: BarrelState): void {
+    let cx = h.x;
+    let cy = h.y;
+    let rx = 0;
+    let ry = 0;
+    let tape = 0;
+    const p = this.dangerPt;
+    switch (h.kind) {
+      case 'log':
+      case 'spikes':
+        cy = h.y + h.height / 2;
+        rx = h.halfWidth + 0.5;
+        ry = h.height / 2 + 0.45;
+        tape = h.halfWidth + 0.25;
+        break;
+      case 'beam':
+        cy = h.y + (h.clearance + h.top) / 2;
+        rx = h.halfWidth + 0.5;
+        ry = (h.top - h.clearance) / 2 + 0.35;
+        break;
+      case 'saw':
+        sawCenter(h, t, p);
+        cx = p.x;
+        cy = p.y;
+        rx = ry = h.radius + 0.5;
+        break;
+      case 'pendulum':
+        pendulumBall(h, t, p);
+        cx = p.x;
+        cy = p.y;
+        rx = ry = h.radius + 0.5;
+        break;
+      case 'boulder': {
+        const bx = boulderPosition(h, t, viewer);
+        if (bx === null) return;
+        cx = bx;
+        cy = h.y + h.radius;
+        rx = ry = h.radius + 0.45;
+        break;
+      }
+      case 'crusher': {
+        const lift = crusherLift(h, t);
+        cy = h.y + lift + CRUSHER_BLOCK / 2;
+        rx = h.halfWidth + 0.45;
+        ry = CRUSHER_BLOCK / 2 + 0.4;
+        tape = h.halfWidth + 0.2;
+        break;
+      }
+      case 'flame': {
+        const st = flameState(h, t);
+        tape = h.halfWidth + 0.25;
+        if (st === 'idle') break;
+        cy = h.y + h.height / 2;
+        rx = h.halfWidth + 0.45;
+        ry = h.height / 2 + 0.35;
+        break;
+      }
+      default:
+        return;
+    }
+    const pulse = 0.5 + 0.5 * Math.sin(t * 7 + h.id);
+    if (rx > 0) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(rx, ry);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+      g.addColorStop(0, `rgba(255,40,30,${0.38 + pulse * 0.2})`);
+      g.addColorStop(0.6, `rgba(255,70,30,${0.2 + pulse * 0.12})`);
+      g.addColorStop(1, 'rgba(255,90,30,0)');
+      ctx.beginPath();
+      ctx.arc(0, 0, 1, 0, Math.PI * 2);
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.restore();
+    }
+    if (tape > 0) {
+      // Yellow/black hazard tape across the ground.
+      const y = h.y + 0.015;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(h.x - tape, y - 0.07, tape * 2, 0.14);
+      ctx.fillStyle = '#ffd23f';
+      ctx.fill();
+      ctx.clip();
+      ctx.fillStyle = '#1f1a26';
+      for (let x = h.x - tape - 0.3; x < h.x + tape; x += 0.28) {
+        ctx.beginPath();
+        ctx.moveTo(x, y - 0.07);
+        ctx.lineTo(x + 0.12, y - 0.07);
+        ctx.lineTo(x + 0.26, y + 0.07);
+        ctx.lineTo(x + 0.14, y + 0.07);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
   }
 
   private drawHazard(ctx: Ctx, h: Hazard, t: number, viewer: BarrelState): void {
@@ -853,6 +1004,70 @@ export class WorldPainter {
         }
         break;
       }
+      case 'beam': {
+        const y = h.y;
+        const bottom = y + h.clearance;
+        const top = y + h.top;
+        // Gallows-style frame posts, then the hanging board.
+        for (const dx of [-1.3, 1.3]) {
+          ctx.beginPath();
+          roundRect(ctx, h.x + dx - 0.09, y, 0.18, top - y + 0.45, 0.04);
+          ctx.fillStyle = th.hazard.wood;
+          ctx.fill();
+          ctx.lineWidth = OL_W;
+          ctx.strokeStyle = ol;
+          ctx.stroke();
+        }
+        ctx.beginPath();
+        roundRect(ctx, h.x - 1.5, top + 0.3, 3, 0.22, 0.05);
+        ctx.fillStyle = shade(th.hazard.wood, 0.15);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(h.x - 0.35, top + 0.3);
+        ctx.lineTo(h.x - 0.35, top);
+        ctx.moveTo(h.x + 0.35, top + 0.3);
+        ctx.lineTo(h.x + 0.35, top);
+        ctx.lineWidth = 0.05;
+        ctx.strokeStyle = th.hazard.metal;
+        ctx.stroke();
+        // Board: striped red/white so it pops, with a big down arrow.
+        ctx.save();
+        ctx.beginPath();
+        roundRect(ctx, h.x - h.halfWidth - 0.2, bottom, (h.halfWidth + 0.2) * 2, top - bottom, 0.08);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.clip();
+        ctx.fillStyle = '#e8322a';
+        for (let k = -6; k < 12; k++) {
+          ctx.beginPath();
+          const yy = bottom + k * 0.36;
+          ctx.moveTo(h.x - 1, yy);
+          ctx.lineTo(h.x + 1, yy + 0.5);
+          ctx.lineTo(h.x + 1, yy + 0.68);
+          ctx.lineTo(h.x - 1, yy + 0.18);
+          ctx.fill();
+        }
+        ctx.restore();
+        ctx.beginPath();
+        roundRect(ctx, h.x - h.halfWidth - 0.2, bottom, (h.halfWidth + 0.2) * 2, top - bottom, 0.08);
+        ctx.lineWidth = 0.07;
+        ctx.strokeStyle = ol;
+        ctx.stroke();
+        // Down arrow under the board: slide!
+        const bob = Math.sin(t * 6) * 0.06;
+        ctx.beginPath();
+        ctx.moveTo(h.x - 0.28, bottom - 0.08 + bob);
+        ctx.lineTo(h.x + 0.28, bottom - 0.08 + bob);
+        ctx.lineTo(h.x, bottom - 0.42 + bob);
+        ctx.closePath();
+        ctx.fillStyle = '#ffd23f';
+        ctx.fill();
+        ctx.lineWidth = 0.04;
+        ctx.strokeStyle = ol;
+        ctx.stroke();
+        break;
+      }
       case 'boostPad': {
         ctx.beginPath();
         roundRect(ctx, h.x - h.halfWidth, h.y - 0.02, h.halfWidth * 2, 0.12, 0.05);
@@ -1003,6 +1218,24 @@ export class WorldPainter {
     for (const e of entities) {
       if (!e.alive) continue;
       const pulse = 0.5 + 0.5 * Math.sin(time * 10);
+      // Rival traps get a big pulsing danger halo of their own.
+      if (e.kind === 'snare' || e.kind === 'sap' || e.kind === 'bomb') {
+        const cx = e.kind === 'sap' ? (e.x0 + e.x1) / 2 : e.x;
+        const cy = e.y + (e.kind === 'bomb' ? 0.25 : 0.35);
+        const rx = e.kind === 'sap' ? (e.x1 - e.x0) / 2 + 0.7 : 1.1;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(rx, e.kind === 'sap' ? 0.7 : 1.0);
+        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+        g.addColorStop(0, `rgba(255,40,30,${0.45 + pulse * 0.25})`);
+        g.addColorStop(0.65, `rgba(255,200,40,${0.18 + pulse * 0.12})`);
+        g.addColorStop(1, 'rgba(255,200,40,0)');
+        ctx.beginPath();
+        ctx.arc(0, 0, 1, 0, Math.PI * 2);
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.restore();
+      }
       if (e.kind === 'seeker') {
         // Smoke trail.
         for (let k = 1; k <= 6; k++) {

@@ -1,7 +1,7 @@
 import { GameplayConfig } from '../config/GameplayConfig';
 import { hazardExtent, type Hazard } from '../obstacles/ObstacleBase';
 
-export type Biome = 'forest' | 'canyon' | 'crystal';
+export type Biome = 'forest' | 'canyon' | 'crystal' | 'sunset' | 'snow';
 
 /**
  * A piece of walkable surface seen from the side. Solid pieces are terrain
@@ -16,6 +16,8 @@ export interface GroundPiece {
   y0: number;
   y1: number;
   oneWay: boolean;
+  /** How a one-way piece is drawn (planks by default, or a cloud). */
+  style?: 'cloud';
 }
 
 export interface ItemBoxDef {
@@ -86,7 +88,7 @@ export class Track {
     for (const p of data.pieces) if (p.oneWay) this.oneWayIds.add(p.id);
     // Hazards sit on whatever ground is below them.
     for (const h of data.hazards) {
-      const g = this.groundBelow(h.x, 50, -1, false);
+      const g = this.groundBelow(h.x, h.onTop ? h.onTop : 50, -1, !!h.onTop);
       h.y = Number.isNaN(g) ? 0 : g;
     }
     data.hazards.sort((a, b) => a.x - b.x);

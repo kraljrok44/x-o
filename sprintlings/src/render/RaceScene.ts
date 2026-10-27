@@ -513,6 +513,7 @@ export class RaceScene {
       blocked: b.blocked,
       ready: b.phase === 'grid' && countdownLeft < 1.1,
       sliding: b.sliding,
+      climbing: b.climbing,
     };
   }
 

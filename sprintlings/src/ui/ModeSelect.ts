@@ -7,7 +7,7 @@ import { t } from './i18n';
 import { topbar } from './Topbar';
 import type { Screen } from './UIRoot';
 
-const BIOME_ICON = { forest: '🌲', canyon: '🏜', crystal: '💎' } as const;
+const BIOME_ICON = { forest: '🌾', canyon: '🏜', crystal: '⛏', sunset: '🌅', snow: '🏔' } as const;
 
 export function modeSelect(ctx: AppContext): Screen {
   const bar = topbar(ctx, { back: () => ctx.go('menu'), title: t('Choose a race') });

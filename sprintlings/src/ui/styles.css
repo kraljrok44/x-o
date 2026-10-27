@@ -480,3 +480,6 @@ body.touch-on .hud-emotes { bottom: auto; top: 30%; flex-direction: column; }
 .hud-ability .timer { position: absolute; left: 8px; right: 8px; bottom: 8px; height: 6px; border-radius: 3px; background: #e8473b; transform-origin: left center; transform: scaleX(0); }
 .hud-ability.expiring { animation: expiring 0.35s infinite alternate; }
 @keyframes expiring { from { transform: scale(1); } to { transform: scale(0.93); } }
+
+.track-card--sunset { background: var(--grain), linear-gradient(160deg, #ffc07a, #e86a7a 55%, #5a3a8a); }
+.track-card--snow { background: var(--grain), linear-gradient(160deg, #eef6ff, #8ab8e8); }

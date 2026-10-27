@@ -80,6 +80,8 @@ export interface RacerBody {
   stampede: number;
   /** Rabbit double hop is still available in this airtime. */
   airHop: boolean;
+  /** Scaling a tall wall (pressing against a face too high to jump). */
+  climbing: boolean;
   /** This racer's own rolling barrel: hazard id (-1 none) and when it started. */
   rollId: number;
   rollStart: number;
@@ -127,6 +129,7 @@ export function makeBody(x: number, y: number): RacerBody {
     slow: 0,
     stampede: 0,
     airHop: false,
+    climbing: false,
     rollId: -1,
     rollStart: 0,
     rollPassX: -1e9,

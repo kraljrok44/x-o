@@ -38,7 +38,8 @@ export function validateTrack(
   // Pits must be jumpable at running speed unless a spring launches you across.
   let pitStart: number | null = null;
   for (let x = -10; x <= d.length + 20; x += 0.25) {
-    const solid = !Number.isNaN(track.solidTop(x));
+    // Clouds and planks over a pit count as stepping stones.
+    const solid = !Number.isNaN(track.groundBelow(x, 1e9, -1, true));
     if (!solid && pitStart === null) pitStart = x;
     if (solid && pitStart !== null) {
       const width = x - pitStart;

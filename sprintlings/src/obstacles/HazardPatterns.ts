@@ -313,6 +313,66 @@ export const SEGMENTS: SegmentTemplate[] = [
       c.glimmerArc(6.8, 6, 16).glimmerArc(22.3, 6, 16);
     },
   }),
+  seg({
+    id: 'cliff_climb',
+    length: 44,
+    difficulty: 2,
+    tags: ['medium'],
+    pickupRule: 'Glimmers lead over the cloud onto the cliff top; climbing works but costs time.',
+    build(c) {
+      c.run(12).cloud(4, 6, 1.8).glimmerLine(5, 9, 2.4, 1.3);
+      c.step(3.5).run(16).glimmerLine(2 + 12, 12 + 13, 0.6, 1.6).box(12 + 8, 0.9);
+      c.step(-3.5).run(16);
+    },
+  }),
+  seg({
+    id: 'cloud_route',
+    length: 48,
+    difficulty: 2,
+    tags: ['medium'],
+    pickupRule: 'The cloud road carries a boost pad and the glimmers; the ground road is muddy and spiky.',
+    build(c) {
+      c.run(48).mud(13, 35).spikes(18, 0.8).spikes(30, 0.8);
+      c.cloud(3, 7, 1.8).cloud(12, 10, 2.9).cloud(24, 10, 2.9).cloud(36, 7, 1.8);
+      c.pad('boostPad', 14.5, 2.9).pad('boostPad', 26.5, 2.9);
+      c.glimmerLine(4, 9, 2.4, 1.25).glimmerLine(16, 33, 3.5, 1.4).box(40, 2.7);
+    },
+  }),
+  seg({
+    id: 'tower_climb',
+    length: 42,
+    difficulty: 3,
+    tags: ['hard'],
+    pickupRule: 'Two clouds form a staircase to the tower top; otherwise climb the wall.',
+    build(c) {
+      c.run(14).cloud(3, 4, 1.8).cloud(8.5, 4, 3.2).glimmerLine(4, 7, 2.4, 1.2).glimmerLine(9, 12, 3.8, 1.2);
+      c.step(4.5).run(10).glimmerLine(15, 23, 0.6, 1.6);
+      c.step(-4.5).run(18).beam(37).glimmerLine(35, 39, 0.35, 1);
+    },
+  }),
+  seg({
+    id: 'sky_bridge',
+    length: 40,
+    difficulty: 3,
+    tags: ['hard'],
+    pickupRule: 'Glimmers float over each cloud stepping stone across the chasm.',
+    build(c) {
+      c.run(8).gap(22).run(10);
+      c.cloud(9, 4, 0.8).cloud(15.5, 4, 1.5).cloud(22, 4, 0.8);
+      c.glimmerLine(10, 12, 1.4, 1).glimmerLine(16.5, 18.5, 2.1, 1).glimmerLine(23, 25, 1.4, 1);
+    },
+  }),
+  seg({
+    id: 'sign_alley',
+    length: 36,
+    difficulty: 2,
+    tags: ['medium'],
+    pickupRule: 'Low glimmers under each sign reward sliding.',
+    build(c) {
+      c.run(36).beam(9).log(18, 0.8).beam(27);
+      c.glimmerLine(7.5, 10.5, 0.35, 1).glimmerArc(15.4, 4).glimmerLine(25.5, 28.5, 0.35, 1);
+    },
+  }),
 ];
 
 export const SEGMENT_BY_ID: Record<string, SegmentTemplate> = Object.fromEntries(SEGMENTS.map((s) => [s.id, s]));

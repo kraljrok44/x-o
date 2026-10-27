@@ -884,7 +884,6 @@ export function drawMonster(
   layers: { back?: CosmeticLayer; front?: CosmeticLayer } = {},
   anchorsOut?: RigAnchors,
 ): void {
-  const sp = SPECIES[plan];
   if (style.shadow) {
     const drop = Math.max(-3, style.shadowDrop);
     const sc = Math.max(0.25, 1 + drop * 0.18);
@@ -893,10 +892,91 @@ export function drawMonster(
     ctx.fillStyle = `rgba(30,15,10,${0.24 * sc})`;
     ctx.fill();
   }
-  const front = pose.facing > 0.5;
-  // Turning between side and front pinches horizontally, like a quick turn.
-  const turn = Math.max(0.25, Math.abs(1 - 2 * Math.max(0, Math.min(1, pose.facing))));
+  const f = Math.max(0, Math.min(1, pose.facing));
   const anchors = anchorsOut ?? makeAnchors();
+  if (f < 0.03 || f > 0.97 || !turnLayers(ctx)) {
+    drawView(ctx, plan, pal, pose, style, layers, anchors, f > 0.5, 1);
+    return;
+  }
+  // Turning toward the camera: both complete views are rendered on their own
+  // layer and blended, so the figure rotates instead of flattening like a card.
+  const k = f * f * (3 - 2 * f);
+  const squeeze = 1 - 0.12 * Math.sin(Math.PI * k);
+  // Blend only around the middle of the turn; a little hop hides the swap.
+  const blend = Math.max(0, Math.min(1, (k - 0.38) / 0.24));
+  const m = ctx.getTransform();
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  for (const [lx, ly] of [
+    [-1.4, -0.5],
+    [1.4, -0.5],
+    [-1.4, 2.8],
+    [1.4, 2.8],
+  ]) {
+    const sx = m.a * lx + m.c * ly + m.e;
+    const sy = m.b * lx + m.d * ly + m.f;
+    x0 = Math.min(x0, sx);
+    y0 = Math.min(y0, sy);
+    x1 = Math.max(x1, sx);
+    y1 = Math.max(y1, sy);
+  }
+  x0 = Math.floor(x0);
+  y0 = Math.floor(y0);
+  const w = Math.ceil(x1 - x0) + 2;
+  const hgt = Math.ceil(y1 - y0) + 2;
+  const L = turnLayers(ctx);
+  if (!L || w > 2048 || hgt > 2048 || w < 2 || hgt < 2) {
+    drawView(ctx, plan, pal, pose, style, layers, anchors, f > 0.5, squeeze);
+    return;
+  }
+  const views: [HTMLCanvasElement, boolean, number][] = [
+    [L[0], false, Math.min(1, 2 * (1 - blend))],
+    [L[1], true, Math.min(1, 2 * blend)],
+  ];
+  const hopPose = { ...pose, hop: pose.hop + 0.1 * Math.sin(Math.PI * k), squash: pose.squash * (1 + 0.05 * Math.sin(Math.PI * k)) };
+  for (const [cv, front] of views) {
+    if (cv.width < w) cv.width = w;
+    if (cv.height < hgt) cv.height = hgt;
+    const lc = cv.getContext('2d')!;
+    lc.setTransform(1, 0, 0, 1, 0, 0);
+    lc.clearRect(0, 0, w, hgt);
+    lc.setTransform(m.a, m.b, m.c, m.d, m.e - x0, m.f - y0);
+    drawView(lc, plan, pal, hopPose, style, layers, anchors, front, squeeze);
+  }
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const base = ctx.globalAlpha;
+  for (const [cv, , alpha] of views) {
+    ctx.globalAlpha = base * alpha;
+    ctx.drawImage(cv, 0, 0, w, hgt, x0, y0, w, hgt);
+  }
+  ctx.restore();
+}
+
+let layerPair: [HTMLCanvasElement, HTMLCanvasElement] | null | undefined;
+
+/** Two scratch canvases for blending the side and front views during a turn. */
+function turnLayers(ctx: Ctx): [HTMLCanvasElement, HTMLCanvasElement] | null {
+  if (layerPair !== undefined) return layerPair;
+  if (typeof document === 'undefined' || typeof (ctx as CanvasRenderingContext2D).getTransform !== 'function') return (layerPair = null);
+  layerPair = [document.createElement('canvas'), document.createElement('canvas')];
+  return layerPair;
+}
+
+function drawView(
+  ctx: Ctx,
+  plan: BodyPlan,
+  pal: CharacterPalette,
+  pose: MonsterPose,
+  style: MonsterStyle,
+  layers: { back?: CosmeticLayer; front?: CosmeticLayer },
+  anchors: RigAnchors,
+  front: boolean,
+  turn: number,
+): void {
+  const sp = SPECIES[plan];
 
   ctx.save();
   ctx.translate(0, pose.hop);

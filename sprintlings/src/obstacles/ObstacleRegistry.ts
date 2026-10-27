@@ -1,6 +1,6 @@
 import type { HazardKind } from './ObstacleBase';
 
-export type HazardResponse = 'jump' | 'timing' | 'route' | 'none';
+export type HazardResponse = 'jump' | 'slide' | 'timing' | 'route' | 'none';
 
 export interface ObstacleInfo {
   kind: HazardKind;
@@ -23,5 +23,6 @@ export const OBSTACLES: Record<HazardKind, ObstacleInfo> = {
   boulder: { kind: 'boulder', response: 'jump', effect: 'stumble', telegraph: 'Rumble and dust trail', names: { forest: 'Rolling coconut', canyon: 'Tumbling boulder', crystal: 'Rolling geode' } },
   mud: { kind: 'mud', response: 'route', effect: 'slow', telegraph: 'Dark glossy patch with bubbles', names: { forest: 'Bog mud', canyon: 'Quicksand', crystal: 'Glow goo' } },
   boostPad: { kind: 'boostPad', response: 'none', effect: 'boost', telegraph: 'Animated arrows', names: { forest: 'Wind leaf', canyon: 'Gust vent', crystal: 'Light rail' } },
+  beam: { kind: 'beam', response: 'slide', effect: 'stumble', telegraph: 'Low hanging sign with a down arrow', names: { forest: 'Low sign', canyon: 'Mine beam', crystal: 'Low beam' } },
   spring: { kind: 'spring', response: 'none', effect: 'launch', telegraph: 'Bouncy pad that pulses', names: { forest: 'Bounce shroom', canyon: 'Steam spring', crystal: 'Jelly crystal' } },
 };

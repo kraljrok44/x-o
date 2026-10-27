@@ -101,8 +101,8 @@ export class Background {
   private drawFar(c: Ctx, lh: number, unit: number): void {
     const th = this.theme;
     const base = lh * 0.45;
-    if (this.biome === 'forest') {
-      // Distant blue ranges over the prairie.
+    if (this.biome === 'forest' || this.biome === 'snow') {
+      // Distant ranges over the prairie / snowy peaks.
       this.silhouette(c, lh, base, unit * 1.3, 2, [1, 3, 7], th.far);
       c.save();
       c.globalAlpha = 0.45;
@@ -112,7 +112,7 @@ export class Background {
       // Flat-topped mesas and buttes.
       this.silhouette(c, lh, base, unit * 1.7, this.biome === 'canyon' ? 1 : 4, [2, 5, 9], th.far, true);
     }
-    this.silhouette(c, lh, base + unit * 0.45, unit * 0.9, 3, [2, 4, 9], mix(th.far, th.mid, 0.4), this.biome !== 'forest');
+    this.silhouette(c, lh, base + unit * 0.45, unit * 0.9, 3, [2, 4, 9], mix(th.far, th.mid, 0.4), this.biome !== 'forest' && this.biome !== 'snow');
   }
 
   private drawMid(c: Ctx, lh: number, unit: number): void {
@@ -123,7 +123,16 @@ export class Background {
     const col = shade(th.mid, 0.28);
     const glow = th.night ? '#ffcf5a' : null;
     // A few landmarks per tile, the rest small fillers.
-    const marks = this.biome === 'forest' ? ['windmill', 'barn', 'fence', 'tree', 'fence', 'windmill', 'tree', 'fence'] : this.biome === 'canyon' ? ['saloon', 'tower', 'cactus', 'saloon', 'cactus', 'rock', 'tower', 'cactus'] : ['mine', 'cactus', 'shack', 'cactus', 'tower', 'mine', 'cactus', 'rock'];
+    const marks =
+      this.biome === 'forest'
+        ? ['windmill', 'barn', 'fence', 'tree', 'fence', 'windmill', 'tree', 'fence']
+        : this.biome === 'canyon'
+          ? ['saloon', 'tower', 'cactus', 'saloon', 'cactus', 'rock', 'tower', 'cactus']
+          : this.biome === 'sunset'
+            ? ['saloon', 'shack', 'cactus', 'saloon', 'tower', 'shack', 'cactus', 'rock']
+            : this.biome === 'snow'
+              ? ['shack', 'pine', 'fence', 'pine', 'tower', 'shack', 'pine', 'fence']
+              : ['mine', 'cactus', 'shack', 'cactus', 'tower', 'mine', 'cactus', 'rock'];
     for (let i = 0; i < marks.length; i++) {
       const x = ((i + 0.3 + hash(i * 4.4) * 0.4) / marks.length) * TILE_W;
       const y = at(x) + 3;
@@ -132,6 +141,9 @@ export class Background {
       c.strokeStyle = col;
       c.lineCap = 'round';
       switch (marks[i]) {
+        case 'pine':
+          drawPine(c, x, y, s * 1.6, col);
+          break;
         case 'windmill': {
           c.fillRect(x - s * 0.06, y - s * 1.9, s * 0.12, s * 1.9);
           c.beginPath();
@@ -262,7 +274,16 @@ export class Background {
       const y = at(x) + 2;
       const s = unit * (0.3 + hash(i * 3.3) * 0.3);
       const kind = i % 3;
-      if (this.biome === 'forest') {
+      if (this.biome === 'snow') {
+        // Snowy pines and drifts.
+        if (kind !== 1) drawPine(c, x, y, s * 1.5, shade(th.near, 0.1));
+        else {
+          c.beginPath();
+          ellipse(c, x, y - s * 0.15, s * 0.6, s * 0.25);
+          c.fillStyle = '#f4f8ff';
+          c.fill();
+        }
+      } else if (this.biome === 'forest') {
         if (kind === 0) {
           // Round hay bale.
           c.beginPath();
@@ -389,6 +410,9 @@ export class Background {
         ctx.fillRect(0, top + lh - 1, w, h - top - lh + 1);
       }
     }
+    // Atmospheric haze pushes the scenery back so the course and its hazards pop.
+    ctx.fillStyle = rgba(th.sky[2], th.night ? 0.18 : 0.3);
+    ctx.fillRect(0, 0, w, h);
   }
 }
 
@@ -414,4 +438,28 @@ export function drawCactus(c: Ctx, x: number, y: number, s: number, color: strin
   c.moveTo(x, y - s * 0.75);
   c.quadraticCurveTo(x + s * 0.34, y - s * 0.75, x + s * 0.34, y - s * 1.08);
   c.stroke();
+}
+
+/** Pine tree silhouette with snow on each tier. */
+function drawPine(c: Ctx, x: number, y: number, s: number, color: string): void {
+  c.fillStyle = color;
+  c.fillRect(x - s * 0.05, y - s * 0.25, s * 0.1, s * 0.25);
+  for (let k = 0; k < 3; k++) {
+    const by = y - s * (0.2 + k * 0.28);
+    const w = s * (0.42 - k * 0.1);
+    c.beginPath();
+    c.moveTo(x - w, by);
+    c.lineTo(x, by - s * 0.42);
+    c.lineTo(x + w, by);
+    c.closePath();
+    c.fillStyle = color;
+    c.fill();
+    c.beginPath();
+    c.moveTo(x - w * 0.45, by - s * 0.24);
+    c.lineTo(x, by - s * 0.42);
+    c.lineTo(x + w * 0.45, by - s * 0.24);
+    c.closePath();
+    c.fillStyle = 'rgba(255,255,255,0.85)';
+    c.fill();
+  }
 }

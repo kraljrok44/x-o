@@ -16,7 +16,8 @@ export type HazardKind =
   | 'boulder'
   | 'mud'
   | 'boostPad'
-  | 'spring';
+  | 'spring'
+  | 'beam';
 
 export interface HazardBase {
   id: number;
@@ -25,6 +26,18 @@ export interface HazardBase {
   x: number;
   /** Ground height under the hazard (filled in by the Track). */
   y: number;
+  /** Sit on the highest surface (platforms included) at or below this height, instead of solid ground. */
+  onTop?: number;
+}
+
+/** A sign or plank hanging low over the trail: slide under it (too tall to jump). */
+export interface BeamHazard extends HazardBase {
+  kind: 'beam';
+  halfWidth: number;
+  /** Gap under the beam (above ground); a slide fits, a standing racer does not. */
+  clearance: number;
+  /** Top of the beam above ground. */
+  top: number;
 }
 
 /** Low obstacle (log/crate/rock): jump over it or stumble. */
@@ -123,7 +136,8 @@ export type Hazard =
   | PendulumHazard
   | BoulderHazard
   | MudHazard
-  | PadHazard;
+  | PadHazard
+  | BeamHazard;
 
 const mod = (a: number, p: number) => ((a % p) + p) % p;
 

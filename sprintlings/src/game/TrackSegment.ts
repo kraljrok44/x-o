@@ -104,6 +104,18 @@ export class SegmentContext {
     return this;
   }
 
+  /** A fluffy cloud you can stand on (one-way, like a platform). */
+  cloud(dx: number, len: number, lift: number): this {
+    this.draft.pieces.push({ id: this.id(), x0: this.x0 + dx, x1: this.x0 + dx + len, y0: this.level + lift, y1: this.level + lift, oneWay: true, style: 'cloud' });
+    return this;
+  }
+
+  /** Low hanging sign: slide under it. */
+  beam(dx: number): this {
+    this.draft.hazards.push({ id: this.id(), kind: 'beam', x: this.x0 + dx, y: 0, halfWidth: 0.45, clearance: 0.8, top: 3.2 });
+    return this;
+  }
+
   /** Solid floating island (blocks from the side, e.g. pillars between pits). */
   island(dx: number, len: number, lift: number): this {
     this.piece(dx, dx + len, this.level + lift, this.level + lift, false);
@@ -163,8 +175,9 @@ export class SegmentContext {
     return this;
   }
 
-  pad(kind: 'boostPad' | 'spring', dx: number): this {
-    this.draft.hazards.push({ id: this.id(), kind, x: this.x0 + dx, y: 0, halfWidth: kind === 'spring' ? 0.45 : 0.8 });
+  /** Boost pad or spring; `onLift` puts it on a platform/cloud that high above the current level. */
+  pad(kind: 'boostPad' | 'spring', dx: number, onLift?: number): this {
+    this.draft.hazards.push({ id: this.id(), kind, x: this.x0 + dx, y: 0, halfWidth: kind === 'spring' ? 0.45 : 0.8, onTop: onLift === undefined ? undefined : this.level + onLift + 0.01 });
     return this;
   }
 

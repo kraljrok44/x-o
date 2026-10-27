@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { RaceSimulation } from '../../src/game/RaceManager';
 import { GameplayConfig } from '../../src/config/GameplayConfig';
 import { human, input, run, skipCountdown, testTrack } from '../helpers';
+import type { SegmentContext } from '../../src/game/TrackSegment';
 
 function solo(build?: Parameters<typeof testTrack>[1], length = 200) {
   const sim = new RaceSimulation({ track: testTrack(length, build), seed: 1, racers: [human()] });
@@ -98,16 +99,32 @@ describe('collisions', () => {
     expect(events).toContain('hurdleCleared');
   });
 
-  it('is stopped by a step face until it jumps up', () => {
-    const sim = solo((c) => c.run(20).step(1.2));
-    const body = sim.racers[0].body;
-    run(sim, 160);
-    expect(body.blocked).toBe(true);
-    expect(body.x).toBeLessThan(20);
-    run(sim, 40, (t) => input({ jumpHeld: t < 30 }));
-    run(sim, 60);
-    expect(body.x).toBeGreaterThan(22);
-    expect(body.y).toBeCloseTo(1.2, 5);
+  it('climbs a wall it runs into, but jumping onto it is faster', () => {
+    const wall = (c: SegmentContext) => c.run(20).step(3.5).run(30);
+    const climber = solo(wall);
+    const cb = climber.racers[0].body;
+    let climbed = false;
+    for (let t = 0; t < 200; t++) {
+      run(climber, 1);
+      if (cb.climbing) climbed = true;
+    }
+    expect(climbed).toBe(true);
+    expect(cb.y).toBeCloseTo(3.5, 5);
+    expect(cb.x).toBeGreaterThan(22);
+
+    // Jumping up a 1.2 step keeps momentum; climbing it stops first.
+    const jumper = solo((c) => c.run(20).step(1.2).run(30));
+    const jb = jumper.racers[0].body;
+    let pressed = -1;
+    run(jumper, 220, (t) => {
+      if (pressed < 0 && jb.x > 16.2) pressed = t;
+      return input({ jumpHeld: pressed >= 0 && t - pressed < 30 });
+    });
+    const lazy = solo((c) => c.run(20).step(1.2).run(30));
+    run(lazy, 220);
+    expect(lazy.racers[0].body.y).toBeCloseTo(1.2, 5);
+    expect(jb.y).toBeCloseTo(1.2, 5);
+    expect(jb.x).toBeGreaterThan(lazy.racers[0].body.x);
   });
 
   it('a jump that catches a step just below its top climbs onto it instead of falling through', () => {

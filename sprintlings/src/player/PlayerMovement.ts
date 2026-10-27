@@ -85,9 +85,13 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
     world.emit('drop', racer, body.dropId, body);
   }
 
+  // A stumble knocks a climber off the wall.
+  if (body.climbing && body.stun > 0) body.climbing = false;
+
   // --- forward speed -----------------------------------------------------------
   let target: number;
-  if (body.stun > 0) target = 0.8;
+  if (body.climbing) target = 0;
+  else if (body.stun > 0) target = 0.8;
   else {
     target = cfg.movement.baseSpeed * terrainSpeedFactor(body.terrain, body, mods);
     let boost = body.grounded ? 1 : cfg.jump.airSpeedFactor;
@@ -106,11 +110,20 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
   // up. In the air a face whose top is within LEDGE of the feet is not a
   // wall: the racer is lifted onto the ledge below instead of bonking.
   const front = nx + hb.halfWidth;
-  if (track.solidAt(front, body.y)) {
+  if (body.climbing) {
+    // Hug the wall until the top is reached (handled below).
+    if (!track.solidAt(body.x + hb.halfWidth + 0.08, body.y)) body.climbing = false;
+  } else if (track.solidAt(front, body.y)) {
     const top = track.solidTop(front);
     if (!body.grounded && body.vy <= 4 && top - body.y <= LEDGE && !track.solidAt(front, top)) {
       body.x = nx;
       ledgeTop = top;
+    } else if (body.stun <= 0 && body.dropTimer <= 0) {
+      // Too high to step onto: grab the wall and climb.
+      body.climbing = true;
+      body.speed = 0;
+      body.jumping = false;
+      body.jumpBuffer = 0;
     } else {
       body.blocked = true;
       body.speed = Math.min(body.speed, 2.5);
@@ -118,6 +131,28 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
   } else body.x = nx;
 
   // --- vertical ----------------------------------------------------------------
+  if (body.climbing) {
+    body.grounded = false;
+    body.coyote = 0;
+    body.pieceId = -1;
+    body.vy = cfg.climb.speed;
+    body.y += body.vy * dt;
+    const fx = body.x + hb.halfWidth + 0.08;
+    const top = track.solidTop(fx);
+    if (Number.isNaN(top) || body.y >= top - cfg.jump.stepUp) {
+      // Pull up over the edge and keep running.
+      body.climbing = false;
+      if (!Number.isNaN(top)) {
+        body.y = top;
+        body.x = fx;
+        body.vy = 0;
+        body.grounded = true;
+        body.pieceId = track.lastPiece;
+        body.speed = Math.max(body.speed, cfg.climb.topSpeed);
+        world.emit('land', racer, 0, body);
+      }
+    }
+  }
   if (body.grounded) body.airHop = true;
   if (body.grounded) {
     const g = groundUnder(track, body, body.x, prevY);
@@ -147,7 +182,7 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
     world.emit('jump', racer, 0, body);
   }
 
-  if (!body.grounded) {
+  if (!body.grounded && !body.climbing) {
     let gravityScale = 1;
     if (body.vy < 0 && body.downHeld) gravityScale = cfg.jump.fastFallScale;
     else if (body.vy < 0 && body.jumpHeld) gravityScale = mods.fallGravityScaleWhileHolding;

@@ -87,6 +87,9 @@ export const GameplayConfig = {
 
   boostPad: { factor: 1.45, duration: 0.9 },
 
+  /** Running into a wall makes the racer climb it (slower than jumping onto it). */
+  climb: { speed: 6.5, topSpeed: 6 },
+
   race: {
     countdownSeconds: 3,
     maxDurationSeconds: 120,

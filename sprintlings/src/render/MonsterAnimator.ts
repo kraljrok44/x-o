@@ -36,6 +36,8 @@ export interface AnimInput {
   ready: boolean;
   /** Baseball slide under flying trouble. */
   sliding?: boolean;
+  /** Scaling a wall. */
+  climbing?: boolean;
 }
 
 const STRIDE = 1.3;
@@ -134,14 +136,19 @@ export class MonsterAnimator {
     const run = this.run;
     const stride = 0.2 * run;
     const lift = 0.17 * run;
+    // Feet trace smooth ovals: lift eases in and out instead of snapping at contact.
+    const footLift = (q: number) => {
+      const c = Math.max(0, Math.cos(q));
+      return c * c * (3 - 2 * c);
+    };
     let nfx = Math.sin(ph) * stride;
-    let nfy = Math.max(0, Math.cos(ph)) * lift;
+    let nfy = footLift(ph) * lift;
     let ffx = Math.sin(ph + Math.PI) * stride;
-    let ffy = Math.max(0, Math.cos(ph + Math.PI)) * lift;
+    let ffy = footLift(ph + Math.PI) * lift;
     // Arms swing opposite to the legs, biased backward so they never cover the face.
     let armN = 0.1 - 0.15 * run + Math.sin(ph + Math.PI) * 0.75 * run;
     let armF = 0.1 - 0.15 * run + Math.sin(ph) * 0.75 * run;
-    let bob = run * (0.05 * Math.abs(Math.cos(ph)) - 0.02);
+    let bob = run * (0.025 * (1 - Math.cos(2 * ph)) - 0.02);
     let squashTarget = 1 + run * 0.035 * Math.cos(2 * ph);
 
     const a = this.air;
@@ -167,6 +174,7 @@ export class MonsterAnimator {
     // --- idle / ready / emotes ------------------------------------------------
     let rot = 0;
     let flip = 1;
+    let spinFacing = -1;
     let hop = 0;
     let reach = 1 + a * 0.35;
     let leanTarget = run * 0.14 + (s.boosting ? 0.12 : 0) + (s.blocked ? 0.28 : 0) + (airborne ? (s.vy > 0 ? -0.04 : 0.08) : 0);
@@ -203,8 +211,11 @@ export class MonsterAnimator {
           leanTarget = Math.sin(e * 3) * 0.08;
           break;
         case 'spin': {
+          // Turn all the way round: face -> right side -> back -> left side -> face.
           const cyc = e % 1.6;
-          flip = cyc < 0.9 ? Math.cos((cyc / 0.9) * TAU) : 1;
+          const yaw = cyc < 0.9 ? (cyc / 0.9) * TAU : 0;
+          spinFacing = (1 + Math.cos(yaw)) / 2;
+          flip = Math.sin(yaw) >= 0 ? 1 : -1;
           hop = cyc < 0.9 ? Math.sin((cyc / 0.9) * Math.PI) * 0.25 : 0;
           armN = 1.6;
           armF = 1.6;
@@ -286,6 +297,22 @@ export class MonsterAnimator {
       leanTarget = -0.1;
       squashTarget = 0.9;
     }
+    if (racing && s.climbing) {
+      // Hand over hand up the wall, knees stepping.
+      const c = time * 11;
+      rot = 0;
+      hop = 0;
+      bob = Math.sin(c * 2) * 0.02;
+      reach = 1.6;
+      armN = 2.6 + Math.sin(c) * 0.45;
+      armF = 2.6 - Math.sin(c) * 0.45;
+      nfx = 0.14;
+      ffx = 0.1;
+      nfy = 0.12 + Math.max(0, Math.sin(c)) * 0.18;
+      ffy = 0.12 + Math.max(0, -Math.sin(c)) * 0.18;
+      leanTarget = -0.12;
+      squashTarget = 1.04;
+    }
     if (s.phase === 'fall') {
       armN = -2.8 + Math.sin(time * 25) * 0.3;
       armF = -2.6 - Math.sin(time * 25) * 0.3;
@@ -311,10 +338,11 @@ export class MonsterAnimator {
     p.armReach += (reach - p.armReach) * damp(12, dt);
     // Turn to the camera for emotes and the menu stage, run side-on otherwise.
     const faceTarget = s.mode === 'emote' || (s.mode === 'idle' && !s.ready) ? 1 : 0;
-    p.facing += (faceTarget - p.facing) * damp(7, dt);
+    if (spinFacing >= 0) p.facing = spinFacing;
+    else p.facing += (faceTarget - p.facing) * damp(7, dt);
     p.bob = bob;
     p.rot = rot;
-    p.flip = Math.abs(flip) < 0.08 ? (flip < 0 ? -0.08 : 0.08) : flip;
+    p.flip = flip;
     p.hop = hop;
     p.dizzy = dizzy;
 
