@@ -84,7 +84,8 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
       base.characterId = id.slice(5) as CharacterId;
       base.variantId = null;
     }
-    ctx.menu.show(base, def?.slot === 'emote');
+    // Items worn on the back are only visible side-on, so the model turns.
+    ctx.menu.show(base, def?.slot === 'emote', def?.slot === 'back');
   };
 
   const renderTabs = () =>

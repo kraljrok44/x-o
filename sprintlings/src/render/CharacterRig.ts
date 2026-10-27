@@ -47,6 +47,8 @@ export interface MonsterPose {
   hop: number;
   /** 0 = side view (running right), 1 = facing the camera. */
   facing: number;
+  /** Set by drawMonster while turning: 1 = front view still turned 3/4 toward the right, 0 = straight on. */
+  yaw?: number;
 }
 
 export function neutralPose(): MonsterPose {
@@ -77,11 +79,23 @@ export function neutralPose(): MonsterPose {
 }
 
 /** Anchors cosmetics attach to. Head fields are in head space, back fields in torso space. */
+/** One eye in head space; `sx` squashes it horizontally when the head is turned. */
+export interface EyeAnchor {
+  x: number;
+  y: number;
+  r: number;
+  sx: number;
+}
+
 export interface RigAnchors {
   headTop: Vec;
   headW: number;
   eyeCenter: Vec;
   eyeSpan: number;
+  /** [near eye (the right eye, the one facing the camera while racing), far eye]. */
+  eyes: [EyeAnchor, EyeAnchor];
+  /** Head seen from the side (eyewear gets a temple arm). */
+  side: boolean;
   back: Vec;
   bodyRx: number;
   bodyRy: number;
@@ -96,7 +110,20 @@ export interface MonsterStyle {
 export type CosmeticLayer = (ctx: Ctx, anchors: RigAnchors, pose: MonsterPose, pal: CharacterPalette) => void;
 
 export function makeAnchors(): RigAnchors {
-  return { headTop: { x: 0, y: 0 }, headW: 0.6, eyeCenter: { x: 0, y: 0 }, eyeSpan: 0.3, back: { x: 0, y: 0 }, bodyRx: 0.2, bodyRy: 0.24 };
+  return {
+    headTop: { x: 0, y: 0 },
+    headW: 0.6,
+    eyeCenter: { x: 0, y: 0 },
+    eyeSpan: 0.3,
+    eyes: [
+      { x: -0.1, y: 0.05, r: 0.072, sx: 1 },
+      { x: 0.1, y: 0.05, r: 0.072, sx: 1 },
+    ],
+    side: false,
+    back: { x: 0, y: 0 },
+    bodyRx: 0.2,
+    bodyRy: 0.24,
+  };
 }
 
 // --- proportions --------------------------------------------------------------------
@@ -766,17 +793,20 @@ function drawHeadFront(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mo
   const rx = sp.headRx * 1.05;
   const ry = sp.headRy;
   const wa = pose.wobbleA;
+  // While turning, the face slides toward the side it came from (a 3/4 view).
+  const yaw = pose.yaw ?? 0;
+  const s = frontShift(plan, yaw);
   if (plan === 'bull') {
-    drawHorn(ctx, pal, -0.14, ry * 0.7, -1, false);
-    drawHorn(ctx, pal, 0.14, ry * 0.7, 1, false);
-    drawEar(ctx, plan, pal, -rx * 0.95, ry * 0.3, 0.3, false);
-    drawEar(ctx, plan, pal, rx * 0.95, ry * 0.3, -0.3, false);
+    drawHorn(ctx, pal, -0.14 + s * 0.5, ry * 0.7, -1, false);
+    drawHorn(ctx, pal, 0.14 + s * 0.8, ry * 0.7, 1, false);
+    drawEar(ctx, plan, pal, -rx * 0.95 + s * 0.4, ry * 0.3, 0.3, false);
+    drawEar(ctx, plan, pal, rx * 0.95 + s * 0.6, ry * 0.3, -0.3, false);
   } else {
     const ex = plan === 'rabbit' ? 0.09 : plan === 'bear' ? rx * 0.72 : rx * 0.6;
     const ey = plan === 'bear' ? ry * 0.7 : ry * 0.72;
     const spread = plan === 'rabbit' ? 0.12 : plan === 'bear' ? 0 : 0.35;
-    drawEar(ctx, plan, pal, -ex, ey, spread + wa * 0.3, false);
-    drawEar(ctx, plan, pal, ex, ey, -spread - wa * 0.3, false);
+    drawEar(ctx, plan, pal, -ex + s * 0.45, ey, spread + wa * 0.3, false);
+    drawEar(ctx, plan, pal, ex + s * 0.7, ey, -spread - wa * 0.3, false);
   }
   ctx.beginPath();
   ellipse(ctx, 0, 0, rx, ry);
@@ -800,7 +830,7 @@ function drawHeadFront(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mo
     // Light cheeks.
     for (const d of [-1, 1]) {
       ctx.beginPath();
-      ellipse(ctx, d * rx * 0.45, -ry * 0.5, rx * 0.5, ry * 0.45);
+      ellipse(ctx, d * rx * 0.45 + s * 0.8, -ry * 0.5, rx * 0.5, ry * 0.45);
       ctx.fillStyle = pal.belly;
       ctx.fill();
     }
@@ -819,38 +849,67 @@ function drawHeadFront(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mo
   // Muzzle.
   const mw = plan === 'bull' ? 0.17 : plan === 'bear' ? 0.13 : 0.1;
   const my = plan === 'bull' ? -0.12 : -0.08;
+  const mx = s * 1.35;
   ctx.beginPath();
-  ellipse(ctx, 0, my, mw, mw * 0.75);
+  ellipse(ctx, mx, my, mw, mw * 0.75);
   fillOutlined(ctx, pal.belly);
   if (plan === 'bull') {
     ctx.fillStyle = shade(pal.belly, 0.45);
     for (const dx of [-0.06, 0.06]) {
       ctx.beginPath();
-      ellipse(ctx, dx, my + 0.02, 0.022, 0.03);
+      ellipse(ctx, mx + dx, my + 0.02, 0.022, 0.03);
       ctx.fill();
     }
     ctx.beginPath();
-    ctx.arc(0, my - 0.09, 0.04, Math.PI * 0.15, Math.PI * 0.85, true);
+    ctx.arc(mx, my - 0.09, 0.04, Math.PI * 0.15, Math.PI * 0.85, true);
     ctx.lineWidth = 0.022;
     ctx.strokeStyle = '#f2c14e';
     ctx.stroke();
   } else {
     ctx.beginPath();
-    ellipse(ctx, 0, my + mw * 0.35, 0.045, 0.034);
+    ellipse(ctx, mx + s * 0.25, my + mw * 0.35, 0.045, 0.034);
     ctx.fillStyle = plan === 'rabbit' ? pal.accent : '#2a1d2e';
     ctx.fill();
   }
-  drawEye(ctx, -0.1, 0.05, 0.072, pose, pal, plan === 'rabbit');
-  drawEye(ctx, 0.1, 0.05, 0.072, pose, pal, plan === 'rabbit');
+  const [en, ef] = frontEyes(plan, yaw);
+  drawEye(ctx, en.x, en.y, en.r, pose, pal, plan === 'rabbit');
+  ctx.save();
+  ctx.translate(ef.x, ef.y);
+  ctx.scale(ef.sx, 1);
+  drawEye(ctx, 0, 0, ef.r, pose, pal, plan === 'rabbit');
+  ctx.restore();
   if (pose.blush > 0.05) {
     ctx.fillStyle = `rgba(255,110,140,${0.25 + 0.3 * pose.blush})`;
     for (const d of [-1, 1]) {
       ctx.beginPath();
-      ellipse(ctx, d * 0.17, -0.05, 0.045, 0.026);
+      ellipse(ctx, d * 0.17 + s, -0.05, 0.045, 0.026);
       ctx.fill();
     }
   }
-  drawMouth(ctx, 0, my - mw * 0.35, mw * 0.9, pose, pal, plan === 'rabbit');
+  drawMouth(ctx, mx, my - mw * 0.35, mw * 0.9, pose, pal, plan === 'rabbit');
+}
+
+/** Sideways slide of the face in a turned (3/4) front view. */
+function frontShift(plan: BodyPlan, yaw: number): number {
+  return yaw * SPECIES[plan].headRx * 1.05 * 0.4;
+}
+
+/** Eye positions of the front head: [near (character's right, viewer's left), far]. */
+function frontEyes(plan: BodyPlan, yaw: number): [EyeAnchor, EyeAnchor] {
+  const s = frontShift(plan, yaw);
+  return [
+    { x: -0.1 + s * 0.9, y: 0.05, r: 0.072, sx: 1 },
+    { x: 0.1 + s * 1.15, y: 0.05, r: 0.072, sx: 1 - 0.4 * yaw },
+  ];
+}
+
+/** Eye positions of the side head: [near, far (peeking past the snout)]. */
+function sideEyes(plan: BodyPlan): [EyeAnchor, EyeAnchor] {
+  const rx = SPECIES[plan].headRx;
+  return [
+    { x: rx * 0.15, y: 0.04, r: 0.075, sx: 1 },
+    { x: rx * 0.62, y: 0.05, r: 0.062, sx: 0.8 },
+  ];
 }
 
 function drawDizzy(ctx: Ctx, y: number, pose: MonsterPose): void {
@@ -894,16 +953,27 @@ export function drawMonster(
   }
   const f = Math.max(0, Math.min(1, pose.facing));
   const anchors = anchorsOut ?? makeAnchors();
-  if (f < 0.03 || f > 0.97 || !turnLayers(ctx)) {
-    drawView(ctx, plan, pal, pose, style, layers, anchors, f > 0.5, 1);
+  // The turn is continuous: the side view narrows as the head starts to turn,
+  // a brief blend hands over to a 3/4 front view, and the face then slides
+  // round to look straight at the camera. Every frame is a new in-between.
+  const SIDE_END = 0.3;
+  const BLEND_END = 0.42;
+  if (f <= SIDE_END || f >= 0.97 || !turnLayers(ctx)) {
+    if (f <= SIDE_END) {
+      drawView(ctx, plan, pal, pose, style, layers, anchors, false, 1 - 0.14 * (f / SIDE_END));
+    } else {
+      const yaw = f >= 0.97 ? 0 : Math.max(0, Math.min(1, (0.97 - f) / (0.97 - BLEND_END)));
+      drawView(ctx, plan, pal, { ...pose, yaw }, style, layers, anchors, true, 1 - 0.14 * yaw);
+    }
     return;
   }
-  // Turning toward the camera: both complete views are rendered on their own
-  // layer and blended, so the figure rotates instead of flattening like a card.
-  const k = f * f * (3 - 2 * f);
-  const squeeze = 1 - 0.12 * Math.sin(Math.PI * k);
-  // Blend only around the middle of the turn; a little hop hides the swap.
-  const blend = Math.max(0, Math.min(1, (k - 0.38) / 0.24));
+  if (f > BLEND_END) {
+    const yaw = (0.97 - f) / (0.97 - BLEND_END);
+    drawView(ctx, plan, pal, { ...pose, yaw }, style, layers, anchors, true, 1 - 0.14 * yaw);
+    return;
+  }
+  // Short hand-over between the side and the 3/4 view on separate layers.
+  const blend = (f - SIDE_END) / (BLEND_END - SIDE_END);
   const m = ctx.getTransform();
   let x0 = Infinity;
   let y0 = Infinity;
@@ -927,15 +997,15 @@ export function drawMonster(
   const w = Math.ceil(x1 - x0) + 2;
   const hgt = Math.ceil(y1 - y0) + 2;
   const L = turnLayers(ctx);
+  const hopPose = { ...pose, hop: pose.hop + 0.06 * Math.sin(Math.PI * blend), yaw: 1 };
   if (!L || w > 2048 || hgt > 2048 || w < 2 || hgt < 2) {
-    drawView(ctx, plan, pal, pose, style, layers, anchors, f > 0.5, squeeze);
+    drawView(ctx, plan, pal, hopPose, style, layers, anchors, blend > 0.5, 0.86);
     return;
   }
   const views: [HTMLCanvasElement, boolean, number][] = [
     [L[0], false, Math.min(1, 2 * (1 - blend))],
     [L[1], true, Math.min(1, 2 * blend)],
   ];
-  const hopPose = { ...pose, hop: pose.hop + 0.1 * Math.sin(Math.PI * k), squash: pose.squash * (1 + 0.05 * Math.sin(Math.PI * k)) };
   for (const [cv, front] of views) {
     if (cv.width < w) cv.width = w;
     if (cv.height < hgt) cv.height = hgt;
@@ -943,7 +1013,7 @@ export function drawMonster(
     lc.setTransform(1, 0, 0, 1, 0, 0);
     lc.clearRect(0, 0, w, hgt);
     lc.setTransform(m.a, m.b, m.c, m.d, m.e - x0, m.f - y0);
-    drawView(lc, plan, pal, hopPose, style, layers, anchors, front, squeeze);
+    drawView(lc, plan, pal, hopPose, style, layers, anchors, front, 0.86);
   }
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1021,6 +1091,8 @@ function drawView(
       anchors.eyeCenter.x = front ? 0 : sp.headRx * 0.38;
       anchors.eyeCenter.y = 0.05;
       anchors.eyeSpan = front ? 0.34 : sp.headRx * 0.75;
+      anchors.eyes = front ? frontEyes(plan, pose.yaw ?? 0) : sideEyes(plan);
+      anchors.side = !front;
       layers.front(ctx, anchors, pose, pal);
     }
     ctx.restore();

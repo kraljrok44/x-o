@@ -38,6 +38,8 @@ export interface AnimInput {
   sliding?: boolean;
   /** Scaling a wall. */
   climbing?: boolean;
+  /** Menu/shop: stand side-on so items worn on the back can be seen. */
+  faceSide?: boolean;
 }
 
 const STRIDE = 1.3;
@@ -337,7 +339,7 @@ export class MonsterAnimator {
     p.armFar = armF;
     p.armReach += (reach - p.armReach) * damp(12, dt);
     // Turn to the camera for emotes and the menu stage, run side-on otherwise.
-    const faceTarget = s.mode === 'emote' || (s.mode === 'idle' && !s.ready) ? 1 : 0;
+    const faceTarget = s.faceSide ? 0 : s.mode === 'emote' || (s.mode === 'idle' && !s.ready) ? 1 : 0;
     if (spinFacing >= 0) p.facing = spinFacing;
     else p.facing += (faceTarget - p.facing) * damp(7, dt);
     p.bob = bob;

@@ -1,7 +1,7 @@
 import type { CharacterPalette } from '../player/CharacterDefinition';
 import { COSMETIC_BY_ID } from '../shop/CosmeticCatalog';
 import { ellipse, mix, roundRect, shade, star, tint, type Ctx } from './draw';
-import type { CosmeticLayer, MonsterPose, RigAnchors } from './CharacterRig';
+import type { CosmeticLayer, EyeAnchor, MonsterPose, RigAnchors } from './CharacterRig';
 
 /**
  * Vector cosmetics drawn on the monster rig, in body space (+y up, origin
@@ -322,95 +322,140 @@ function drawHat(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monste
 
 function drawEyewear(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: MonsterPose): void {
   if (pose.eyes === 'dizzy') return;
-  const span = a.eyeSpan;
-  const cx = a.eyeCenter.x;
-  const cy = a.eyeCenter.y;
-  const r = Math.min(0.16, span * 0.3);
-  const xs = span > 0.45 ? [cx - span * 0.27, cx + span * 0.27] : [cx];
+  const [near, far] = a.eyes;
+  // Two-lens items sit on both eyes; single-lens items (monocle, patch) on
+  // the near eye, the character's right eye that faces the camera while racing.
+  const both = [near, far];
   ctx.save();
   ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  const lens = (e: EyeAnchor, grow: number, path: (r: number) => void) => {
+    ctx.save();
+    ctx.translate(e.x, e.y);
+    ctx.scale(e.sx, 1);
+    path(e.r * grow);
+    ctx.restore();
+  };
+  const bridge = (r0: number, r1: number, dy = 0, width = 0.03, stroke = color) => {
+    ctx.beginPath();
+    ctx.moveTo(near.x + r0 * near.sx, near.y + dy);
+    ctx.quadraticCurveTo((near.x + far.x) / 2, (near.y + far.y) / 2 + dy + 0.02, far.x - r1 * far.sx, far.y + dy);
+    ctx.lineWidth = width;
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
+  };
+  // Temple arm back toward the ear in the side view.
+  const temple = (r: number, stroke = color) => {
+    if (!a.side) return;
+    ctx.beginPath();
+    ctx.moveTo(near.x - r, near.y + 0.01);
+    ctx.lineTo(near.x - r - 0.13, near.y + 0.03);
+    ctx.lineWidth = 0.025;
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
+  };
   switch (m) {
-    case 'eyes_round':
+    case 'eyes_round': {
+      for (const e of both) {
+        lens(e, 1.45, (r) => {
+          ctx.beginPath();
+          ellipse(ctx, 0, 0, r, r);
+          ctx.fillStyle = 'rgba(200,230,255,0.18)';
+          ctx.fill();
+          ctx.lineWidth = 0.032;
+          ctx.strokeStyle = color;
+          ctx.stroke();
+        });
+      }
+      bridge(near.r * 1.45, far.r * 1.45);
+      temple(near.r * 1.45);
+      break;
+    }
     case 'eyes_monocle': {
-      const list = m === 'eyes_monocle' ? [xs[xs.length - 1]] : xs;
-      for (const x of list) {
+      lens(near, 1.5, (r) => {
         ctx.beginPath();
-        ellipse(ctx, x, cy, r * 1.05, r * 1.05);
-        ctx.fillStyle = 'rgba(200,230,255,0.18)';
+        ellipse(ctx, 0, 0, r, r);
+        ctx.fillStyle = 'rgba(200,230,255,0.2)';
         ctx.fill();
         ctx.lineWidth = 0.035;
         ctx.strokeStyle = color;
         ctx.stroke();
-      }
-      if (list.length > 1) {
-        ctx.beginPath();
-        ctx.moveTo(list[0] + r, cy);
-        ctx.lineTo(list[1] - r, cy);
-        ctx.stroke();
-      } else {
-        ctx.beginPath();
-        ctx.moveTo(list[0], cy - r);
-        ctx.quadraticCurveTo(list[0] + 0.02, cy - r * 2.6, list[0] - 0.08, cy - r * 3.2);
-        ctx.lineWidth = 0.015;
-        ctx.stroke();
-      }
+      });
+      const r = near.r * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(near.x, near.y - r);
+      ctx.quadraticCurveTo(near.x + 0.02, near.y - r * 2.4, near.x - 0.08, near.y - r * 3);
+      ctx.lineWidth = 0.015;
+      ctx.strokeStyle = color;
+      ctx.stroke();
       break;
     }
     case 'eyes_patch': {
-      const x = xs[xs.length - 1];
+      // Strap round the head, patch over the near eye only.
       ctx.beginPath();
-      ctx.moveTo(cx - span * 0.6, cy + r * 1.2);
-      ctx.lineTo(cx + span * 0.6, cy - r * 0.4);
+      if (a.side) {
+        ctx.moveTo(near.x - 0.25, near.y + 0.13);
+        ctx.lineTo(near.x + near.r, near.y + near.r * 0.6);
+      } else {
+        const half = a.headW * 0.44;
+        ctx.moveTo(-half + (near.x + 0.1), near.y + 0.1);
+        ctx.lineTo(half + (near.x + 0.1) * 0.6, far.y + 0.12);
+      }
       ctx.lineWidth = 0.025;
       ctx.strokeStyle = color;
       ctx.stroke();
-      ctx.beginPath();
-      ellipse(ctx, x, cy, r * 0.95, r * 0.85);
-      outlined(ctx, color);
+      lens(near, 1.35, (r) => {
+        ctx.beginPath();
+        ellipse(ctx, 0, 0, r, r * 0.9);
+        outlined(ctx, color);
+      });
       break;
     }
     case 'eyes_heart':
     case 'eyes_star': {
-      for (const x of xs) {
-        ctx.beginPath();
-        if (m === 'eyes_star') star(ctx, x, cy, r * 1.3, 0.5);
-        else {
-          const s = r * 1.15;
-          ctx.moveTo(x, cy - s * 0.9);
-          ctx.bezierCurveTo(x - s * 1.4, cy + s * 0.1, x - s * 0.5, cy + s * 1.05, x, cy + s * 0.45);
-          ctx.bezierCurveTo(x + s * 0.5, cy + s * 1.05, x + s * 1.4, cy + s * 0.1, x, cy - s * 0.9);
-          ctx.closePath();
-        }
-        outlined(ctx, color);
-        ctx.beginPath();
-        ellipse(ctx, x - r * 0.35, cy + r * 0.35, r * 0.18, r * 0.12, -0.5);
-        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-        ctx.fill();
+      for (const e of both) {
+        lens(e, 1.35, (r) => {
+          ctx.beginPath();
+          if (m === 'eyes_star') star(ctx, 0, 0, r * 1.25, 0.5);
+          else {
+            const k = r * 1.05;
+            ctx.moveTo(0, -k * 0.9);
+            ctx.bezierCurveTo(-k * 1.4, k * 0.1, -k * 0.5, k * 1.05, 0, k * 0.45);
+            ctx.bezierCurveTo(k * 0.5, k * 1.05, k * 1.4, k * 0.1, 0, -k * 0.9);
+            ctx.closePath();
+          }
+          outlined(ctx, color);
+          ctx.beginPath();
+          ellipse(ctx, -r * 0.35, r * 0.35, r * 0.18, r * 0.12, -0.5);
+          ctx.fillStyle = 'rgba(255,255,255,0.7)';
+          ctx.fill();
+        });
       }
-      if (xs.length > 1) {
-        ctx.beginPath();
-        ctx.moveTo(xs[0] + r, cy + r * 0.2);
-        ctx.lineTo(xs[1] - r, cy + r * 0.2);
-        ctx.lineWidth = 0.03;
-        ctx.strokeStyle = OL;
-        ctx.stroke();
-      }
+      bridge(near.r * 1.2, far.r * 1.2, 0.01, 0.028, OL);
+      temple(near.r * 1.3, OL);
       break;
     }
     case 'eyes_visor': {
+      // One band across both eyes.
+      const xl = Math.min(near.x - near.r * 1.4 * near.sx, far.x - far.r * 1.4 * far.sx);
+      const xr = Math.max(near.x + near.r * 1.4 * near.sx, far.x + far.r * 1.4 * far.sx);
+      const cy = (near.y + far.y) / 2;
+      const hh = Math.max(near.r, far.r) * 1.25;
       ctx.beginPath();
-      roundRect(ctx, cx - span * 0.62, cy - r * 0.7, span * 1.24, r * 1.4, r * 0.6);
+      roundRect(ctx, xl, cy - hh, xr - xl, hh * 2, hh * 0.8);
       ctx.fillStyle = 'rgba(76,242,255,0.55)';
       ctx.fill();
       ctx.lineWidth = 0.03;
       ctx.strokeStyle = OL;
       ctx.stroke();
+      const sweep = (pose.time * 0.6) % 1;
       ctx.beginPath();
-      ctx.moveTo(cx - span * 0.45 + ((pose.time * 0.6) % 1) * span * 0.9, cy + r * 0.5);
-      ctx.lineTo(cx - span * 0.5 + ((pose.time * 0.6) % 1) * span * 0.9, cy - r * 0.5);
+      ctx.moveTo(xl + 0.03 + sweep * (xr - xl - 0.06), cy + hh * 0.7);
+      ctx.lineTo(xl + sweep * (xr - xl - 0.06), cy - hh * 0.7);
       ctx.lineWidth = 0.04;
       ctx.strokeStyle = 'rgba(255,255,255,0.8)';
       ctx.stroke();
+      temple(near.r * 1.4, OL);
       break;
     }
   }
@@ -446,11 +491,15 @@ function drawBack(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monst
     }
     case 'back_pack': {
       ctx.beginPath();
-      roundRect(ctx, bx - 0.12, -0.25, 0.3, 0.38, 0.07);
+      // Hangs off the back far enough to be seen past the torso.
+      roundRect(ctx, bx - 0.26, -0.27, 0.34, 0.42, 0.08);
       outlined(ctx, color);
       ctx.beginPath();
-      roundRect(ctx, bx - 0.1, -0.2, 0.24, 0.12, 0.04);
+      roundRect(ctx, bx - 0.24, -0.04, 0.3, 0.16, 0.05);
       outlined(ctx, shade(color, 0.2));
+      ctx.beginPath();
+      roundRect(ctx, bx - 0.13, -0.08, 0.08, 0.06, 0.02);
+      outlined(ctx, '#f2c14e');
       break;
     }
     case 'back_balloon': {
@@ -473,29 +522,45 @@ function drawBack(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monst
       break;
     }
     case 'back_cape': {
+      // Poncho cape hanging from the shoulders and billowing back.
+      const wave = Math.sin(t * 10) * 0.04;
       ctx.beginPath();
-      ctx.moveTo(bx + 0.25, a.bodyRy * 0.25);
-      for (let i = 0; i <= 5; i++) {
-        const k = i / 5;
-        const x = bx + 0.2 - k * 0.65;
-        const y = a.bodyRy * 0.25 - k * 0.55 + Math.sin(t * 12 - k * 4) * 0.05 * k;
-        ctx.lineTo(x, y);
-      }
-      ctx.lineTo(bx + 0.05, -a.bodyRy * 0.6);
+      ctx.moveTo(bx + 0.08, 0.22);
+      ctx.quadraticCurveTo(bx - 0.2, 0.2, bx - 0.6 + wave, -0.22);
+      ctx.quadraticCurveTo(bx - 0.48, -0.28 + wave, bx - 0.36, -0.26);
+      ctx.quadraticCurveTo(bx - 0.24, -0.34 - wave, bx - 0.1, -0.3);
+      ctx.quadraticCurveTo(bx + 0.02, -0.1, bx + 0.08, 0.22);
       ctx.closePath();
       outlined(ctx, color);
+      // Woven stripes.
+      ctx.save();
+      ctx.clip();
+      ctx.lineWidth = 0.035;
+      for (const [k, c] of [
+        [0, '#ffd23f'],
+        [1, shade(color, 0.35)],
+      ] as const) {
+        ctx.beginPath();
+        ctx.moveTo(bx + 0.1, 0.06 - k * 0.12);
+        ctx.lineTo(bx - 0.7, -0.08 - k * 0.12 + wave);
+        ctx.strokeStyle = c;
+        ctx.stroke();
+      }
+      ctx.restore();
       break;
     }
     case 'back_leafwings': {
       for (const k of [0, 1]) {
         const flap = Math.sin(t * 10 + k * 0.6) * 0.25;
         ctx.save();
-        ctx.translate(bx + 0.1, 0.05 + k * 0.05);
-        ctx.rotate(0.7 + flap - k * 0.35);
+        ctx.translate(bx + 0.02, 0.08 + k * 0.05);
+        ctx.rotate(0.6 + flap - k * 0.35);
         ctx.beginPath();
         ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(-0.2, 0.18, -0.55, 0.05);
-        ctx.quadraticCurveTo(-0.25, -0.12, 0, 0);
+        ctx.quadraticCurveTo(-0.28, 0.26, -0.78, 0.08);
+        ctx.quadraticCurveTo(-0.62, -0.02, -0.7, -0.08);
+        ctx.quadraticCurveTo(-0.5, -0.06, -0.55, -0.14);
+        ctx.quadraticCurveTo(-0.3, -0.16, 0, 0);
         outlined(ctx, k ? shade(color, 0.15) : color);
         ctx.restore();
       }
@@ -503,7 +568,7 @@ function drawBack(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monst
     }
     case 'back_rocket': {
       ctx.save();
-      ctx.translate(bx - 0.02, -0.02);
+      ctx.translate(bx - 0.14, -0.02);
       ctx.rotate(0.2);
       ctx.beginPath();
       roundRect(ctx, -0.09, -0.25, 0.18, 0.46, 0.09);

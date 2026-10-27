@@ -24,6 +24,8 @@ export class MenuScene {
   private readonly anchors = makeAnchors();
   private time = 0;
   private emoteTime = 0;
+  /** Turn side-on to show off a back item. */
+  private sideView = false;
   private key = '';
   private nudge = 0;
   /** Horizontal offset of the monster (roughly in monster heights), so UI panels can sit beside it. */
@@ -44,7 +46,8 @@ export class MenuScene {
     this.bg = new Background(biome, this.gr.quality === 'high' ? 'medium' : this.gr.quality);
   }
 
-  show(loadout: ShowcaseLoadout, playEmote = false): void {
+  show(loadout: ShowcaseLoadout, playEmote = false, sideView = false): void {
+    this.sideView = sideView;
     const key = JSON.stringify(loadout);
     if (key !== this.key) {
       const charChanged = !this.loadout || this.loadout.characterId !== loadout.characterId;
@@ -100,6 +103,7 @@ export class MenuScene {
       boosting: false,
       blocked: false,
       ready: false,
+      faceSide: this.sideView && this.emoteTime <= 0,
     });
     pose.lean += this.nudge * 0.25;
     ctx.save();

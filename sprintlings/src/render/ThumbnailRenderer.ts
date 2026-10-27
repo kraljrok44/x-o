@@ -14,8 +14,8 @@ export class ThumbnailRenderer {
     this.canvas.width = this.canvas.height = this.size;
   }
 
-  portrait(characterId: CharacterId, variantId: string | null = null, cosmetics: Record<string, string> = {}, closeUp = false): string {
-    const key = `p|${characterId}|${variantId}|${JSON.stringify(cosmetics)}|${closeUp}`;
+  portrait(characterId: CharacterId, variantId: string | null = null, cosmetics: Record<string, string> = {}, closeUp = false, sideOn = false): string {
+    const key = `p|${characterId}|${variantId}|${JSON.stringify(cosmetics)}|${closeUp}|${sideOn}`;
     const hit = this.cache.get(key);
     if (hit) return hit;
     const def = CHARACTERS[characterId];
@@ -25,16 +25,26 @@ export class ThumbnailRenderer {
     const height = monsterHeight(def.bodyPlan) + (cosmetics.hat ? 0.3 : 0.1);
     const scale = closeUp ? this.size / 0.95 : this.size / Math.max(1.45, height + 0.15);
     const pose = neutralPose();
-    pose.facing = 1;
+    // Side-on shows what is worn on the back.
+    pose.facing = sideOn ? 0 : 1;
+    if (sideOn) pose.lookX = 0.6;
     pose.mouth = 'happy';
     pose.blush = 0.7;
     pose.lookX = 0;
     pose.armNear = 0.5;
     pose.armFar = 0.5;
-    ctx.translate(this.size / 2, closeUp ? this.size * 1.05 : this.size - (this.size - height * scale) / 2 - 4);
-    ctx.scale(scale, -scale);
-    if (closeUp) ctx.translate(0, -0.62);
-    drawMonster(ctx, def.bodyPlan, paletteFor(def.palette, def.variants, variantId), pose, { flat: false, shadow: !closeUp, shadowDrop: 0 }, cosmeticLayers(cosmetics), makeAnchors());
+    if (sideOn) {
+      // Zoom on the torso so the back item fills the card.
+      const z = this.size / 1.35;
+      ctx.translate(this.size * 0.56, this.size * 0.5);
+      ctx.scale(z, -z);
+      ctx.translate(0, -0.78);
+    } else {
+      ctx.translate(this.size / 2, closeUp ? this.size * 1.05 : this.size - (this.size - height * scale) / 2 - 4);
+      ctx.scale(scale, -scale);
+      if (closeUp) ctx.translate(0, -0.62);
+    }
+    drawMonster(ctx, def.bodyPlan, paletteFor(def.palette, def.variants, variantId), pose, { flat: false, shadow: !closeUp && !sideOn, shadowDrop: 0 }, cosmeticLayers(cosmetics), makeAnchors());
     const url = this.canvas.toDataURL('image/png');
     this.cache.set(key, url);
     return url;
@@ -46,6 +56,7 @@ export class ThumbnailRenderer {
     if (!def) return '';
     if (def.slot === 'variant' && def.characterId) return this.portrait(def.characterId as CharacterId, def.id);
     if (def.slot === 'trail' || def.slot === 'emote') return '';
-    return this.portrait('moss', null, { [def.slot]: itemId }, def.slot !== 'back');
+    if (def.slot === 'back') return this.portrait('moss', null, { back: itemId }, false, true);
+    return this.portrait('moss', null, { [def.slot]: itemId }, true);
   }
 }

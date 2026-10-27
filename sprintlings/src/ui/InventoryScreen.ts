@@ -29,12 +29,12 @@ export function inventoryScreen(ctx: AppContext): Screen {
 
   const preview = (emote = false) => {
     const p = ctx.authority.profile;
-    ctx.menu.show({ characterId: p.loadout.characterId, variantId: p.loadout.variants[p.loadout.characterId] ?? null, cosmetics: visibleLoadout(p) }, emote);
+    ctx.menu.show({ characterId: p.loadout.characterId, variantId: p.loadout.variants[p.loadout.characterId] ?? null, cosmetics: visibleLoadout(p) }, emote, slot === 'back');
   };
 
   const render = () => {
     const p = ctx.authority.profile;
-    tabs.replaceChildren(...SLOTS.map(([s, label]) => h('button', { class: `btn btn--small tab ${slot === s ? 'active' : ''}`, onClick: () => ((slot = s), render()) }, t(label))));
+    tabs.replaceChildren(...SLOTS.map(([s, label]) => h('button', { class: `btn btn--small tab ${slot === s ? 'active' : ''}`, onClick: () => ((slot = s), render(), preview()) }, t(label))));
     const cid = p.loadout.characterId;
     const owned = p.inventory.map((id) => COSMETIC_BY_ID[id]).filter((d) => d && d.slot === slot && (slot !== 'variant' || d.characterId === cid));
     const current = slot === 'variant' ? p.loadout.variants[cid] ?? null : p.loadout[slot];
