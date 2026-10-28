@@ -2,7 +2,7 @@ import { CHARACTERS, CHARACTER_IDS, type CharacterId } from '../player/Character
 import { COSMETICS, COSMETIC_BY_ID, isAvailableNow, type CosmeticDefinition, type Currency } from './CosmeticCatalog';
 import { EconomyConfig, type ChestId } from '../config/EconomyConfig';
 
-export type ShopCategory = 'characters' | 'hats' | 'eyes' | 'back' | 'colours' | 'emotes' | 'trails' | 'chests' | 'bundles' | 'premium' | 'seasonal';
+export type ShopCategory = 'characters' | 'hats' | 'eyes' | 'back' | 'colours' | 'emotes' | 'trails' | 'mounts' | 'chests' | 'bundles' | 'premium' | 'seasonal';
 
 export interface ShopOffer {
   id: string;
@@ -20,14 +20,17 @@ export interface ShopOffer {
 
 /** Bundles sold for Gems: discounted sets of existing cosmetics. */
 export const BUNDLES = [
-  { id: 'bundle_explorer', name: 'Prospector Set', description: 'Prospector Helmet, Saddlebag and Tumbleweed Swirl.', items: ['hat_acorn', 'back_pack', 'trail_leaves'], price: { currency: 'gems' as const, amount: 90 } },
-  { id: 'bundle_royal', name: 'Royal Set', description: 'Sunburst Crown, Gilded Monocle and Prism Ribbon.', items: ['hat_crown', 'eyes_monocle', 'trail_rainbow'], price: { currency: 'gems' as const, amount: 420 } },
+  { id: 'bundle_explorer', name: 'Prospector Set', description: 'Prospector Helmet, Saddlebag, Tumbleweed Swirl and an exclusive Lucky Pickaxe.', items: ['hat_acorn', 'back_pack', 'trail_leaves', 'hand_pickaxe'], price: { currency: 'gems' as const, amount: 120 } },
+  { id: 'bundle_royal', name: 'Royal Set', description: 'Sunburst Crown, Gilded Monocle, Prism Ribbon plus an exclusive Royal Scepter and red-and-gold Royal Mantle.', items: ['hat_crown', 'eyes_monocle', 'trail_rainbow', 'hand_scepter', 'outfit_royal'], price: { currency: 'gems' as const, amount: 520 } },
+  { id: 'bundle_boss', name: 'Mafia Boss Set', description: 'Boss Fedora, Night Shades, Pinstripe Suit and a Gold-Top Cane. Only in this set.', items: ['hat_fedora', 'eyes_shades', 'outfit_mafia', 'hand_cane'], price: { currency: 'gems' as const, amount: 360 } },
+  { id: 'bundle_astro', name: 'Astronaut Set', description: 'Space Helmet, Space Suit, Oxygen Pack and a Star Flag. Only in this set.', items: ['hat_astro', 'outfit_astro', 'back_jetpack', 'hand_flag'], price: { currency: 'gems' as const, amount: 400 } },
 ];
 
-const SLOT_CATEGORY: Record<string, ShopCategory> = { hat: 'hats', eyes: 'eyes', back: 'back', trail: 'trails', emote: 'emotes', variant: 'colours' };
+const SLOT_CATEGORY: Record<string, ShopCategory> = { hat: 'hats', eyes: 'eyes', back: 'back', trail: 'trails', emote: 'emotes', variant: 'colours', mount: 'mounts', outfit: 'bundles', hand: 'bundles' };
 
 export function categoryOf(c: CosmeticDefinition): ShopCategory {
   if (c.availableUntil) return 'seasonal';
+  if (c.slot === 'mount') return 'mounts';
   if (c.price?.currency === 'gems' && c.slot !== 'variant') return 'premium';
   return SLOT_CATEGORY[c.slot];
 }

@@ -1,6 +1,7 @@
 import { CHARACTERS, type CharacterId } from '../player/CharacterDefinition';
 import { COSMETIC_BY_ID } from '../shop/CosmeticCatalog';
-import { cosmeticLayers, paletteFor } from './Cosmetics2D';
+import { cosmeticLayers, mountKind, mountedHeight, paletteFor } from './Cosmetics2D';
+import { MonsterAnimator } from './MonsterAnimator';
 import type { GameRenderer } from './GameRenderer';
 import { drawMonster, makeAnchors, monsterHeight, neutralPose } from './CharacterRig';
 
@@ -22,18 +23,33 @@ export class ThumbnailRenderer {
     const ctx = this.canvas.getContext('2d')!;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.size, this.size);
-    const height = monsterHeight(def.bodyPlan) + (cosmetics.hat ? 0.3 : 0.1);
+    const mount = mountKind(cosmetics.mount);
+    if (mount) sideOn = true;
+    const height = mountedHeight(cosmetics.mount, monsterHeight(def.bodyPlan)) + (cosmetics.hat ? 0.3 : 0.1);
     const scale = closeUp ? this.size / 0.95 : this.size / Math.max(1.45, height + 0.15);
-    const pose = neutralPose();
+    // Riders and prop holders get their seated / holding pose from the animator.
+    let pose = neutralPose();
+    if (mount || cosmetics.hand) {
+      const an = new MonsterAnimator(7);
+      for (let i = 0; i < 40; i++) an.update(1 / 30, i / 30, { mode: 'idle', speed: 0, vy: 0, grounded: true, phase: 'grid', stun: 0, boosting: false, blocked: false, ready: false, faceSide: !!mount, mount, holding: !!cosmetics.hand });
+      pose = { ...an.pose, footNear: { ...an.pose.footNear }, footFar: { ...an.pose.footFar } };
+    }
     // Side-on shows what is worn on the back.
     pose.facing = sideOn ? 0 : 1;
     if (sideOn) pose.lookX = 0.6;
     pose.mouth = 'happy';
     pose.blush = 0.7;
     pose.lookX = 0;
-    pose.armNear = 0.5;
-    pose.armFar = 0.5;
-    if (sideOn) {
+    if (!mount) {
+      pose.armNear = cosmetics.hand ? 0.9 : 0.5;
+      pose.armFar = cosmetics.hand ? 0.9 : 0.5;
+    }
+    if (mount) {
+      // Whole mount and rider, side-on.
+      const z = this.size / Math.max(1.9, height + 0.3);
+      ctx.translate(this.size * 0.55, this.size - (this.size - height * z) / 2 - 6);
+      ctx.scale(z, -z);
+    } else if (sideOn) {
       // Zoom on the torso so the back item fills the card.
       const z = this.size / 1.35;
       ctx.translate(this.size * 0.56, this.size * 0.5);
@@ -57,6 +73,8 @@ export class ThumbnailRenderer {
     if (def.slot === 'variant' && def.characterId) return this.portrait(def.characterId as CharacterId, def.id);
     if (def.slot === 'trail' || def.slot === 'emote') return '';
     if (def.slot === 'back') return this.portrait('moss', null, { back: itemId }, false, true);
+    if (def.slot === 'mount') return this.portrait('moss', null, { mount: itemId });
+    if (def.slot === 'hand' || def.slot === 'outfit') return this.portrait('moss', null, { [def.slot]: itemId });
     return this.portrait('moss', null, { [def.slot]: itemId }, true);
   }
 }

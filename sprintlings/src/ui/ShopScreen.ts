@@ -22,6 +22,7 @@ const TABS: [Tab, string][] = [
   ['back', 'Back'],
   ['trails', 'Trails'],
   ['emotes', 'Emotes'],
+  ['mounts', 'Mounts'],
   ['colours', 'Colours'],
   ['characters', 'Characters'],
   ['chests', 'Chests'],
@@ -59,7 +60,7 @@ export function itemVisual(ctx: AppContext, def: CosmeticDefinition): HTMLElemen
   return h('div', { class: 'card__swatch', style: `background:linear-gradient(${def.color}44,#fff);padding:0;overflow:hidden;height:90px` }, src ? h('img', { src, alt: def.name, style: 'height:100%' }) : '🎁');
 }
 
-const SLOT_NAMES: Record<string, string> = { hat: 'Hat', eyes: 'Eyewear', back: 'Back', trail: 'Trail', emote: 'Emote', variant: 'Colour' };
+const SLOT_NAMES: Record<string, string> = { hat: 'Hat', eyes: 'Eyewear', back: 'Back', trail: 'Trail', emote: 'Emote', variant: 'Colour', outfit: 'Outfit', hand: 'Held prop', mount: 'Mount' };
 
 /** Current outfit with every bundle item put on. */
 function bundleLoadout(current: Record<string, string>, items: readonly string[]): Record<string, string> {
@@ -201,7 +202,7 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
     if (!owned || o.kind === 'chest') {
       actions.append(h('button', { class: 'btn btn--primary', onClick: () => buy(o, price) }, `${t('Buy for')} `, priceChip(o.price.currency, price)));
     } else if (def && def.slot !== 'variant') {
-      const slot = def.slot as 'hat' | 'eyes' | 'back' | 'trail' | 'emote';
+      const slot = def.slot as 'hat' | 'eyes' | 'back' | 'trail' | 'emote' | 'mount' | 'outfit' | 'hand';
       const isOn = p.loadout[slot] === def.id;
       actions.append(
         h(

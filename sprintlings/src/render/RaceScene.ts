@@ -6,7 +6,7 @@ import type { RaceEvent, Racer } from '../game/RaceState';
 import { Background } from './Background';
 import { BIOME_THEMES } from './BiomeTheme';
 import { Camera2D } from './Camera2D';
-import { cosmeticLayers, paletteFor, trailStyle } from './Cosmetics2D';
+import { cosmeticLayers, paletteFor, trailStyle, mountKind, mountedHeight } from './Cosmetics2D';
 import { ellipse, rgba, roundRect, type Ctx } from './draw';
 import type { GameRenderer } from './GameRenderer';
 import { MonsterAnimator, emoteStyle } from './MonsterAnimator';
@@ -35,6 +35,8 @@ class RacerVisual {
   /** Quick-chat speech bubble and how long it stays. */
   bubble = '';
   bubbleT = 0;
+  readonly mount: ReturnType<typeof mountKind>;
+  readonly holding: boolean;
 
   constructor(readonly racer: Racer) {
     const def = CHARACTERS[racer.characterId];
@@ -44,7 +46,9 @@ class RacerVisual {
     this.trail = trailStyle(racer.cosmetics.trail);
     this.anim = new MonsterAnimator(racer.index * 31 + 7);
     this.anim.emote = emoteStyle(racer.cosmetics.emote);
-    this.height = monsterHeight(this.plan);
+    this.height = mountedHeight(racer.cosmetics.mount, monsterHeight(this.plan));
+    this.mount = mountKind(racer.cosmetics.mount);
+    this.holding = !!racer.cosmetics.hand;
     this.reset();
   }
 
@@ -514,6 +518,8 @@ export class RaceScene {
       ready: b.phase === 'grid' && countdownLeft < 1.1,
       sliding: b.sliding,
       climbing: b.climbing,
+      mount: v.mount,
+      holding: v.holding,
     };
   }
 

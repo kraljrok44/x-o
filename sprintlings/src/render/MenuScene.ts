@@ -2,7 +2,7 @@ import { CHARACTERS, type CharacterId } from '../player/CharacterDefinition';
 import type { Biome } from '../game/Track';
 import { Background } from './Background';
 import { BIOME_THEMES } from './BiomeTheme';
-import { cosmeticLayers, paletteFor, trailStyle } from './Cosmetics2D';
+import { cosmeticLayers, mountKind, paletteFor, trailStyle } from './Cosmetics2D';
 import { Particles } from './Particles';
 import { ellipse, shade, type Ctx } from './draw';
 import type { GameRenderer } from './GameRenderer';
@@ -109,7 +109,10 @@ export class MenuScene {
       boosting: false,
       blocked: false,
       ready: false,
-      faceSide: this.emoteTime <= 0 && (this.sideView === 'cycle' ? Math.floor(this.time / 2.6) % 2 === 1 : this.sideView),
+      // A rider stays side-on so the mount can be seen.
+      faceSide: this.emoteTime <= 0 && (!!this.loadout.cosmetics.mount || (this.sideView === 'cycle' ? Math.floor(this.time / 2.6) % 2 === 1 : this.sideView)),
+      mount: mountKind(this.loadout.cosmetics.mount),
+      holding: !!this.loadout.cosmetics.hand,
     });
     pose.lean += this.nudge * 0.25;
     ctx.save();

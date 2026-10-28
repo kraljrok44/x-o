@@ -4,7 +4,7 @@ import { CHARACTERS, CHARACTER_IDS, type CharacterId } from '../player/Character
  * Cosmetic items. Cosmetics never change speed, physics or hitboxes; they
  * are purely visual (enforced by the simulation never reading them).
  */
-export type CosmeticSlot = 'hat' | 'eyes' | 'back' | 'trail' | 'emote' | 'variant';
+export type CosmeticSlot = 'hat' | 'eyes' | 'back' | 'trail' | 'emote' | 'variant' | 'outfit' | 'hand' | 'mount';
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 export type Currency = 'coins' | 'gems';
 
@@ -33,6 +33,8 @@ export interface CosmeticDefinition {
   model?: string;
   /** Only obtainable from a real-money pack. */
   packOnly?: boolean;
+  /** Exclusive piece of a shop set (bundle id); never sold on its own. */
+  setId?: string;
 }
 
 const C = (amount: number) => ({ currency: 'coins' as const, amount });
@@ -82,6 +84,26 @@ const BASE: CosmeticDefinition[] = [
   { id: 'trail_harvest', slot: 'trail', name: 'Harvest Swirl', description: 'Season reward: Harvest Hoopla.', rarity: 'epic', price: null, seasonId: 'season_1', model: 'trail_leaves', color: '#ff9a3c' },
   { id: 'trail_frostbite', slot: 'trail', name: 'Frostbite Sparks', description: 'Starter Pack exclusive.', rarity: 'epic', price: null, packOnly: true, model: 'trail_sparkle', color: '#7ef2ff' },
   { id: 'trail_rainbow', slot: 'trail', name: 'Prism Ribbon', description: 'Every colour, all at once.', rarity: 'legendary', price: G(180), color: '#ff6fd8' },
+
+  // Set-exclusive pieces (only in their bundle).
+  { id: 'hand_pickaxe', slot: 'hand', name: 'Lucky Pickaxe', description: 'Prospector Set exclusive.', rarity: 'rare', price: null, setId: 'bundle_explorer', color: '#9aa3ad' },
+  { id: 'hand_scepter', slot: 'hand', name: 'Royal Scepter', description: 'Royal Set exclusive.', rarity: 'legendary', price: null, setId: 'bundle_royal', color: '#ffc93c' },
+  { id: 'outfit_royal', slot: 'outfit', name: 'Royal Mantle', description: 'Royal Set exclusive: red and gold, clasped at the chest.', rarity: 'legendary', price: null, setId: 'bundle_royal', color: '#b8232a' },
+  { id: 'hat_fedora', slot: 'hat', name: 'Boss Fedora', description: 'Mafia Boss Set exclusive.', rarity: 'epic', price: null, setId: 'bundle_boss', color: '#2b2b35' },
+  { id: 'eyes_shades', slot: 'eyes', name: 'Night Shades', description: 'Mafia Boss Set exclusive.', rarity: 'epic', price: null, setId: 'bundle_boss', color: '#14141a' },
+  { id: 'outfit_mafia', slot: 'outfit', name: 'Pinstripe Suit', description: 'Mafia Boss Set exclusive: pinstripes and a red tie.', rarity: 'epic', price: null, setId: 'bundle_boss', color: '#2b2b35' },
+  { id: 'hand_cane', slot: 'hand', name: 'Gold-Top Cane', description: 'Mafia Boss Set exclusive.', rarity: 'epic', price: null, setId: 'bundle_boss', color: '#ffcf4a' },
+  { id: 'hat_astro', slot: 'hat', name: 'Space Helmet', description: 'Astronaut Set exclusive.', rarity: 'legendary', price: null, setId: 'bundle_astro', color: '#cfe8ff' },
+  { id: 'outfit_astro', slot: 'outfit', name: 'Space Suit', description: 'Astronaut Set exclusive.', rarity: 'legendary', price: null, setId: 'bundle_astro', color: '#eef1f6' },
+  { id: 'back_jetpack', slot: 'back', name: 'Oxygen Pack', description: 'Astronaut Set exclusive.', rarity: 'legendary', price: null, setId: 'bundle_astro', color: '#e8eaf0' },
+  { id: 'hand_flag', slot: 'hand', name: 'Star Flag', description: 'Astronaut Set exclusive: plant it on the finish line.', rarity: 'epic', price: null, setId: 'bundle_astro', color: '#3f6fb0' },
+
+  // Mounts: ridden for looks only, never faster.
+  { id: 'mount_hobby', slot: 'mount', name: 'Hobby Horse', description: 'A horse head on a stick, with a squeaky wheel.', rarity: 'common', price: C(600), color: '#c98a4b' },
+  { id: 'mount_pony', slot: 'mount', name: 'Trail Pony', description: 'A small, sure-footed pony.', rarity: 'rare', price: C(1500), color: '#8a5a32' },
+  { id: 'mount_broom', slot: 'mount', name: 'Witch Broom', description: 'Hovers just off the trail.', rarity: 'epic', price: G(160), color: '#a0703f' },
+  { id: 'mount_terror', slot: 'mount', name: 'Terror Bird', description: 'Big beak, bigger strides.', rarity: 'epic', price: G(220), color: '#5a7a4a' },
+  { id: 'mount_dragon', slot: 'mount', name: 'Baby Dragon', description: 'Small wings, big attitude.', rarity: 'legendary', price: G(320), color: '#4fae6a' },
 
   // Victory emotes
   { id: 'emote_wave', slot: 'emote', name: 'Friendly Wave', description: 'Good race, everyone!', rarity: 'common', price: null, starter: true, color: '#ffffff' },

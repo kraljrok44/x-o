@@ -49,6 +49,11 @@ export interface MonsterPose {
   facing: number;
   /** Set by drawMonster while turning: 1 = front view still turned 3/4 toward the right, 0 = straight on. */
   yaw?: number;
+  /** Run-cycle phase and amount (0..1), for mounts that gallop along. */
+  gait?: number;
+  runAmt?: number;
+  climbing?: boolean;
+  sliding?: boolean;
 }
 
 export function neutralPose(): MonsterPose {
@@ -96,6 +101,8 @@ export interface RigAnchors {
   eyes: [EyeAnchor, EyeAnchor];
   /** Head seen from the side (eyewear gets a temple arm). */
   side: boolean;
+  /** Torso outline (body space): bottom/top half widths and bottom/top heights. */
+  torso: { wBot: number; wTop: number; y0: number; y1: number };
   back: Vec;
   bodyRx: number;
   bodyRy: number;
@@ -109,6 +116,29 @@ export interface MonsterStyle {
 
 export type CosmeticLayer = (ctx: Ctx, anchors: RigAnchors, pose: MonsterPose, pal: CharacterPalette) => void;
 
+/** Something ridden: drawn under (and partly over) the rider, who sits on `saddle`. */
+export interface MountLayer {
+  kind: 'ride' | 'hover' | 'stick';
+  /** Height of the seat above the ground (ignored for 'stick', ridden on foot). */
+  saddle: number;
+  riderScale: number;
+  /** Highest point of the mount (for name tags). */
+  top: number;
+  behind?: (ctx: Ctx, pose: MonsterPose) => void;
+  front?: (ctx: Ctx, pose: MonsterPose) => void;
+}
+
+/** Every cosmetic layer the rig knows how to place. */
+export interface RigLayers {
+  back?: CosmeticLayer;
+  front?: CosmeticLayer;
+  /** Full outfit: palette overrides plus drawings behind the body, on the torso (clipped) and over it. */
+  outfit?: { palette?: Partial<CharacterPalette>; under?: CosmeticLayer; overClip?: CosmeticLayer; over?: CosmeticLayer };
+  /** Prop held in the right hand; drawn in hand space with +y running up the prop. */
+  hand?: (ctx: Ctx, pose: MonsterPose) => void;
+  mount?: MountLayer;
+}
+
 export function makeAnchors(): RigAnchors {
   return {
     headTop: { x: 0, y: 0 },
@@ -120,6 +150,7 @@ export function makeAnchors(): RigAnchors {
       { x: 0.1, y: 0.05, r: 0.072, sx: 1 },
     ],
     side: false,
+    torso: { wBot: 0.24, wTop: 0.27, y0: 0.39, y1: 0.85 },
     back: { x: 0, y: 0 },
     bodyRx: 0.2,
     bodyRy: 0.24,
@@ -242,7 +273,7 @@ function drawLeg(ctx: Ctx, hx: number, hy: number, fx: number, fy: number, pal: 
   ctx.stroke();
 }
 
-function drawArm(ctx: Ctx, sx: number, sy: number, angle: number, reach: number, pal: CharacterPalette, far: boolean): void {
+function drawArm(ctx: Ctx, sx: number, sy: number, angle: number, reach: number, pal: CharacterPalette, far: boolean, held?: () => void): void {
   const len = ARM_LEN * reach;
   // Elbow bends against the swing for a natural arc.
   const elbowAng = angle - 0.35;
@@ -252,12 +283,35 @@ function drawArm(ctx: Ctx, sx: number, sy: number, angle: number, reach: number,
   const hy = ey - Math.cos(angle + 0.25) * len;
   const sleeve = far ? shade(pal.shirt, 0.25) : pal.shirt;
   tube(ctx, [sx, sy, ex, ey, hx, hy], ARM_W, sleeve);
+  if (held) {
+    // Prop gripped in the fist, tilted up and forward from the forearm.
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.rotate(angle + 0.25 - 0.5);
+    held();
+    ctx.restore();
+  }
   ctx.beginPath();
   ellipse(ctx, hx, hy, 0.065, 0.06, angle);
   fillOutlined(ctx, far ? shade(pal.body, 0.2) : pal.body);
 }
 
 // --- torso --------------------------------------------------------------------------
+
+function torsoDims(plan: BodyPlan, front: boolean): { wBot: number; wTop: number; y0: number; y1: number } {
+  const b = SPECIES[plan].build;
+  return { wBot: (front ? 0.24 : 0.23) * b, wTop: (front ? 0.27 : 0.24) * b, y0: HIP_Y - 0.03, y1: SHOULDER_Y + 0.05 };
+}
+
+function torsoPath(ctx: Ctx, plan: BodyPlan, front: boolean): void {
+  const { wBot, wTop, y0, y1 } = torsoDims(plan, front);
+  ctx.beginPath();
+  ctx.moveTo(-wBot, y0);
+  ctx.quadraticCurveTo(-wTop * 1.12, (y0 + y1) / 2, -wTop, y1);
+  ctx.quadraticCurveTo(0, y1 + 0.07, wTop, y1);
+  ctx.quadraticCurveTo(wTop * 1.12, (y0 + y1) / 2, wBot, y0);
+  ctx.closePath();
+}
 
 function drawTorso(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: MonsterPose, front: boolean): void {
   const b = SPECIES[plan].build;
@@ -940,9 +994,14 @@ export function drawMonster(
   pal: CharacterPalette,
   pose: MonsterPose,
   style: MonsterStyle,
-  layers: { back?: CosmeticLayer; front?: CosmeticLayer } = {},
+  layers: RigLayers = {},
   anchorsOut?: RigAnchors,
 ): void {
+  if (layers.outfit?.palette) pal = { ...pal, ...layers.outfit.palette };
+  if (layers.mount) {
+    drawMounted(ctx, plan, pal, pose, style, layers, layers.mount, anchorsOut);
+    return;
+  }
   if (style.shadow) {
     const drop = Math.max(-3, style.shadowDrop);
     const sc = Math.max(0.25, 1 + drop * 0.18);
@@ -1025,6 +1084,38 @@ export function drawMonster(
   ctx.restore();
 }
 
+/** Mount under the rider; the rider sits (or, on a hobby horse, runs) on top. */
+function drawMounted(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: MonsterPose, style: MonsterStyle, layers: RigLayers, m: MountLayer, anchors?: RigAnchors): void {
+  if (style.shadow) {
+    const drop = Math.max(-3, style.shadowDrop);
+    const sc = Math.max(0.25, 1 + drop * 0.18);
+    ctx.beginPath();
+    ellipse(ctx, 0.02, drop + 0.01, (m.kind === 'stick' ? 0.42 : 0.6) * sc, 0.08 * sc);
+    ctx.fillStyle = `rgba(30,15,10,${0.24 * sc})`;
+    ctx.fill();
+  }
+  ctx.save();
+  if (pose.climbing) {
+    // Scale the wall nose-first, mount and all.
+    ctx.translate(0.35, 0);
+    ctx.rotate(1.15);
+    ctx.translate(-0.35, 0);
+  }
+  ctx.translate(0, pose.hop);
+  const rider: RigLayers = { ...layers, mount: undefined, outfit: layers.outfit ? { ...layers.outfit, palette: undefined } : undefined };
+  m.behind?.(ctx, pose);
+  ctx.save();
+  if (m.kind !== 'stick') {
+    const hover = m.kind === 'hover' ? Math.sin(pose.time * 3) * 0.04 : 0;
+    ctx.translate(0, m.saddle - HIP_Y * m.riderScale + hover);
+    ctx.scale(m.riderScale, m.riderScale);
+  }
+  drawMonster(ctx, plan, pal, { ...pose, hop: 0 }, { ...style, shadow: false }, rider, anchors);
+  ctx.restore();
+  m.front?.(ctx, pose);
+  ctx.restore();
+}
+
 let layerPair: [HTMLCanvasElement, HTMLCanvasElement] | null | undefined;
 
 /** Two scratch canvases for blending the side and front views during a turn. */
@@ -1041,7 +1132,7 @@ function drawView(
   pal: CharacterPalette,
   pose: MonsterPose,
   style: MonsterStyle,
-  layers: { back?: CosmeticLayer; front?: CosmeticLayer },
+  layers: RigLayers,
   anchors: RigAnchors,
   front: boolean,
   turn: number,
@@ -1098,16 +1189,34 @@ function drawView(
     ctx.restore();
   };
   const drawBackLayer = () => {
-    if (!layers.back) return;
+    if (!layers.back && !layers.outfit?.under) return;
     ctx.save();
     ctx.translate(0, (HIP_Y + SHOULDER_Y) / 2);
     anchors.back.x = front ? 0 : -0.2 * b;
     anchors.back.y = 0;
     anchors.bodyRx = 0.22 * b;
     anchors.bodyRy = 0.22;
-    layers.back(ctx, anchors, pose, pal);
+    anchors.side = !front;
+    layers.outfit?.under?.(ctx, anchors, pose, pal);
+    layers.back?.(ctx, anchors, pose, pal);
     ctx.restore();
   };
+  // Outfit drawn on the torso: clipped details (stripes, panels), then free ones (tie, clasp).
+  const drawTorsoOutfit = () => {
+    const o = layers.outfit;
+    if (!o || (!o.overClip && !o.over)) return;
+    anchors.torso = torsoDims(plan, front);
+    anchors.side = !front;
+    if (o.overClip) {
+      ctx.save();
+      torsoPath(ctx, plan, front);
+      ctx.clip();
+      o.overClip(ctx, anchors, pose, pal);
+      ctx.restore();
+    }
+    o.over?.(ctx, anchors, pose, pal);
+  };
+  const held = layers.hand ? () => layers.hand!(ctx, pose) : undefined;
 
   if (front) {
     // Only bushy tails peek out from behind when facing the camera.
@@ -1123,9 +1232,11 @@ function drawView(
     drawLeg(ctx, spread, hipY, spread + 0.03 + footN.x * 0.2, footN.y, pal, false, true);
     upper(() => {
       drawTorso(ctx, plan, pal, pose, true);
+      drawTorsoOutfit();
       ctx.save();
       ctx.scale(-1, 1);
-      drawArm(ctx, shoulderX, shoulderY, pose.armFar, pose.armReach, pal, false);
+      // Facing the camera, the character's right hand is on the viewer's left.
+      drawArm(ctx, shoulderX, shoulderY, pose.armFar, pose.armReach, pal, false, held);
       ctx.restore();
       drawArm(ctx, shoulderX, shoulderY, pose.armNear, pose.armReach, pal, false);
       drawHead();
@@ -1138,8 +1249,9 @@ function drawView(
     drawLeg(ctx, 0.04, hipY, 0.04 + footN.x, footN.y, pal, false, false);
     upper(() => {
       drawTorso(ctx, plan, pal, pose, false);
+      drawTorsoOutfit();
       drawHead();
-      drawArm(ctx, shoulderX + 0.02, shoulderY, pose.armNear, pose.armReach, pal, false);
+      drawArm(ctx, shoulderX + 0.02, shoulderY, pose.armNear, pose.armReach, pal, false, held);
     });
   }
   upper(() => drawDizzy(ctx, HEAD_Y + sp.headRy + sp.earTop * 0.6 + 0.12, pose));

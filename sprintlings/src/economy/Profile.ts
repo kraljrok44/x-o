@@ -4,7 +4,9 @@ import { STARTER_COSMETICS } from '../shop/CosmeticCatalog';
 
 export const PROFILE_SCHEMA_VERSION = 2;
 
-export type LoadoutSlot = 'hat' | 'eyes' | 'back' | 'trail' | 'emote';
+/** Equippable cosmetic slots (outfit = full suit, hand = held prop, mount = ride; all purely visual). */
+export const LOADOUT_SLOTS = ['hat', 'eyes', 'back', 'trail', 'emote', 'outfit', 'hand', 'mount'] as const;
+export type LoadoutSlot = (typeof LOADOUT_SLOTS)[number];
 
 export interface LedgerEntry {
   /** Unique economic event id (idempotency key). */
@@ -154,7 +156,7 @@ export function createProfile(id: string, now: number, name = 'Sprinter'): Playe
     level: 1,
     inventory: [...STARTER_COSMETICS],
     characters: ['moss', 'kip'],
-    loadout: { characterId: 'moss', variants: {}, hat: 'hat_leaf', eyes: null, back: null, trail: 'trail_dust', emote: 'emote_wave' },
+    loadout: { characterId: 'moss', variants: {}, hat: 'hat_leaf', eyes: null, back: null, trail: 'trail_dust', emote: 'emote_wave', outfit: null, hand: null, mount: null },
     entitlements: [],
     stats: emptyStats(),
     quests: { day: '', list: [], rerollsUsed: 0, sweptDay: null },

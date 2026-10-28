@@ -1,7 +1,7 @@
 import { CHARACTERS, isCharacterId, type CharacterId } from '../player/CharacterDefinition';
 import { COSMETIC_BY_ID } from '../shop/CosmeticCatalog';
 import { EconomyError } from './EconomyError';
-import type { LoadoutSlot, PlayerProfile } from './Profile';
+import { LOADOUT_SLOTS, type LoadoutSlot, type PlayerProfile } from './Profile';
 
 export function ownsCosmetic(profile: PlayerProfile, id: string): boolean {
   return profile.inventory.includes(id);
@@ -24,7 +24,7 @@ export function removeCosmetic(profile: PlayerProfile, id: string): boolean {
   const i = profile.inventory.indexOf(id);
   if (i < 0) return false;
   profile.inventory.splice(i, 1);
-  for (const slot of ['hat', 'eyes', 'back', 'trail', 'emote'] as LoadoutSlot[]) {
+  for (const slot of LOADOUT_SLOTS) {
     if (profile.loadout[slot] === id) profile.loadout[slot] = slot === 'trail' ? 'trail_dust' : slot === 'emote' ? 'emote_wave' : null;
   }
   for (const c of Object.keys(profile.loadout.variants) as CharacterId[]) if (profile.loadout.variants[c] === id) profile.loadout.variants[c] = null;
@@ -38,6 +38,7 @@ export function equip(profile: PlayerProfile, slot: LoadoutSlot | 'variant' | 'c
     profile.loadout.characterId = id;
     return;
   }
+  if (slot !== 'variant' && !(LOADOUT_SLOTS as readonly string[]).includes(slot)) throw new EconomyError('invalid', 'Unknown slot.');
   if (id !== null) {
     const def = COSMETIC_BY_ID[id];
     if (!def) throw new EconomyError('not_found', 'Unknown item.');
@@ -61,7 +62,7 @@ export function equip(profile: PlayerProfile, slot: LoadoutSlot | 'variant' | 'c
 export function visibleLoadout(profile: PlayerProfile): Record<string, string> {
   const l = profile.loadout;
   const out: Record<string, string> = {};
-  for (const slot of ['hat', 'eyes', 'back', 'trail', 'emote'] as LoadoutSlot[]) {
+  for (const slot of LOADOUT_SLOTS) {
     const v = l[slot];
     if (v) out[slot] = v;
   }

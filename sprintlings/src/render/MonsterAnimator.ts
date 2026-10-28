@@ -40,6 +40,10 @@ export interface AnimInput {
   climbing?: boolean;
   /** Menu/shop: stand side-on so items worn on the back can be seen. */
   faceSide?: boolean;
+  /** Riding a mount: seated ('ride'/'hover') or running astride a hobby horse ('stick'). */
+  mount?: 'ride' | 'hover' | 'stick';
+  /** Holding a prop in the right hand. */
+  holding?: boolean;
 }
 
 const STRIDE = 1.3;
@@ -315,6 +319,32 @@ export class MonsterAnimator {
       leanTarget = -0.12;
       squashTarget = 1.04;
     }
+    // Riders sit with knees bent and hands on the reins; the mount does the running.
+    if (s.mount === 'ride' || s.mount === 'hover') {
+      nfx = 0.17;
+      nfy = 0.2;
+      ffx = 0.13;
+      ffy = 0.22;
+      bob = s.mount === 'ride' ? run * 0.03 * Math.sin(2 * ph) : 0;
+      if (!(s.mode === 'emote' || (racing && s.climbing))) {
+        armN = 1.15 + bob * 2;
+        armF = 1.0 + bob * 2;
+        reach = 1.1;
+      }
+      if (racing && !s.climbing) leanTarget = 0.12 + (s.sliding ? 0.45 : 0) + (s.boosting ? 0.1 : 0);
+      rot = racing && s.stun > 0 ? rot : 0;
+      hop = 0;
+      squashTarget = 1;
+    } else if (s.mount === 'stick' && s.mode !== 'emote' && !(racing && (s.sliding || s.climbing))) {
+      // Both hands on the hobby horse's stick.
+      armN = 1.05;
+      armF = 0.95;
+      reach = 1.05;
+    }
+    if (s.holding && s.mount !== 'stick' && s.mode !== 'emote' && racing && !s.climbing && !s.sliding && s.stun <= 0) {
+      // Keep a held prop steady-ish: less swing on the right arm.
+      armN = armN * 0.45 + 0.35;
+    }
     if (s.phase === 'fall') {
       armN = -2.8 + Math.sin(time * 25) * 0.3;
       armF = -2.6 - Math.sin(time * 25) * 0.3;
@@ -340,6 +370,11 @@ export class MonsterAnimator {
     p.armReach += (reach - p.armReach) * damp(12, dt);
     // Turn to the camera for emotes and the menu stage, run side-on otherwise.
     const faceTarget = s.faceSide ? 0 : s.mode === 'emote' || (s.mode === 'idle' && !s.ready) ? 1 : 0;
+    p.gait = ph;
+    p.runAmt = run;
+    p.climbing = racing && !!s.climbing;
+    p.sliding = racing && !!s.sliding;
+    // A seated rider stays side-on so the mount reads; it can still look at the camera to celebrate.
     if (spinFacing >= 0) p.facing = spinFacing;
     else p.facing += (faceTarget - p.facing) * damp(7, dt);
     p.bob = bob;

@@ -17,6 +17,9 @@ const SLOTS: [Slot, string][] = [
   ['back', 'Back'],
   ['trail', 'Trails'],
   ['emote', 'Emotes'],
+  ['outfit', 'Outfits'],
+  ['hand', 'Props'],
+  ['mount', 'Mounts'],
   ['variant', 'Colours'],
 ];
 
@@ -39,7 +42,7 @@ export function inventoryScreen(ctx: AppContext): Screen {
     const owned = p.inventory.map((id) => COSMETIC_BY_ID[id]).filter((d) => d && d.slot === slot && (slot !== 'variant' || d.characterId === cid));
     const current = slot === 'variant' ? p.loadout.variants[cid] ?? null : p.loadout[slot];
     const cards: HTMLElement[] = [];
-    if (slot === 'hat' || slot === 'eyes' || slot === 'back' || slot === 'variant') {
+    if (slot === 'hat' || slot === 'eyes' || slot === 'back' || slot === 'outfit' || slot === 'hand' || slot === 'mount' || slot === 'variant') {
       cards.push(
         h(
           'button',

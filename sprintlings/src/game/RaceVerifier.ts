@@ -58,9 +58,9 @@ export function createTicket(
     const diffs = rng.shuffle(botDifficulties(difficulty, level));
     for (let i = 0; i < 3; i++) {
       const cosmetics: Record<string, string> = {};
-      for (const slot of ['hat', 'eyes', 'back', 'trail'] as const) {
-        if (rng.chance(slot === 'trail' ? 0.6 : 0.45)) {
-          const pool = COSMETICS.filter((c) => c.slot === slot && !c.seasonId && !c.packOnly);
+      for (const slot of ['hat', 'eyes', 'back', 'trail', 'mount'] as const) {
+        if (rng.chance(slot === 'trail' ? 0.6 : slot === 'mount' ? 0.3 : 0.45)) {
+          const pool = COSMETICS.filter((c) => c.slot === slot && !c.seasonId && !c.packOnly && !c.setId);
           cosmetics[slot] = rng.pick(pool).id;
         }
       }
