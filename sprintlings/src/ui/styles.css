@@ -483,3 +483,7 @@ body.touch-on .hud-emotes { bottom: auto; top: 30%; flex-direction: column; }
 
 .track-card--sunset { background: var(--grain), linear-gradient(160deg, #ffc07a, #e86a7a 55%, #5a3a8a); }
 .track-card--snow { background: var(--grain), linear-gradient(160deg, #eef6ff, #8ab8e8); }
+
+.bundle-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-bottom: 6px; }
+.bundle-item { display: flex; flex-direction: column; gap: 2px; text-align: center; }
+.bundle-item .card__swatch { height: 64px !important; font-size: 28px; }

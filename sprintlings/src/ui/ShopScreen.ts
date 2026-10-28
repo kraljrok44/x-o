@@ -4,7 +4,7 @@ import { bundlePrice } from '../economy/EconomyService';
 import { visibleLoadout } from '../economy/InventoryService';
 import type { CharacterId } from '../player/CharacterDefinition';
 import { COSMETIC_BY_ID, RARITY_COLORS, type CosmeticDefinition } from '../shop/CosmeticCatalog';
-import { chestPool, shopOffers, type ShopCategory, type ShopOffer } from '../shop/ShopCatalog';
+import { BUNDLES, chestPool, shopOffers, type ShopCategory, type ShopOffer } from '../shop/ShopCatalog';
 import type { ProductOffer } from '../shop/PurchaseService';
 import { formatDuration } from '../shared/time';
 import { sidePanelLayout } from './CharacterSelect';
@@ -59,6 +59,26 @@ export function itemVisual(ctx: AppContext, def: CosmeticDefinition): HTMLElemen
   return h('div', { class: 'card__swatch', style: `background:linear-gradient(${def.color}44,#fff);padding:0;overflow:hidden;height:90px` }, src ? h('img', { src, alt: def.name, style: 'height:100%' }) : '🎁');
 }
 
+const SLOT_NAMES: Record<string, string> = { hat: 'Hat', eyes: 'Eyewear', back: 'Back', trail: 'Trail', emote: 'Emote', variant: 'Colour' };
+
+/** Current outfit with every bundle item put on. */
+function bundleLoadout(current: Record<string, string>, items: readonly string[]): Record<string, string> {
+  const out = { ...current };
+  for (const i of items) {
+    const d = COSMETIC_BY_ID[i];
+    if (d && d.slot !== 'variant') out[d.slot] = i;
+  }
+  return out;
+}
+
+/** Card picture for a bundle: your animal wearing the whole set. */
+function bundleVisual(ctx: AppContext, items: readonly string[]): HTMLElement {
+  const p = ctx.authority.profile;
+  const cid = p.loadout.characterId;
+  const src = ctx.thumbs.portrait(cid, p.loadout.variants[cid] ?? null, bundleLoadout({}, items));
+  return h('div', { class: 'card__swatch', style: 'background:linear-gradient(#ffe9b0,#fff);padding:0;overflow:hidden;height:90px' }, h('img', { src, alt: '', style: 'height:100%' }));
+}
+
 export function rarityLabel(r: CosmeticDefinition['rarity']): HTMLElement {
   return h('span', { class: 'rarity', style: `color:${RARITY_COLORS[r]}` }, t(r[0].toUpperCase() + r.slice(1)));
 }
@@ -71,9 +91,23 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
   const grid = h('div', { class: 'grid' });
   const detail = h('div', { class: 'panel', style: 'padding:14px;margin-top:12px' });
 
+  /** The whole outfit on your animal; it turns now and then so a back item shows too. */
+  const previewItems = (items: readonly string[]) => {
+    const p = ctx.authority.profile;
+    const base = { characterId: p.loadout.characterId, variantId: p.loadout.variants[p.loadout.characterId] ?? null, cosmetics: bundleLoadout(visibleLoadout(p), items) };
+    const hasBack = items.some((i) => COSMETIC_BY_ID[i]?.slot === 'back');
+    const hasTrail = items.some((i) => COSMETIC_BY_ID[i]?.slot === 'trail');
+    ctx.menu.show(base, false, hasBack ? 'cycle' : false, hasTrail);
+  };
+
   const previewWith = (id: string | null) => {
     const p = ctx.authority.profile;
     const base = { characterId: p.loadout.characterId, variantId: p.loadout.variants[p.loadout.characterId] ?? null, cosmetics: visibleLoadout(p) };
+    const bundle = id ? BUNDLES.find((b) => b.id === id) : undefined;
+    if (bundle) {
+      previewItems(bundle.items);
+      return;
+    }
     const def = id ? COSMETIC_BY_ID[id] : undefined;
     if (def) {
       if (def.slot === 'variant') {
@@ -85,7 +119,7 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
       base.variantId = null;
     }
     // Items worn on the back are only visible side-on, so the model turns.
-    ctx.menu.show(base, def?.slot === 'emote', def?.slot === 'back');
+    ctx.menu.show(base, def?.slot === 'emote', def?.slot === 'back', def?.slot === 'trail');
   };
 
   const renderTabs = () =>
@@ -118,7 +152,9 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
           { class: `card ${selected === o.id ? 'selected' : ''}`, onClick: () => ((selected = o.id), render(), previewWith(o.id)) },
           def
             ? itemVisual(ctx, def)
-            : o.kind === 'character'
+            : o.kind === 'bundle'
+              ? bundleVisual(ctx, o.items!)
+              : o.kind === 'character'
               ? h('img', { src: ctx.thumbs.portrait(o.characterId!), style: 'width:100%;aspect-ratio:1;object-fit:contain' })
               : h('div', { class: 'card__swatch', style: 'background:#ffe9b0' }, o.kind === 'chest' ? '🧰' : '🎁'),
           h('div', { class: 'card__name' }, o.name),
@@ -147,7 +183,17 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
     if (o.requiresLevel && p.level < o.requiresLevel) body.push(h('p', { class: 'chip' }, '🔒 ' + t('Unlocks at level {n}', { n: o.requiresLevel })));
     if (o.availableUntil) body.push(h('p', { class: 'chip' }, '⏳ ' + formatDuration(Date.parse(o.availableUntil) - ctx.authority.now())));
     if (o.kind === 'bundle') {
-      body.push(h('div', { class: 'row row--wrap' }, ...o.items!.map((i) => h('span', { class: 'chip' }, (p.inventory.includes(i) ? '✓ ' : '') + COSMETIC_BY_ID[i].name))));
+      body.push(h('p', { class: 'small', style: 'margin:0 0 6px' }, t('The set is shown on your animal. You get:')));
+      body.push(
+        h(
+          'div',
+          { class: 'bundle-items' },
+          ...o.items!.map((i) => {
+            const d = COSMETIC_BY_ID[i];
+            return h('div', { class: 'bundle-item' }, itemVisual(ctx, d), h('div', { class: 'small' }, (p.inventory.includes(i) ? '✓ ' : '') + d.name), h('div', { class: 'small muted' }, t(SLOT_NAMES[d.slot] ?? d.slot)));
+          }),
+        ),
+      );
       if (price < o.price.amount) body.push(h('p', { class: 'small muted' }, 'Price reduced for items you already own.'));
     }
     if (o.kind === 'chest') body.push(chestOdds(o.id as ChestId));
@@ -191,6 +237,29 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
             },
           },
           isOn ? t('Unequip') : t('Equip'),
+        ),
+      );
+    } else if (o.kind === 'bundle') {
+      // Owned set: put the whole outfit on in one go.
+      actions.append(
+        h(
+          'button',
+          {
+            class: 'btn btn--good',
+            onClick: async () => {
+              try {
+                for (const i of o.items!) {
+                  const d = COSMETIC_BY_ID[i];
+                  if (d && d.slot !== 'variant') await ctx.authority.equip(d.slot as 'hat', i);
+                }
+                ctx.ui.toast(`${o.name} ✓`, 'good');
+                previewWith(null);
+              } catch (e) {
+                ctx.fail(e);
+              }
+            },
+          },
+          t('Equip set'),
         ),
       );
     } else actions.append(h('span', { class: 'chip' }, t('Owned')));
@@ -257,8 +326,15 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
       ...offers.map((o) =>
         h(
           'div',
-          { class: 'card', style: 'cursor:default' },
-          h('div', { class: 'card__swatch', style: 'background:#d6f6ff' }, o.product.grants.gems ? '💎' : o.product.id === 'ad_free' ? '🚫' : '🎁'),
+          {
+            class: 'card',
+            style: o.product.grants.cosmetics?.length ? 'cursor:pointer' : 'cursor:default',
+            // Sets with cosmetics are tried on the animal when tapped.
+            onClick: o.product.grants.cosmetics?.length ? () => previewItems(o.product.grants.cosmetics!) : undefined,
+          },
+          o.product.grants.cosmetics?.length
+            ? bundleVisual(ctx, o.product.grants.cosmetics)
+            : h('div', { class: 'card__swatch', style: 'background:#d6f6ff' }, o.product.grants.gems ? '💎' : o.product.id === 'ad_free' ? '🚫' : '🎁'),
           h('div', { class: 'card__name' }, o.product.name),
           h('div', { class: 'small muted' }, o.product.description),
           o.product.highlight ? h('span', { class: 'chip' }, o.product.highlight) : null,

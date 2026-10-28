@@ -2,7 +2,8 @@ import { CHARACTERS, type CharacterId } from '../player/CharacterDefinition';
 import type { Biome } from '../game/Track';
 import { Background } from './Background';
 import { BIOME_THEMES } from './BiomeTheme';
-import { cosmeticLayers, paletteFor } from './Cosmetics2D';
+import { cosmeticLayers, paletteFor, trailStyle } from './Cosmetics2D';
+import { Particles } from './Particles';
 import { ellipse, shade, type Ctx } from './draw';
 import type { GameRenderer } from './GameRenderer';
 import { MonsterAnimator, emoteStyle } from './MonsterAnimator';
@@ -24,8 +25,12 @@ export class MenuScene {
   private readonly anchors = makeAnchors();
   private time = 0;
   private emoteTime = 0;
-  /** Turn side-on to show off a back item. */
-  private sideView = false;
+  /** Turn side-on to show off a back item ('cycle' alternates front and side). */
+  private sideView: boolean | 'cycle' = false;
+  /** Shop preview of a trail: particles stream from the monster on the stage. */
+  private trail: ReturnType<typeof trailStyle> | null = null;
+  private trailT = 0;
+  private readonly particles = new Particles(160);
   private key = '';
   private nudge = 0;
   /** Horizontal offset of the monster (roughly in monster heights), so UI panels can sit beside it. */
@@ -46,8 +51,9 @@ export class MenuScene {
     this.bg = new Background(biome, this.gr.quality === 'high' ? 'medium' : this.gr.quality);
   }
 
-  show(loadout: ShowcaseLoadout, playEmote = false, sideView = false): void {
+  show(loadout: ShowcaseLoadout, playEmote = false, sideView: boolean | 'cycle' = false, showTrail = false): void {
     this.sideView = sideView;
+    this.trail = showTrail && loadout.cosmetics.trail ? trailStyle(loadout.cosmetics.trail) : null;
     const key = JSON.stringify(loadout);
     if (key !== this.key) {
       const charChanged = !this.loadout || this.loadout.characterId !== loadout.characterId;
@@ -103,14 +109,69 @@ export class MenuScene {
       boosting: false,
       blocked: false,
       ready: false,
-      faceSide: this.sideView && this.emoteTime <= 0,
+      faceSide: this.emoteTime <= 0 && (this.sideView === 'cycle' ? Math.floor(this.time / 2.6) % 2 === 1 : this.sideView),
     });
     pose.lean += this.nudge * 0.25;
     ctx.save();
     ctx.translate(cx, groundY);
     ctx.scale(scale, -scale);
+    this.drawTrail(ctx, dt);
     drawMonster(ctx, def.bodyPlan, pal, pose, { flat: false, shadow: true, shadowDrop: 0 }, this.layers, this.anchors);
     ctx.restore();
+  }
+
+  /** Trail preview drifting away behind the monster, as it looks while racing. */
+  private drawTrail(ctx: Ctx, dt: number): void {
+    const tr = this.trail;
+    this.particles.update(dt);
+    if (tr) {
+      if (tr.kind === 'ribbon') {
+        const colors = ['#ff5a8a', '#ffb020', '#ffe14d', '#5bd16b', '#4fd6ff', '#b46bff'];
+        for (let c = 0; c < colors.length; c++) {
+          ctx.beginPath();
+          for (let k = 0; k <= 24; k++) {
+            const x = -0.25 - k * 0.09;
+            const y = 0.5 + (c - 2.5) * 0.045 + Math.sin(this.time * 6 + k * 0.45) * 0.05 * (k / 24);
+            if (k === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.lineWidth = 0.05;
+          ctx.strokeStyle = colors[c];
+          ctx.globalAlpha = 0.85;
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      } else {
+        this.trailT -= dt;
+        if (this.trailT <= 0) {
+          this.trailT = 0.07;
+          const x = -0.3;
+          const y = tr.kind === 'dust' ? 0.06 : 0.35 + Math.random() * 0.3;
+          const base = { x, y, color: tr.color, count: 1, life: 0.9 };
+          switch (tr.kind) {
+            case 'dust':
+              this.particles.emit({ ...base, kind: 'puff', speed: 1, dir: Math.PI * 0.9, spread: 0.5, size: 0.1 });
+              break;
+            case 'sparkle':
+              this.particles.emit({ ...base, kind: 'spark', speed: 1.2, dir: Math.PI, spread: 0.8, size: 0.1 });
+              break;
+            case 'leaf':
+              this.particles.emit({ ...base, kind: 'leaf', speed: 1.4, dir: Math.PI * 0.95, spread: 0.6, size: 0.11, gravity: 0.6 });
+              break;
+            case 'bubble':
+              this.particles.emit({ ...base, kind: 'bubble', speed: 1, dir: Math.PI * 0.8, spread: 0.8, size: 0.09, gravity: -0.6 });
+              break;
+            case 'note':
+              this.particles.emit({ ...base, kind: 'note', speed: 1, dir: Math.PI * 0.75, spread: 0.6, size: 0.17 });
+              break;
+            case 'flame':
+              this.particles.emit({ ...base, kind: 'flame', speed: 1.2, dir: Math.PI, spread: 0.5, size: 0.13, gravity: -2, life: 0.5 });
+              break;
+          }
+        }
+      }
+    }
+    this.particles.draw(ctx, -4, 4);
   }
 
   private drawIsland(ctx: Ctx, cx: number, gy: number, s: number): void {
