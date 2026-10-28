@@ -487,3 +487,30 @@ body.touch-on .hud-emotes { bottom: auto; top: 30%; flex-direction: column; }
 .bundle-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-bottom: 6px; }
 .bundle-item { display: flex; flex-direction: column; gap: 2px; text-align: center; }
 .bundle-item .card__swatch { height: 64px !important; font-size: 28px; }
+
+/* Mobile comfort: keep controls clear of rounded corners, camera cutouts and home indicators. */
+@media (pointer: coarse) {
+  .btn { min-height: 52px; touch-action: manipulation; }
+  .btn--small { min-height: 44px; }
+  .topbar { padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
+  .hud-pause { right: calc(12px + env(safe-area-inset-right, 0px)); }
+  .touch-down { left: calc(16px + env(safe-area-inset-left, 0px)); }
+  .touch-jump { right: calc(18px + env(safe-area-inset-right, 0px)); }
+  .touch-btn {
+    background: linear-gradient(145deg, rgba(255, 237, 196, 0.82), rgba(122, 74, 38, 0.82) 48%, rgba(58, 31, 16, 0.88));
+    border-color: #fff0c7;
+    box-shadow: inset 0 0 0 3px rgba(58, 31, 16, 0.64), 0 5px 0 var(--line), 0 10px 20px rgba(20, 10, 4, 0.28);
+    backdrop-filter: blur(5px) saturate(1.15);
+  }
+  .touch-btn.pressed {
+    background: linear-gradient(145deg, rgba(255, 247, 221, 0.94), rgba(173, 117, 60, 0.92));
+    box-shadow: inset 0 0 0 3px rgba(58, 31, 16, 0.55), 0 2px 0 var(--line), 0 5px 12px rgba(20, 10, 4, 0.25);
+  }
+}
+
+@media (max-height: 480px) and (orientation: landscape) {
+  .touch { height: 62%; }
+  .touch-btn { width: 76px; height: 76px; bottom: calc(14px + var(--safe-bottom)); }
+  .touch-jump { width: 92px; height: 92px; font-size: 20px; }
+  body.touch-on .hud-ability { right: calc(150px + env(safe-area-inset-right, 0px)); bottom: calc(14px + var(--safe-bottom)); }
+}

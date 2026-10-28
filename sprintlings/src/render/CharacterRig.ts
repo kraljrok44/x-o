@@ -219,7 +219,7 @@ function tube(ctx: Ctx, pts: number[], width: number, fill: string, cap?: () => 
   }
 }
 
-function fillOutlined(ctx: Ctx, fill: string, lw = OW): void {
+function fillOutlined(ctx: Ctx, fill: string | CanvasGradient, lw = OW): void {
   ctx.fillStyle = fill;
   ctx.fill();
   ctx.lineWidth = lw;
@@ -319,17 +319,25 @@ function drawTorso(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Monste
   const wTop = (front ? 0.27 : 0.24) * b;
   const y0 = HIP_Y - 0.03;
   const y1 = SHOULDER_Y + 0.05;
+  const shirt = ctx.createLinearGradient(0, y1 + 0.07, 0, y0 - 0.03);
+  shirt.addColorStop(0, tint(pal.shirt, 0.14));
+  shirt.addColorStop(0.46, pal.shirt);
+  shirt.addColorStop(1, shade(pal.shirt, 0.12));
   ctx.beginPath();
   ctx.moveTo(-wBot, y0);
   ctx.quadraticCurveTo(-wTop * 1.12, (y0 + y1) / 2, -wTop, y1);
   ctx.quadraticCurveTo(0, y1 + 0.07, wTop, y1);
   ctx.quadraticCurveTo(wTop * 1.12, (y0 + y1) / 2, wBot, y0);
   ctx.closePath();
-  fillOutlined(ctx, pal.shirt);
+  fillOutlined(ctx, shirt);
   ctx.save();
   ctx.clip();
   // Vest panels (front view: both sides; side view: the front half).
-  ctx.fillStyle = pal.vest;
+  const vest = ctx.createLinearGradient(0, y1 + 0.08, 0, y0 - 0.02);
+  vest.addColorStop(0, tint(pal.vest, 0.12));
+  vest.addColorStop(0.52, pal.vest);
+  vest.addColorStop(1, shade(pal.vest, 0.16));
+  ctx.fillStyle = vest;
   if (front) {
     ctx.beginPath();
     ctx.moveTo(-wTop - 0.05, y1 + 0.1);

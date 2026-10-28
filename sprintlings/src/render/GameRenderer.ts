@@ -4,7 +4,9 @@ export type GraphicsQuality = 'low' | 'medium' | 'high';
 export function detectQuality(): GraphicsQuality {
   const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && window.innerWidth < 1100);
   const cores = navigator.hardwareConcurrency ?? 4;
-  if (mobile) return cores >= 8 ? 'medium' : 'low';
+  // Keep small devices light, but let current phones use the same rich pass
+  // as desktop. The backing-store cap still protects very high-DPR displays.
+  if (mobile) return cores >= 8 ? 'high' : cores >= 6 ? 'medium' : 'low';
   return cores >= 6 ? 'high' : 'medium';
 }
 
@@ -79,6 +81,7 @@ export class GameRenderer {
     c.globalAlpha = 1;
     c.globalCompositeOperation = 'source-over';
     c.imageSmoothingEnabled = true;
+    c.imageSmoothingQuality = this.quality === 'high' ? 'high' : 'medium';
     return c;
   }
 }
