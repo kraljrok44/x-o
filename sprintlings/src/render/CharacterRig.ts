@@ -159,7 +159,7 @@ export function makeAnchors(): RigAnchors {
 
 // --- proportions --------------------------------------------------------------------
 
-const OW = 0.038;
+const OW = 0.042; // slightly thicker, cleaner outlines for premium mobile look
 const HIP_Y = 0.42;
 const SHOULDER_Y = 0.8;
 const HEAD_Y = 1.08;
@@ -194,10 +194,12 @@ export function monsterHeight(plan: BodyPlan): number {
   return HEAD_Y + s.headRy + s.earTop;
 }
 
-const OL = '#2a1a1e';
+const OL = '#1f1218'; // richer, slightly cooler dark outline for higher contrast and polish
 
 /** Two-pass stroke so a polyline limb gets one clean outline. */
 function tube(ctx: Ctx, pts: number[], width: number, fill: string, cap?: () => void): void {
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
   for (let pass = 0; pass < 2; pass++) {
     ctx.beginPath();
     ctx.moveTo(pts[0], pts[1]);
@@ -223,6 +225,8 @@ function fillOutlined(ctx: Ctx, fill: string, lw = OW): void {
   ctx.fillStyle = fill;
   ctx.fill();
   ctx.lineWidth = lw;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
   ctx.strokeStyle = OL;
   ctx.stroke();
 }
@@ -522,13 +526,24 @@ function drawEye(ctx: Ctx, x: number, y: number, r: number, pose: MonsterPose, p
     const px = Math.max(-1, Math.min(1, pose.lookX)) * r * 0.35;
     const py = Math.max(-1, Math.min(1, pose.lookY)) * r * 0.3;
     const pr = kind === 'wide' ? r * 0.45 : r * 0.6;
+    // Iris with subtle depth gradient.
     ctx.beginPath();
     ellipse(ctx, px, py, pr, pr * 1.08);
-    ctx.fillStyle = pal.eye;
+    const ig = ctx.createRadialGradient(px - pr * 0.2, py - pr * 0.15, pr * 0.1, px, py, pr);
+    ig.addColorStop(0, tint(pal.eye, 0.25));
+    ig.addColorStop(0.55, pal.eye);
+    ig.addColorStop(1, shade(pal.eye, 0.2));
+    ctx.fillStyle = ig;
     ctx.fill();
+    // Main highlight.
     ctx.beginPath();
-    ellipse(ctx, px - pr * 0.3, py + pr * 0.4, pr * 0.35, pr * 0.35);
+    ellipse(ctx, px - pr * 0.32, py + pr * 0.38, pr * 0.32, pr * 0.32);
     ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    // Secondary tiny sparkle for high-end mobile polish.
+    ctx.beginPath();
+    ellipse(ctx, px + pr * 0.22, py - pr * 0.18, pr * 0.12, pr * 0.12);
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.fill();
   }
   ctx.restore();
@@ -682,15 +697,16 @@ function drawHeadSide(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mon
     drawEar(ctx, plan, pal, -0.2, ry * 0.25, 0.5 + wa * 0.2, true);
   } else drawEar(ctx, plan, pal, plan === 'rabbit' ? -0.1 : -0.12, ry * 0.75, (plan === 'rabbit' ? 0.35 : 0.2) + wa * (plan === 'rabbit' ? 0.5 : 0.25), true);
 
-  // Head.
+  // Head — multi-stop radial for stronger volume and soft lighting (premium mobile look).
   ctx.beginPath();
   ellipse(ctx, 0, 0, rx, ry);
   if (flat) ctx.fillStyle = pal.body;
   else {
-    const g = ctx.createRadialGradient(-rx * 0.3, ry * 0.4, rx * 0.1, 0, 0, rx * 1.2);
-    g.addColorStop(0, tint(pal.body, 0.3));
-    g.addColorStop(0.6, pal.body);
-    g.addColorStop(1, shade(pal.body, 0.15));
+    const g = ctx.createRadialGradient(-rx * 0.35, ry * 0.45, rx * 0.08, 0, -ry * 0.05, rx * 1.25);
+    g.addColorStop(0, tint(pal.body, 0.42));
+    g.addColorStop(0.35, tint(pal.body, 0.12));
+    g.addColorStop(0.7, pal.body);
+    g.addColorStop(1, shade(pal.body, 0.22));
     ctx.fillStyle = g;
   }
   ctx.fill();
@@ -866,10 +882,11 @@ function drawHeadFront(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mo
   ellipse(ctx, 0, 0, rx, ry);
   if (flat) ctx.fillStyle = pal.body;
   else {
-    const g = ctx.createRadialGradient(-rx * 0.3, ry * 0.4, rx * 0.1, 0, 0, rx * 1.2);
-    g.addColorStop(0, tint(pal.body, 0.3));
-    g.addColorStop(0.6, pal.body);
-    g.addColorStop(1, shade(pal.body, 0.15));
+    const g = ctx.createRadialGradient(-rx * 0.32, ry * 0.42, rx * 0.08, 0, -ry * 0.05, rx * 1.25);
+    g.addColorStop(0, tint(pal.body, 0.42));
+    g.addColorStop(0.35, tint(pal.body, 0.12));
+    g.addColorStop(0.7, pal.body);
+    g.addColorStop(1, shade(pal.body, 0.22));
     ctx.fillStyle = g;
   }
   ctx.fill();
@@ -1005,9 +1022,14 @@ export function drawMonster(
   if (style.shadow) {
     const drop = Math.max(-3, style.shadowDrop);
     const sc = Math.max(0.25, 1 + drop * 0.18);
+    // Soft multi-layer contact shadow for premium depth.
     ctx.beginPath();
-    ellipse(ctx, 0.02, drop + 0.01, 0.38 * sc, 0.07 * sc);
-    ctx.fillStyle = `rgba(30,15,10,${0.24 * sc})`;
+    ellipse(ctx, 0.02, drop + 0.015, 0.42 * sc, 0.085 * sc);
+    ctx.fillStyle = `rgba(20,10,8,${0.18 * sc})`;
+    ctx.fill();
+    ctx.beginPath();
+    ellipse(ctx, 0.02, drop + 0.005, 0.32 * sc, 0.055 * sc);
+    ctx.fillStyle = `rgba(25,12,8,${0.28 * sc})`;
     ctx.fill();
   }
   const f = Math.max(0, Math.min(1, pose.facing));
@@ -1089,9 +1111,14 @@ function drawMounted(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mons
   if (style.shadow) {
     const drop = Math.max(-3, style.shadowDrop);
     const sc = Math.max(0.25, 1 + drop * 0.18);
+    const bw = m.kind === 'stick' ? 0.42 : 0.6;
     ctx.beginPath();
-    ellipse(ctx, 0.02, drop + 0.01, (m.kind === 'stick' ? 0.42 : 0.6) * sc, 0.08 * sc);
-    ctx.fillStyle = `rgba(30,15,10,${0.24 * sc})`;
+    ellipse(ctx, 0.02, drop + 0.015, bw * 1.1 * sc, 0.09 * sc);
+    ctx.fillStyle = `rgba(20,10,8,${0.18 * sc})`;
+    ctx.fill();
+    ctx.beginPath();
+    ellipse(ctx, 0.02, drop + 0.005, bw * sc, 0.06 * sc);
+    ctx.fillStyle = `rgba(25,12,8,${0.28 * sc})`;
     ctx.fill();
   }
   ctx.save();

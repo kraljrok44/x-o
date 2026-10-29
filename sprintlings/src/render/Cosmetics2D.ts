@@ -8,8 +8,8 @@ import type { EyeAnchor, MonsterPose, MountLayer, RigAnchors, RigLayers } from '
  * at the body centre). Purely visual: the simulation never reads them.
  */
 
-const OL = '#2a1d2e';
-const LW = 0.035;
+const OL = '#1f1218';
+const LW = 0.038;
 
 function model(id: string | undefined): { model: string; color: string } | null {
   if (!id) return null;
@@ -22,6 +22,8 @@ function outlined(ctx: Ctx, fill: string): void {
   ctx.fillStyle = fill;
   ctx.fill();
   ctx.lineWidth = LW;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
   ctx.strokeStyle = OL;
   ctx.stroke();
 }

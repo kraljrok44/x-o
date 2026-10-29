@@ -23,7 +23,7 @@ import { ellipse, hash, mix, rgba, roundRect, shade, star, tint, type Ctx } from
  * pickups and ability entities. Reads the track and the race clock only.
  */
 
-const OL_W = 0.055;
+const OL_W = 0.058;
 
 interface Run {
   /** Polyline of the walkable top, including vertical step faces. */
@@ -203,7 +203,7 @@ export class WorldPainter {
       ctx.strokeStyle = th.grass;
       ctx.stroke();
       if (!flat) {
-        // Scallops hanging under the cap.
+        // Scallops hanging under the cap — denser & varied for richer terrain.
         ctx.fillStyle = th.grass;
         for (let i = 0; i + 3 < pts.length; i += 2) {
           const ax = pts[i];
@@ -211,23 +211,33 @@ export class WorldPainter {
           if (Math.abs(bx - ax) < 1e-6) continue;
           const sx0 = Math.max(ax, left);
           const sx1 = Math.min(bx, right);
-          for (let x = Math.ceil(sx0 / 0.42) * 0.42; x < sx1; x += 0.42) {
+          for (let x = Math.ceil(sx0 / 0.36) * 0.36; x < sx1; x += 0.36) {
             const k = (x - ax) / (bx - ax);
             const y = pts[i + 1] + (pts[i + 3] - pts[i + 1]) * k;
+            const jitter = (hash(x * 11.3) - 0.5) * 0.06;
             ctx.beginPath();
-            ellipse(ctx, x, y - 0.26, 0.17, 0.12);
+            ellipse(ctx, x + jitter, y - 0.26 - hash(x * 4.1) * 0.04, 0.15 + hash(x * 7) * 0.06, 0.11 + hash(x * 5.5) * 0.04);
             ctx.fill();
           }
         }
-        // Light strip on top of the grass.
+        // Soft highlight strip + secondary brighter edge for premium volume.
         ctx.beginPath();
         for (let i = 0; i + 3 < pts.length; i += 2) {
           if (Math.abs(pts[i + 2] - pts[i]) < 1e-6) continue;
-          ctx.moveTo(pts[i], pts[i + 1] - 0.08);
-          ctx.lineTo(pts[i + 2], pts[i + 3] - 0.08);
+          ctx.moveTo(pts[i], pts[i + 1] - 0.09);
+          ctx.lineTo(pts[i + 2], pts[i + 3] - 0.09);
         }
-        ctx.lineWidth = 0.08;
+        ctx.lineWidth = 0.11;
         ctx.strokeStyle = th.grassLight;
+        ctx.stroke();
+        ctx.beginPath();
+        for (let i = 0; i + 3 < pts.length; i += 2) {
+          if (Math.abs(pts[i + 2] - pts[i]) < 1e-6) continue;
+          ctx.moveTo(pts[i], pts[i + 1] - 0.04);
+          ctx.lineTo(pts[i + 2], pts[i + 3] - 0.04);
+        }
+        ctx.lineWidth = 0.035;
+        ctx.strokeStyle = tint(th.grassLight, 0.35);
         ctx.stroke();
       }
       ctx.restore();
