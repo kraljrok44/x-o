@@ -34,6 +34,6 @@ export async function createAuthority(platform: Platform, browserStore: KeyValue
   const reason =
     platform.id === 'crazygames' || platform.id === 'gamemonetize'
       ? t('Purchases with real money are not available in this version of the game.')
-      : 'Purchases need the game server (see README: npm run server).';
+      : t('Purchases with real money are not available in this version of the game.');
   return { authority, purchases: new UnavailablePurchaseService(reason), serverUrl: null };
 }

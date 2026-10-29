@@ -8,18 +8,21 @@ import { topbar } from './Topbar';
 import type { Screen } from './UIRoot';
 
 /** Wide screens show the monster stage on the left and panels on the right. */
+/**
+ * Stage + panel layout used by the shop, locker and character select: the
+ * monster gets its own area (left on wide screens, top on tall ones) that the
+ * panel never covers, and the panel scrolls on its own.
+ */
 export function sidePanelLayout(ctx: AppContext, content: HTMLElement): HTMLElement {
   const wide = ctx.renderer.aspect > 1.15;
-  ctx.menu.offsetX = wide ? -1.9 : 0;
-  return h(
-    'div',
-    { class: 'screen__scroll', style: wide ? 'display:flex;justify-content:flex-end' : '' },
-    wide ? h('div', { style: 'width:min(560px,56vw)' }, content) : h('div', null, h('div', { class: 'preview-spacer' }), content),
-  );
+  ctx.menu.offsetX = 0;
+  const stage = h('div', { class: 'side-stage' });
+  ctx.menu.stageEl = stage;
+  return h('div', { class: `side-layout ${wide ? 'side-layout--wide' : 'side-layout--tall'}` }, stage, h('div', { class: 'side-panel' }, content));
 }
 
 export function characterSelect(ctx: AppContext): Screen {
-  const bar = topbar(ctx, { back: () => ctx.go('menu'), title: t('Choose your monster') });
+  const bar = topbar(ctx, { back: () => ctx.go('menu'), title: t('Choose your animal') });
   let selected: CharacterId = ctx.authority.profile.loadout.characterId;
   const grid = h('div', { class: 'grid', style: 'grid-template-columns:repeat(3,minmax(0,1fr))' });
   const detail = h('div', { class: 'panel', style: 'padding:14px;margin-top:12px' });
@@ -109,7 +112,7 @@ export function characterSelect(ctx: AppContext): Screen {
           h('div', { class: 'small muted' }, `${SPECIALS[c.special].description} ${t('Cooldown {n} s', { n: SPECIALS[c.special].cooldown })}`),
         ),
       ),
-      h('p', { class: 'small muted' }, t('All monsters share the same speed and jump. Passives are small, situational perks.')),
+      h('p', { class: 'small muted' }, t('All animals share the same speed and jump. Passives and specials are small, situational perks.')),
       actions,
     );
   };

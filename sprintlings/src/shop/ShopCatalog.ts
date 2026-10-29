@@ -30,8 +30,6 @@ const SLOT_CATEGORY: Record<string, ShopCategory> = { hat: 'hats', eyes: 'eyes',
 
 export function categoryOf(c: CosmeticDefinition): ShopCategory {
   if (c.availableUntil) return 'seasonal';
-  if (c.slot === 'mount') return 'mounts';
-  if (c.price?.currency === 'gems' && c.slot !== 'variant') return 'premium';
   return SLOT_CATEGORY[c.slot];
 }
 

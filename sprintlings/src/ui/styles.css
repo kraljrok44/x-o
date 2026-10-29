@@ -514,3 +514,83 @@ body.touch-on .hud-emotes { bottom: auto; top: 30%; flex-direction: column; }
   .touch-jump { width: 92px; height: 92px; font-size: 20px; }
   body.touch-on .hud-ability { right: calc(150px + env(safe-area-inset-right, 0px)); bottom: calc(14px + var(--safe-bottom)); }
 }
+
+/* ---------- stage + panel screens (shop, locker, characters) ---------- */
+.side-layout { flex: 1; min-height: 0; display: flex; }
+.side-layout--wide { flex-direction: row; }
+.side-layout--tall { flex-direction: column; }
+.side-stage { flex: 1 1 auto; min-width: 0; min-height: 0; pointer-events: none; }
+.side-layout--tall .side-stage { flex: 0 0 clamp(170px, 34vh, 360px); }
+.side-panel {
+  overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y;
+  padding: 2px max(12px, env(safe-area-inset-right, 0px)) calc(14px + var(--safe-bottom)) 12px;
+}
+.side-layout--wide .side-panel { flex: 0 0 clamp(320px, 46vw, 600px); }
+.side-layout--tall .side-panel { flex: 1 1 auto; min-height: 0; }
+.side-panel .tabs { justify-content: flex-start; }
+.side-panel .tab { font-size: 14px; padding: 6px 12px; }
+/* Compact, centred cards with readable labels. */
+.side-panel .grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 9px; }
+.side-panel .card { padding: 7px; gap: 4px; align-items: stretch; text-align: center; box-shadow: 0 3px 0 var(--line); }
+.side-panel .card__swatch { height: 74px; }
+.side-panel .card__name { font-size: 14px; text-align: center; color: var(--ink); }
+.side-panel .card__meta { flex-direction: column; justify-content: center; gap: 4px; }
+.side-panel .card__meta .chip { font-size: 13px; padding: 2px 9px; }
+.side-panel .card .small { font-size: 12px; }
+.side-panel .owned-tag { top: 4px; right: 4px; font-size: 10px; padding: 1px 6px; }
+.side-panel .rarity { display: inline-block; padding: 1px 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.85); border: 2px solid currentColor; font-size: 10px; letter-spacing: 0.6px; }
+.side-panel > div > .panel, .side-panel .panel { text-align: center; }
+.side-panel .panel .row { justify-content: center; }
+.side-panel .panel__title { font-size: 20px; }
+.side-panel .panel p { font-size: 14px; color: var(--ink); }
+.side-panel .panel .muted, .side-panel .card .muted { color: #5e3a20; }
+@media (max-height: 480px) {
+  .side-panel .card__swatch { height: 62px; }
+  .side-panel .grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 7px; }
+  .side-panel .card__name { font-size: 13px; }
+  .side-panel .tab { font-size: 13px; padding: 4px 10px; min-height: 38px; }
+}
+/* The selected item's details stay in view at the bottom of the panel. */
+.side-panel .shop-detail { position: sticky; bottom: 0; z-index: 2; max-height: 46%; overflow-y: auto; box-shadow: 0 -6px 16px rgba(42, 22, 11, 0.25), 0 4px 0 var(--line); }
+.side-panel .shop-detail:empty { display: none; }
+@media (max-height: 480px) { .side-panel .shop-detail { max-height: 58%; padding: 8px !important; } .side-panel .shop-detail .panel__title { font-size: 17px; } }
+/* Prices inside buttons stay dark on their light chip. */
+.btn .chip { color: var(--ink); text-shadow: none; -webkit-text-stroke: 0; }
+/* Phones: more, smaller cards and a slimmer details bar. */
+@media (max-width: 520px), (max-height: 480px) {
+  .side-panel .grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 7px; }
+  .side-panel .card__swatch { height: 60px; }
+  .side-panel .card__name { font-size: 12.5px; }
+  .side-panel .card__meta .chip { font-size: 12px; padding: 1px 7px; }
+  .side-panel .rarity { font-size: 9px; padding: 0 6px; }
+  .side-panel .shop-detail { max-height: 40%; padding: 8px 10px !important; margin-top: 8px !important; }
+  .side-panel .shop-detail .panel__title { font-size: 16px; }
+  .side-panel .shop-detail p { font-size: 12.5px; margin: 2px 0 4px !important; }
+  .side-panel .shop-detail .btn { min-height: 40px; padding: 5px 14px; font-size: 15px; }
+  .side-panel .shop-note { display: none; }
+  .side-panel .bundle-items { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 5px; }
+  .side-panel .bundle-item .card__swatch { height: 46px !important; }
+}
+/* Short landscape phones: the details bar shrinks to name + buy button. */
+@media (max-height: 480px) {
+  .side-panel .shop-detail { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 10px; max-height: 34%; }
+  .side-panel .shop-detail > p, .side-panel .shop-detail > .bundle-items, .side-panel .shop-detail > .row--wrap:not(:last-of-type) { display: none; }
+  .side-panel .shop-detail > .row { margin: 0 !important; }
+}
+@media (max-height: 480px) {
+  .side-layout--wide .side-panel { flex-basis: 56vw; }
+  .side-panel .grid { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); }
+  .side-panel .card__swatch { height: 50px; }
+  .side-panel .card { padding: 5px; gap: 2px; }
+  .side-panel .shop-detail > * { flex: 0 0 auto; width: auto; }
+  .side-panel .shop-detail .row { gap: 6px; }
+}
+/* Card pictures carry an inline height; the compact panel overrides it. */
+.side-panel .grid .card__swatch { height: 74px !important; }
+@media (max-width: 520px), (max-height: 480px) { .side-panel .grid .card__swatch { height: 60px !important; } }
+@media (max-height: 480px) {
+  .side-panel .grid .card__swatch { height: 48px !important; }
+  .side-panel .shop-detail .panel__title { font-size: 15px; }
+  .side-panel .shop-detail .btn { min-height: 34px; padding: 3px 12px; font-size: 14px; }
+  .side-panel .shop-detail { gap: 2px 10px; }
+}

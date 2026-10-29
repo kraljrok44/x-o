@@ -135,10 +135,10 @@ export const COSMETIC_BY_ID: Record<string, CosmeticDefinition> = Object.fromEnt
 export const STARTER_COSMETICS = COSMETICS.filter((c) => c.starter).map((c) => c.id);
 
 export const RARITY_COLORS: Record<Rarity, string> = {
-  common: '#9aa7b8',
-  rare: '#3fa7ff',
-  epic: '#b46bff',
-  legendary: '#ffb627',
+  common: '#5f6b7a',
+  rare: '#1f6fc0',
+  epic: '#8a3fd1',
+  legendary: '#b86e00',
 };
 
 export function isAvailableNow(c: CosmeticDefinition, nowMs: number): boolean {

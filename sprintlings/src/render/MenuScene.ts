@@ -36,6 +36,13 @@ export class MenuScene {
   /** Horizontal offset of the monster (roughly in monster heights), so UI panels can sit beside it. */
   offsetX = 0;
   private shownX = 0;
+  /**
+   * Page element marking the free area the monster must fit in (shop, locker,
+   * character select). While it is on the page the monster is scaled and
+   * centred inside it, so panels never cover it.
+   */
+  stageEl: HTMLElement | null = null;
+  private placed: { cx: number; gy: number; scale: number } | null = null;
 
   constructor(
     private readonly gr: GameRenderer,
@@ -91,10 +98,26 @@ export class MenuScene {
     if (!this.loadout) return;
 
     const portrait = w < h;
-    const scale = Math.min(h / (portrait ? 5.2 : 4.3), w / 3.2);
+    let scale = Math.min(h / (portrait ? 5.2 : 4.3), w / 3.2);
     this.shownX += (this.offsetX - this.shownX) * (1 - Math.exp(-dt * 6));
-    const cx = w / 2 + this.shownX * scale * 0.8;
-    const groundY = h * (portrait ? 0.56 : 0.66) + Math.sin(this.time * 0.9) * 4;
+    let cx = w / 2 + this.shownX * scale * 0.8;
+    let gy = h * (portrait ? 0.56 : 0.66);
+    const area = this.stageEl?.isConnected ? this.stageEl.getBoundingClientRect() : null;
+    if (area && area.width > 40 && area.height > 40) {
+      // Fit hat-to-island (about 3.2 units tall, 2.8 wide) inside the free area, centred.
+      scale = Math.min(area.height / 3.2, area.width / 2.8);
+      cx = area.left + area.width / 2;
+      gy = area.top + (area.height - 3.2 * scale) / 2 + 2.05 * scale;
+    } else this.stageEl = null;
+    // Glide between placements when screens change.
+    const k = this.placed ? 1 - Math.exp(-dt * 8) : 1;
+    const pl = (this.placed ??= { cx, gy, scale });
+    pl.cx += (cx - pl.cx) * k;
+    pl.gy += (gy - pl.gy) * k;
+    pl.scale += (scale - pl.scale) * k;
+    scale = pl.scale;
+    cx = pl.cx;
+    const groundY = pl.gy + Math.sin(this.time * 0.9) * 4;
     this.drawIsland(ctx, cx, groundY, scale);
 
     const def = CHARACTERS[this.loadout.characterId];

@@ -27,7 +27,6 @@ const TABS: [Tab, string][] = [
   ['characters', 'Characters'],
   ['chests', 'Chests'],
   ['bundles', 'Bundles'],
-  ['premium', 'Premium'],
   ['seasonal', 'Seasonal'],
   ['gems', 'Gem Store'],
 ];
@@ -90,7 +89,7 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
   let selected: string | null = null;
   const tabs = h('div', { class: 'tabs' });
   const grid = h('div', { class: 'grid' });
-  const detail = h('div', { class: 'panel', style: 'padding:14px;margin-top:12px' });
+  const detail = h('div', { class: 'panel shop-detail', style: 'padding:12px;margin-top:12px' });
 
   /** The whole outfit on your animal; it turns now and then so a back item shows too. */
   const previewItems = (items: readonly string[]) => {
@@ -123,8 +122,18 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
     ctx.menu.show(base, def?.slot === 'emote', def?.slot === 'back', def?.slot === 'trail');
   };
 
+  /** A tab's offers, cheapest first: coins before gems, then by price. */
+  const sortedOffers = (cat: Tab): ShopOffer[] => {
+    const p = ctx.authority.profile;
+    const cost = (o: ShopOffer) => (o.kind === 'bundle' ? bundlePrice(p, o.id) : o.price.amount);
+    return shopOffers(ctx.authority.now())
+      .filter((o) => o.category === cat)
+      .sort((a, b) => (a.price.currency === b.price.currency ? cost(a) - cost(b) : a.price.currency === 'coins' ? -1 : 1));
+  };
+
+  // Tabs with nothing on sale right now (e.g. Seasonal between events) are hidden.
   const renderTabs = () =>
-    tabs.replaceChildren(...TABS.map(([id, label]) => h('button', { class: `btn btn--small tab ${tab === id ? 'active' : ''}`, onClick: () => ((tab = id), (selected = null), render()) }, t(label))));
+    tabs.replaceChildren(...TABS.filter(([id]) => id === 'gems' || sortedOffers(id).length > 0).map(([id, label]) => h('button', { class: `btn btn--small tab ${tab === id ? 'active' : ''}`, onClick: () => ((tab = id), (selected = null), render()) }, t(label))));
 
   const owns = (o: ShopOffer) => {
     const p = ctx.authority.profile;
@@ -141,7 +150,7 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
       return;
     }
     const p = ctx.authority.profile;
-    const offers = shopOffers(ctx.authority.now()).filter((o) => o.category === tab);
+    const offers = sortedOffers(tab);
     if (!selected && offers.length) selected = offers[0].id;
     grid.replaceChildren(
       ...offers.map((o) => {
@@ -166,6 +175,7 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
     );
     if (!offers.length) grid.replaceChildren(h('p', { class: 'muted' }, t('Coming soon')));
     renderDetail(offers.find((o) => o.id === selected) ?? null);
+    if (tab === 'bundles') void appendPackBundles();
   };
 
   const renderDetail = (o: ShopOffer | null) => {
@@ -265,7 +275,7 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
       );
     } else actions.append(h('span', { class: 'chip' }, t('Owned')));
     body.push(actions);
-    body.push(h('p', { class: 'small muted', style: 'margin-top:10px' }, 'Cosmetics never change speed, jumps or hitboxes.'));
+    body.push(h('p', { class: 'small muted shop-note', style: 'margin-top:10px' }, 'Cosmetics never change speed, jumps or hitboxes.'));
     detail.replaceChildren(...body.filter(Boolean) as HTMLElement[]);
   };
 
@@ -312,23 +322,27 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
     );
   };
 
-  const renderGems = async () => {
-    const svc = ctx.purchases;
-    grid.replaceChildren(h('div', { class: 'spinner' }));
-    detail.replaceChildren();
+  /** Real-money cosmetic sets (no Gems inside) belong with the other bundles. */
+  const isCosmeticPack = (o: ProductOffer) => !!o.product.grants.cosmetics?.length && !o.product.grants.gems;
+
+  const appendPackBundles = async () => {
     let offers: ProductOffer[] = [];
     try {
-      offers = await svc.loadOffers();
+      offers = await ctx.purchases.loadOffers();
     } catch {
       offers = [];
     }
-    if (tab !== 'gems') return;
-    grid.replaceChildren(
-      ...offers.map((o) =>
-        h(
+    if (tab !== 'bundles') return;
+    grid.querySelectorAll('.pack-card').forEach((n) => n.remove());
+    grid.append(...offers.filter(isCosmeticPack).map(productCard));
+  };
+
+  const productCard = (o: ProductOffer) => {
+    const svc = ctx.purchases;
+    return h(
           'div',
           {
-            class: 'card',
+            class: `card ${isCosmeticPack(o) ? 'pack-card' : ''}`,
             style: o.product.grants.cosmetics?.length ? 'cursor:pointer' : 'cursor:default',
             // Sets with cosmetics are tried on the animal when tapped.
             onClick: o.product.grants.cosmetics?.length ? () => previewItems(o.product.grants.cosmetics!) : undefined,
@@ -349,9 +363,21 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
                   o.test ? h('span', { class: 'chip chip--test' }, t('TEST')) : null,
                 )
             : h('span', { class: 'chip' }, t('Not available')),
-        ),
-      ),
-    );
+        );
+  };
+
+  const renderGems = async () => {
+    const svc = ctx.purchases;
+    grid.replaceChildren(h('div', { class: 'spinner' }));
+    detail.replaceChildren();
+    let offers: ProductOffer[] = [];
+    try {
+      offers = await svc.loadOffers();
+    } catch {
+      offers = [];
+    }
+    if (tab !== 'gems') return;
+    grid.replaceChildren(...offers.filter((o) => !isCosmeticPack(o)).map(productCard));
     detail.replaceChildren(
       h('h2', { class: 'panel__title' }, t('Gem Store')),
       svc.available
