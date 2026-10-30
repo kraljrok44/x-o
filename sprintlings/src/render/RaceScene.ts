@@ -84,6 +84,9 @@ const SHADOW_SKIP = 1e9;
  * parallax backdrop, the course, hazards, pickups, the monsters and all
  * effects. Reads the simulation, never writes it.
  */
+/** Course length pre-rendered during the loading screen (the rest streams in ahead of the camera). */
+const PRELOAD_AHEAD = 90;
+
 export class RaceScene {
   readonly camera = new Camera2D();
   private readonly bg: Background;
@@ -120,6 +123,15 @@ export class RaceScene {
 
   /** Kept for API compatibility with the previous renderer; nothing heavy to load. */
   async loadExtras(): Promise<void> {}
+
+  /**
+   * Loading-screen work, a slice per call: pre-renders the course ahead of the
+   * start so the race opens without hitches. Returns progress 0..1.
+   */
+  preload(budgetMs: number): number {
+    this.resize();
+    return this.world.prepareChunks(this.camera.left, PRELOAD_AHEAD, this.camera.scale * this.gr.pixelRatio, budgetMs);
+  }
 
   resize(): void {
     this.camera.resize(this.gr.width, this.gr.height);
@@ -299,7 +311,7 @@ export class RaceScene {
     const R = cam.right;
     const B = cam.bottom - 1;
     this.world.drawPitShade(ctx, L, R, B);
-    this.world.drawTerrain(ctx, L, R, B);
+    this.world.drawTerrain(ctx, L, R, B, cam, pr);
     if (!this.lowQ) this.world.drawDecor(ctx, L, R, this.time);
     this.world.drawStartFinish(ctx, L, R, this.time);
     this.world.drawPlatforms(ctx, L, R);

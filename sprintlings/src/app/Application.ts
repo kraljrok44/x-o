@@ -247,6 +247,7 @@ export class Application implements AppContext {
           race.begin();
         },
         () => this.toMenu(),
+        () => race.preload(),
       ),
     );
   }

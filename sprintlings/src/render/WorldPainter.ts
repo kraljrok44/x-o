@@ -14,6 +14,7 @@ import {
   type Point,
 } from '../obstacles/ObstacleBase';
 import type { GraphicsQuality } from './GameRenderer';
+import type { Camera2D } from './Camera2D';
 import type { BiomeTheme } from './BiomeTheme';
 import { ellipse, hash, mix, noise1, rgba, roundRect, shade, star, tint, type Ctx } from './draw';
 
@@ -31,6 +32,14 @@ interface Run {
   x0: number;
   x1: number;
   minY: number;
+}
+
+interface Chunk {
+  canvas: HTMLCanvasElement | null;
+  x0: number;
+  /** World y of the canvas top and bottom rows. */
+  top: number;
+  bot: number;
 }
 
 interface Decor {
@@ -149,7 +158,21 @@ export class WorldPainter {
     ctx.fillRect(left, bottom, right - left, top - bottom);
   }
 
-  drawTerrain(ctx: Ctx, left: number, right: number, bottom: number): void {
+  /**
+   * Terrain. With a camera, the static details (strata, pebbles, grass,
+   * flowers) come from pre-rendered chunks and only the soil body is drawn
+   * live; without one everything is drawn directly.
+   */
+  drawTerrain(ctx: Ctx, left: number, right: number, bottom: number, cam?: Camera2D, pr = 1): void {
+    if (!cam || this.quality === 'low') {
+      this.paintTerrain(ctx, left, right, bottom, 'all');
+      return;
+    }
+    this.paintTerrain(ctx, left, right, bottom, 'body');
+    this.blitChunks(ctx, left, right, cam, pr);
+  }
+
+  private paintTerrain(ctx: Ctx, left: number, right: number, bottom: number, mode: 'all' | 'body' | 'details'): void {
     const th = this.th;
     const flat = this.quality === 'low';
     for (const run of this.runs) {
@@ -174,7 +197,20 @@ export class WorldPainter {
         g.addColorStop(1, th.soilDeep);
         ctx.fillStyle = g;
       }
-      ctx.fill();
+      const outline = () => {
+        ctx.beginPath();
+        ctx.moveTo(pts[i0], bottom);
+        for (let i = i0; i <= i1; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+        ctx.lineTo(pts[i1], bottom);
+        ctx.lineWidth = OL_W;
+        ctx.strokeStyle = th.outline;
+        ctx.stroke();
+      };
+      if (mode !== 'details') ctx.fill();
+      if (mode === 'body') {
+        outline();
+        continue;
+      }
 
       ctx.save();
       ctx.clip();
@@ -250,19 +286,106 @@ export class WorldPainter {
       ctx.restore();
 
       // Outline: top polyline and both ends down to the bottom.
-      ctx.beginPath();
-      ctx.moveTo(pts[i0], bottom);
-      for (let i = i0; i <= i1; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
-      ctx.lineTo(pts[i1], bottom);
-      ctx.lineWidth = OL_W;
-      ctx.strokeStyle = th.outline;
-      ctx.stroke();
+      outline();
       // Tufts soften the outline, so they go on top of it.
       if (!flat && th.id !== 'snow') {
         this.paintGrass(ctx, pts, left, right);
         this.drawFlowers(ctx, pts, left, right);
       }
     }
+  }
+
+  /** Chunks right of the view kept ready; built one per frame so the race never stalls on them. */
+  private static readonly CHUNK = 8;
+  private readonly chunks = new Map<number, Chunk>();
+  private chunkPx = 0;
+
+  private buildChunk(i: number, px: number): Chunk {
+    const C = WorldPainter.CHUNK;
+    const x0 = i * C;
+    const lo0 = x0 - 1.5;
+    const hi0 = x0 + C + 1.5;
+    let hi = -Infinity;
+    let lo = Infinity;
+    for (const run of this.runs) {
+      if (run.x1 < lo0 || run.x0 > hi0) continue;
+      const p = run.pts;
+      for (let k = 0; k + 2 < p.length; k += 2) {
+        if (p[k + 2] < lo0 || p[k] > hi0) continue;
+        hi = Math.max(hi, p[k + 1], p[k + 3]);
+        lo = Math.min(lo, p[k + 1], p[k + 3]);
+      }
+    }
+    if (hi === -Infinity) return { canvas: null, x0, top: 0, bot: 0 };
+    const top = hi + 0.8;
+    const bot = lo - 4.8;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(C * px) + 2;
+    canvas.height = Math.ceil((top - bot) * px) + 2;
+    const c = canvas.getContext('2d')!;
+    c.setTransform(px, 0, 0, -px, -x0 * px, top * px);
+    this.paintTerrain(c, lo0, hi0, bot - 1, 'details');
+    return { canvas, x0, top, bot };
+  }
+
+  private chunk(i: number, px: number): Chunk {
+    let ch = this.chunks.get(i);
+    if (!ch) {
+      ch = this.buildChunk(i, px);
+      this.chunks.set(i, ch);
+    }
+    return ch;
+  }
+
+  /** Builds missing chunks from x forward within a time budget; returns the share ready (0..1). */
+  prepareChunks(x: number, ahead: number, px: number, budgetMs: number): number {
+    if (this.quality === 'low') return 1;
+    if (px !== this.chunkPx) {
+      this.chunks.clear();
+      this.chunkPx = px;
+    }
+    const C = WorldPainter.CHUNK;
+    const first = Math.floor(x / C);
+    const last = Math.floor((x + ahead) / C);
+    const t0 = performance.now();
+    let ready = 0;
+    for (let i = first; i <= last; i++) {
+      if (!this.chunks.has(i) && performance.now() - t0 > budgetMs) continue;
+      this.chunk(i, px);
+      ready++;
+    }
+    return ready / (last - first + 1);
+  }
+
+  private blitChunks(ctx: Ctx, left: number, right: number, cam: Camera2D, pr: number): void {
+    const C = WorldPainter.CHUNK;
+    const px = cam.scale * pr;
+    if (px !== this.chunkPx) {
+      this.chunks.clear();
+      this.chunkPx = px;
+    }
+    const first = Math.floor(left / C);
+    const last = Math.floor(right / C);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    for (let i = first; i <= last; i++) {
+      const ch = this.chunk(i, px);
+      if (!ch.canvas) continue;
+      const dx = Math.round(cam.sx(ch.x0) * pr);
+      const dx2 = Math.round(cam.sx(ch.x0 + C) * pr);
+      const dy = Math.round(cam.sy(ch.top) * pr);
+      const dy2 = Math.round(cam.sy(ch.bot) * pr);
+      ctx.drawImage(ch.canvas, 0, 0, C * px, (ch.top - ch.bot) * px, dx, dy, dx2 - dx, dy2 - dy);
+    }
+    ctx.restore();
+    // Stay ahead: at most one new chunk per frame, and forget the ones far behind.
+    for (let i = last + 1; i <= last + 3; i++) {
+      if (!this.chunks.has(i)) {
+        this.chunk(i, px);
+        break;
+      }
+    }
+    for (const k of this.chunks.keys()) if (k < first - 2 || k > last + 12) this.chunks.delete(k);
   }
 
   /** Painted soil: strata following the surface, soft brush dabs and a shadow under the grass lip. */

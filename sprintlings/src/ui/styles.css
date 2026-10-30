@@ -594,3 +594,32 @@ body.touch-on .hud-emotes { bottom: auto; top: 30%; flex-direction: column; }
   .side-panel .shop-detail .btn { min-height: 34px; padding: 3px 12px; font-size: 14px; }
   .side-panel .shop-detail { gap: 2px 10px; }
 }
+
+/* Loading bar on the pre-race lobby. */
+.load-bar {
+  position: relative;
+  height: 26px;
+  border-radius: 13px;
+  background: rgba(27, 21, 48, 0.55);
+  border: 2px solid #3a1f10;
+  overflow: hidden;
+}
+.load-bar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: linear-gradient(180deg, #ffd66b, #f29a2e);
+  transition: width 0.15s ease-out;
+}
+.load-bar.done .load-bar__fill {
+  background: linear-gradient(180deg, #8be36b, #3fae3a);
+}
+.load-bar__text {
+  position: relative;
+  text-align: center;
+  line-height: 22px;
+  font-weight: 700;
+  color: #fff;
+  -webkit-text-stroke: 0.6px #3a1f10;
+  text-shadow: 0 1px 0 #3a1f10;
+}

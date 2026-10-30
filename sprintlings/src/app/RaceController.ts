@@ -101,6 +101,11 @@ export class RaceController {
     return { el: this.hud.el, onBack: () => (this.togglePause(), true) };
   }
 
+  /** Loading screen step: pre-renders the course a slice at a time. Returns progress 0..1. */
+  preload(): number {
+    return this.scene.preload(8);
+  }
+
   begin(): void {
     this.phase = 'racing';
     this.ctx.input.reset();
@@ -417,7 +422,9 @@ export class RaceController {
           hint = `${t('Jump!')} · ${t('Hold jump to jump higher')}`;
           break;
         }
-        if (g - b.y > 0.35) {
+        // A real ledge face (a sudden rise), not a hill you simply run up.
+        const before = sim.track.solidTop(x - 0.1);
+        if (g - b.y > 0.35 && !Number.isNaN(before) && g - before > 0.3) {
           hint = `${t('Jump up the step!')} · ${t('Hold jump to jump higher')}`;
           break;
         }

@@ -50,6 +50,7 @@ export class Background {
   private vignette: CanvasGradient | null = null;
   private vignetteCanvas: HTMLCanvasElement | null = null;
   private rays: HTMLCanvasElement | null = null;
+  private sky: HTMLCanvasElement | null = null;
   private haze: CanvasGradient | null = null;
 
   constructor(
@@ -82,7 +83,8 @@ export class Background {
     vg.addColorStop(1, rgba(th.outline, th.night ? 0.42 : 0.26));
     this.vignette = vg;
     this.rays = this.quality === 'low' || th.night ? null : this.buildRays(w, h);
-    this.vignetteCanvas = this.quality === 'low' ? null : this.buildVignette(w, h);
+    this.sky = this.buildSky(w, h, pr);
+    this.vignetteCanvas = this.quality === 'high' ? this.buildVignette(w, h, pr) : null;
     const m = document.createElement('canvas');
     m.width = m.height = 64;
     const mc = m.getContext('2d')!;
@@ -429,12 +431,8 @@ export class Background {
   draw(ctx: Ctx, w: number, h: number, pr: number, camX: number, camY: number, scale: number, time: number): void {
     this.build(ctx, w, h, pr);
     const th = this.theme;
-    ctx.fillStyle = this.skyGrad!;
-    ctx.fillRect(0, 0, w, h);
-
-    // Sun / moon and stars.
-    const sunX = w * 0.78;
-    const sunY = h * 0.2;
+    // Sky, sun or moon, rays and horizon haze come pre-rendered in one opaque copy.
+    ctx.drawImage(this.sky!, 0, 0, w, h);
     if (th.night) {
       for (const s of this.stars) {
         ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(time * 0.8 + s.tw));
@@ -445,6 +443,70 @@ export class Background {
       }
       ctx.globalAlpha = 1;
     }
+
+    // Clouds drift on their own and with a little parallax.
+    if (this.cloud) {
+      const cw = this.cloud.width / pr;
+      const ch = this.cloud.height / pr;
+      for (let i = 0; i < 5; i++) {
+        const span = w + cw * 2;
+        const x = ((((hash(i * 2.7) * span - camX * scale * 0.04 - time * (8 + i * 3)) % span) + span) % span) - cw;
+        const y = h * (0.06 + hash(i * 5.1) * 0.28);
+        const s = 0.6 + hash(i * 1.3) * 0.7;
+        ctx.drawImage(this.cloud, x, y, cw * s, ch * s);
+      }
+    }
+
+    // Silhouette layers, tiled.
+    const horizon = h * 0.62;
+    for (const l of this.layers) {
+      const lw = l.canvas.width / pr;
+      const lh = l.canvas.height / pr;
+      // Whole device pixels: a 1:1 copy skips the costly resampling of a fractional offset.
+      const top = Math.round((horizon + l.offset + camY * scale * l.py) * pr) / pr;
+      let x0 = Math.round((-(((camX * scale * l.px) % lw) + lw) % lw) * pr) / pr;
+      for (; x0 < w; x0 += lw) ctx.drawImage(l.canvas, x0, top, lw, lh);
+      if (top + lh < h) {
+        ctx.fillStyle = l === this.layers[this.layers.length - 1] ? th.near : th.mid;
+        ctx.fillRect(0, top + lh - 1, w, h - top - lh + 1);
+      }
+    }
+  }
+
+  /**
+   * Screen-space finish drawn over the world: drifting light motes and a soft
+   * vignette. Both stay clear of the middle of the screen where racing happens.
+   */
+  drawOverlay(ctx: Ctx, w: number, h: number, camX: number, scale: number, time: number): void {
+    if (this.quality === 'low' || !this.mote) return;
+    const u = h / 720;
+    for (let i = 0; i < 16; i++) {
+      const depth = 0.4 + hash(i * 9.7) * 0.8;
+      const span = w + 80;
+      const x = ((((hash(i * 4.3) * span - camX * scale * depth * 0.5 - time * (6 + i)) % span) + span) % span) - 40;
+      const y = h * (0.08 + hash(i * 2.9) * 0.8) + Math.sin(time * (0.5 + hash(i) * 0.6) + i) * 14 * u;
+      const r = (4 + hash(i * 6.1) * 10) * u * depth;
+      ctx.globalAlpha = (0.25 + 0.35 * Math.abs(Math.sin(time * 0.9 + i * 2.1))) * (this.theme.night ? 1 : 0.7);
+      ctx.drawImage(this.mote, x - r, y - r, r * 2, r * 2);
+    }
+    ctx.globalAlpha = 1;
+    if (this.vignetteCanvas) ctx.drawImage(this.vignetteCanvas, 0, 0, w, h);
+  }
+
+  /** The static sky: gradient, horizon haze, sun glow and disc (or moon) and sun rays. */
+  private buildSky(w: number, h: number, pr: number): HTMLCanvasElement {
+    const th = this.theme;
+    const c = document.createElement('canvas');
+    c.width = Math.ceil(w * pr);
+    c.height = Math.ceil(h * pr);
+    const ctx = c.getContext('2d')!;
+    ctx.scale(pr, pr);
+    ctx.fillStyle = this.skyGrad!;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = this.haze!;
+    ctx.fillRect(0, 0, w, h);
+    const sunX = w * 0.78;
+    const sunY = h * 0.2;
     const glow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, h * 0.25);
     glow.addColorStop(0, rgba(th.sun, 0.7));
     glow.addColorStop(1, rgba(th.sun, 0));
@@ -473,64 +535,11 @@ export class Background {
       ctx.fillStyle = sg;
       ctx.fill();
     }
-
-    // Clouds drift on their own and with a little parallax.
-    if (this.cloud) {
-      const cw = this.cloud.width / pr;
-      const ch = this.cloud.height / pr;
-      for (let i = 0; i < 5; i++) {
-        const span = w + cw * 2;
-        const x = ((((hash(i * 2.7) * span - camX * scale * 0.04 - time * (8 + i * 3)) % span) + span) % span) - cw;
-        const y = h * (0.06 + hash(i * 5.1) * 0.28);
-        const s = 0.6 + hash(i * 1.3) * 0.7;
-        ctx.drawImage(this.cloud, x, y, cw * s, ch * s);
-      }
-    }
-
-    // Silhouette layers, tiled.
-    const horizon = h * 0.62;
-    for (const l of this.layers) {
-      const lw = l.canvas.width / pr;
-      const lh = l.canvas.height / pr;
-      const top = horizon + l.offset + camY * scale * l.py;
-      let x0 = -(((camX * scale * l.px) % lw) + lw) % lw;
-      for (; x0 < w; x0 += lw) ctx.drawImage(l.canvas, x0, top, lw, lh);
-      if (top + lh < h) {
-        ctx.fillStyle = l === this.layers[this.layers.length - 1] ? th.near : th.mid;
-        ctx.fillRect(0, top + lh - 1, w, h - top - lh + 1);
-      }
-    }
-    // Sun rays falling across the scenery (pre-rendered at low resolution, gently breathing).
     if (this.rays) {
-      ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.85 + Math.sin(time * 0.4) * 0.15;
       ctx.drawImage(this.rays, 0, 0, w, h);
-      ctx.restore();
     }
-    // Atmospheric haze, thickest at the horizon, pushes the scenery back so the course and its hazards pop.
-    ctx.fillStyle = this.haze!;
-    ctx.fillRect(0, 0, w, h);
-  }
-
-  /**
-   * Screen-space finish drawn over the world: drifting light motes and a soft
-   * vignette. Both stay clear of the middle of the screen where racing happens.
-   */
-  drawOverlay(ctx: Ctx, w: number, h: number, camX: number, scale: number, time: number): void {
-    if (this.quality === 'low' || !this.mote) return;
-    const u = h / 720;
-    for (let i = 0; i < 16; i++) {
-      const depth = 0.4 + hash(i * 9.7) * 0.8;
-      const span = w + 80;
-      const x = ((((hash(i * 4.3) * span - camX * scale * depth * 0.5 - time * (6 + i)) % span) + span) % span) - 40;
-      const y = h * (0.08 + hash(i * 2.9) * 0.8) + Math.sin(time * (0.5 + hash(i) * 0.6) + i) * 14 * u;
-      const r = (4 + hash(i * 6.1) * 10) * u * depth;
-      ctx.globalAlpha = (0.25 + 0.35 * Math.abs(Math.sin(time * 0.9 + i * 2.1))) * (this.theme.night ? 1 : 0.7);
-      ctx.drawImage(this.mote, x - r, y - r, r * 2, r * 2);
-    }
-    ctx.globalAlpha = 1;
-    if (this.vignetteCanvas) ctx.drawImage(this.vignetteCanvas, 0, 0, w, h);
+    return c;
   }
 
   /** Quarter-resolution canvas: full-screen soft effects are fill-rate heavy on phones. */
@@ -544,11 +553,16 @@ export class Background {
     return c;
   }
 
-  private buildVignette(w: number, h: number): HTMLCanvasElement {
-    return this.lowRes(w, h, (c) => {
-      c.fillStyle = this.vignette!;
-      c.fillRect(0, 0, w, h);
-    });
+  private buildVignette(w: number, h: number, pr: number): HTMLCanvasElement {
+    // Full resolution: a 1:1 copy is far cheaper than a scaled one every frame.
+    const c = document.createElement('canvas');
+    c.width = Math.ceil(w * pr);
+    c.height = Math.ceil(h * pr);
+    const cx = c.getContext('2d')!;
+    cx.scale(pr, pr);
+    cx.fillStyle = this.vignette!;
+    cx.fillRect(0, 0, w, h);
+    return c;
   }
 
   private buildRays(w: number, h: number): HTMLCanvasElement {
