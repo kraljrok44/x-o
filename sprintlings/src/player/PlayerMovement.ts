@@ -4,7 +4,7 @@ import { applyHit, terrainSpeedFactor, tickStatuses } from '../abilities/StatusE
 import { makeContactResult, resolveHazardContacts, stunFor, type ContactResult } from '../physics/CollisionResolver';
 import { groundUnder, hasFallenOut } from '../physics/GroundDetection';
 import type { BodyInput, MovementWorld } from '../physics/PhysicsWorld';
-import type { RacerBody } from '../game/RaceState';
+import { NOOSE_HIT, type RacerBody } from '../game/RaceState';
 import type { PassiveModifiers } from './CharacterAbilities';
 import { enterFall, enterRespawn, finishRespawn } from './PlayerStateMachine';
 
@@ -248,6 +248,13 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
   const snare = world.touchSnare(racer, body);
   if (snare >= 0) {
     const outcome = applyHit(body, mods, snare, cfg.stun.snare, false);
+    if (outcome === 'stunned' && snare >= NOOSE_HIT) {
+      // Rope trap: yanked up off the trail, then dropped.
+      body.vy = 7.5;
+      body.grounded = false;
+      body.pieceId = -1;
+      body.stun += 0.3;
+    }
     if (outcome !== 'ignored') world.emit(outcome === 'blocked' ? 'shieldBlock' : 'hit', racer, snare, body);
   }
 

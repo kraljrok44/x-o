@@ -56,7 +56,14 @@ export function tryUseAbility(sim: RaceSimulation, racer: Racer): UseResult {
     case 'lasso': {
       if (b.stun > 0) return 'invalid';
       const target = nearestRivalAhead(sim, racer.index, AbilityTuning.lasso.range);
-      if (target < 0) return 'invalid';
+      if (target < 0) {
+        // Nobody to rope: lay it on the trail behind as a rope trap instead.
+        const x = b.x - AbilityTuning.lasso.trapBehind;
+        const g = sim.track.groundBelow(x, b.y + 0.4, -1, true);
+        if (Number.isNaN(g) || b.y - g > 3) return 'invalid';
+        sim.entities.push({ kind: 'noose', id: sim.nextEntityId++, owner: racer.index, x, y: g, ttl: AbilityTuning.lasso.trapTime, alive: true, sprung: -1 });
+        break;
+      }
       const tr = sim.racers[target];
       const outcome = applyHit(tr.body, tr.mods, 320000 + sim.tick, AbilityTuning.lasso.stun, false);
       if (outcome === 'stunned') {

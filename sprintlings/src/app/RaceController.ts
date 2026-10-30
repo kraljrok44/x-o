@@ -207,10 +207,10 @@ export class RaceController {
       owner = e.value;
       icon = ABILITIES.seeker.icon;
     } else if (e.type === 'hit' && e.value >= 200000) {
-      const ent = sim.entities.find((x) => x.id === e.value - 200000);
+      const ent = sim.entities.find((x) => x.id === e.value % 100000);
       if (ent) {
         owner = ent.owner;
-        icon = ABILITIES.snare.icon;
+        icon = ent.kind === 'noose' ? ABILITIES.lasso.icon : ABILITIES.snare.icon;
       }
     } else if (e.type === 'abilityHit') {
       owner = e.value;

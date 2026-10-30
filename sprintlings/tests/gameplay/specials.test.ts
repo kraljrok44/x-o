@@ -27,12 +27,13 @@ describe('new powerups', () => {
     expect(sim.racers[1].body.stun).toBeGreaterThan(0);
   });
 
-  it('Lasso is not wasted with nobody in range', () => {
+  it('Lasso is never stuck: with nobody in range it is laid as a trap', () => {
     const sim = duo();
     sim.racers[1].body.x = sim.racers[0].body.x + 30;
     sim.racers[0].item = 'lasso';
     sim.step([input({ use: true }), input({})]);
-    expect(sim.racers[0].item).toBe('lasso');
+    expect(sim.racers[0].item).toBeNull();
+    expect(sim.entities.some((e) => e.kind === 'noose' && e.alive)).toBe(true);
   });
 
   it('Thunder strikes the leader after a warning', () => {
@@ -166,5 +167,27 @@ describe('animal specials', () => {
     sim.racers[0].item = 'lasso';
     sim.step([input({ use: true }), input({})]);
     expect(sim.racers[1].body.stun).toBe(0);
+  });
+});
+
+describe('lasso rope trap', () => {
+  it('with nobody ahead the lasso becomes a rope trap that yanks a rival up', () => {
+    const sim = duo();
+    // Rival well behind: nobody in lasso range ahead.
+    sim.racers[1].body.x = sim.racers[0].body.x - 8;
+    sim.racers[0].item = 'lasso';
+    sim.step([input({ use: true }), input({})]);
+    expect(sim.racers[0].item).toBeNull();
+    const trap = sim.entities.find((e) => e.kind === 'noose');
+    expect(trap).toBeDefined();
+    let caught = false;
+    let maxLift = 0;
+    for (let i = 0; i < 120; i++) {
+      for (const e of sim.step(idle)) if (e.type === 'hit' && e.racer === 1 && e.value >= 400000) caught = true;
+      if (caught) maxLift = Math.max(maxLift, sim.racers[1].body.y - trap!.y);
+    }
+    expect(caught).toBe(true);
+    expect(maxLift).toBeGreaterThan(0.5);
+    expect(sim.racers[0].body.stun).toBe(0);
   });
 });

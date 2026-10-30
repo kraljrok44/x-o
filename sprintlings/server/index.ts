@@ -118,6 +118,10 @@ export async function startServer(overrides: Partial<ServerConfig> = {}, opts: {
     }
   });
 
+  // Clients (and load balancers) reuse idle sockets; Node's 5 s default closes them under a request in flight.
+  server.keepAliveTimeout = 65_000;
+  server.headersTimeout = 66_000;
+
   const matchmaking = new MatchmakingService(server, repo, accounts, { waitMs: opts.matchWaitMs });
   await new Promise<void>((resolve) => server.listen(cfg.port, resolve));
   const address = server.address();

@@ -8,7 +8,7 @@ import { collectItemBoxes, tryUseAbility } from '../abilities/AbilityController'
 import { ITEM_LIFETIME } from '../abilities/AbilityDefinition';
 import { stepStampedes, trySpecial } from '../abilities/SpecialAbility';
 import { stepBombs, stepSeekers, stepThunder } from '../abilities/ProjectileSystem';
-import { AbilityTuning, type AbilityId } from '../abilities/AbilityDefinition';
+import type { AbilityId } from '../abilities/AbilityDefinition';
 import type { MovementWorld, BodyInput } from '../physics/PhysicsWorld';
 import { makeBodyInput } from '../physics/PhysicsWorld';
 import { AIController } from '../ai/AIController';
@@ -18,6 +18,7 @@ import {
   NO_INPUT,
   emptyStats,
   makeBody,
+  trapTouched,
   type Entity,
   type RaceEvent,
   type RaceEventType,
@@ -212,16 +213,16 @@ export class RaceSimulation implements MovementWorld {
   }
 
   touchSnare(racer: number, body: RacerBody): number {
-    if (body.invuln > 0) return -1;
-    const tune = AbilityTuning.snare;
-    for (const e of this.entities) {
-      if (e.kind !== 'snare' || !e.alive || this.sameTeam(e.owner, racer)) continue;
-      if (Math.abs(e.x - body.x) > tune.halfWidth + GameplayConfig.hitbox.halfWidth) continue;
-      if (body.y > e.y + tune.height || body.y + GameplayConfig.hitbox.height < e.y) continue;
-      e.alive = false;
-      return 200000 + e.id;
+    const code = trapTouched(this.entities, racer, body, (a, b) => this.sameTeam(a, b));
+    if (code < 0) return -1;
+    const e = this.entities.find((x) => x.id === code % 100000);
+    if (e?.kind === 'snare') e.alive = false;
+    else if (e?.kind === 'noose') {
+      // Spring the trap; it stays a moment so the snap can be seen.
+      e.sprung = 0;
+      e.ttl = 0.8;
     }
-    return -1;
+    return code;
   }
 
   // --- stepping ---------------------------------------------------------------
@@ -277,6 +278,7 @@ export class RaceSimulation implements MovementWorld {
     for (const e of this.entities) {
       if (e.kind === 'seeker' || e.kind === 'thunder' || e.kind === 'bomb' || !e.alive) continue;
       e.ttl -= dt;
+      if (e.kind === 'noose' && e.sprung >= 0) e.sprung += dt;
       if (e.ttl <= 0) e.alive = false;
     }
     if (this.tick % 120 === 0) this.compactEntities();

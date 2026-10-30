@@ -193,6 +193,39 @@ export interface SnareEntity {
   alive: boolean;
 }
 
+/** Rope trap laid by a lasso: a bent sapling with a noose that yanks a rival up. */
+export interface NooseEntity {
+  kind: 'noose';
+  id: number;
+  owner: number;
+  x: number;
+  y: number;
+  ttl: number;
+  alive: boolean;
+  /** Seconds since it caught someone (-1 while still set). */
+  sprung: number;
+}
+
+/** Hit codes a ground trap reports (dynamite 200000+id, rope trap 400000+id). */
+export const SNARE_HIT = 200000;
+export const NOOSE_HIT = 400000;
+
+/** The armed ground trap (dynamite or rope) a racer touches, as a hit code, or -1. */
+export function trapTouched(entities: readonly Entity[], racer: number, body: RacerBody, sameTeam: (a: number, b: number) => boolean): number {
+  if (body.invuln > 0) return -1;
+  for (const e of entities) {
+    if ((e.kind !== 'snare' && e.kind !== 'noose') || !e.alive || sameTeam(e.owner, racer)) continue;
+    if (e.kind === 'noose' && e.sprung >= 0) continue;
+    const tune = TRAP_SIZE[e.kind];
+    if (Math.abs(e.x - body.x) > tune.halfWidth + GameplayConfig.hitbox.halfWidth) continue;
+    if (body.y > e.y + tune.height || body.y + GameplayConfig.hitbox.height < e.y) continue;
+    return (e.kind === 'snare' ? SNARE_HIT : NOOSE_HIT) + e.id;
+  }
+  return -1;
+}
+
+const TRAP_SIZE = { snare: { halfWidth: 0.45, height: 0.7 }, noose: { halfWidth: 0.5, height: 0.45 } } as const;
+
 export interface SapEntity {
   kind: 'sap';
   id: number;
@@ -229,7 +262,7 @@ export interface BombEntity {
   alive: boolean;
 }
 
-export type Entity = SeekerEntity | SnareEntity | SapEntity | ThunderEntity | BombEntity;
+export type Entity = SeekerEntity | SnareEntity | NooseEntity | SapEntity | ThunderEntity | BombEntity;
 
 export type RaceEventType =
   | 'countdown'

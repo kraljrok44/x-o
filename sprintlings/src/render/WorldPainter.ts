@@ -1219,7 +1219,7 @@ export class WorldPainter {
       if (!e.alive) continue;
       const pulse = 0.5 + 0.5 * Math.sin(time * 10);
       // Rival traps get a big pulsing danger halo of their own.
-      if (e.kind === 'snare' || e.kind === 'sap' || e.kind === 'bomb') {
+      if (e.kind === 'snare' || e.kind === 'sap' || e.kind === 'bomb' || (e.kind === 'noose' && e.sprung < 0)) {
         const cx = e.kind === 'sap' ? (e.x0 + e.x1) / 2 : e.x;
         const cy = e.y + (e.kind === 'bomb' ? 0.25 : 0.35);
         const rx = e.kind === 'sap' ? (e.x1 - e.x0) / 2 + 0.7 : 1.1;
@@ -1354,6 +1354,69 @@ export class WorldPainter {
         star(ctx, 0, 0.45, 0.09 + pulse * 0.05, 0.4, 6, time * 10);
         ctx.fillStyle = pulse > 0.5 ? '#ffd23f' : '#ff6a2e';
         ctx.fill();
+        ctx.restore();
+      } else if (e.kind === 'noose') {
+        // Rope trap: a bent sapling held down by a peg, its noose laid on the trail.
+        const rope = (path: () => void, w: number) => {
+          ctx.beginPath();
+          path();
+          ctx.lineWidth = w + 0.035;
+          ctx.strokeStyle = '#2a1a10';
+          ctx.stroke();
+          ctx.lineWidth = w;
+          ctx.strokeStyle = '#d9b07a';
+          ctx.stroke();
+        };
+        const base = e.x - 0.75;
+        ctx.save();
+        if (e.sprung < 0) {
+          const tipX = e.x - 0.05;
+          const tipY = e.y + 0.75 + Math.sin(time * 3) * 0.02;
+          rope(() => {
+            ctx.moveTo(base, e.y);
+            ctx.quadraticCurveTo(base - 0.1, e.y + 1.1, tipX, tipY);
+          }, 0.07);
+          rope(() => {
+            ctx.moveTo(tipX, tipY);
+            ctx.lineTo(e.x + 0.02, e.y + 0.1);
+          }, 0.03);
+          // The noose: a loose loop lying on the ground, with a trigger peg.
+          rope(() => ctx.ellipse(e.x, e.y + 0.05, 0.42 + pulse * 0.04, 0.09, 0, 0, Math.PI * 2), 0.045);
+          ctx.beginPath();
+          roundRect(ctx, e.x + 0.45, e.y, 0.08, 0.28, 0.02);
+          ctx.fillStyle = '#7a4a24';
+          ctx.fill();
+          ctx.lineWidth = 0.03;
+          ctx.strokeStyle = '#2a1a10';
+          ctx.stroke();
+          // Sapling leaves.
+          for (const [dx, dy] of [
+            [-0.1, 0.05],
+            [0.08, -0.04],
+          ]) {
+            ctx.beginPath();
+            ellipse(ctx, tipX + dx, tipY + dy, 0.09, 0.05, 0.5);
+            ctx.fillStyle = '#5bb04a';
+            ctx.fill();
+          }
+          drawWarning(ctx, e.x, e.y + 1.25 + Math.sin(time * 6) * 0.05);
+        } else {
+          // Snapped upright, swinging, the noose pulled tight up in the air.
+          ctx.globalAlpha *= Math.min(1, e.ttl / 0.3);
+          const sway = Math.sin(e.sprung * 22) * 0.35 * Math.exp(-e.sprung * 4);
+          const topX = base + 0.15 + sway;
+          const topY = e.y + 2.3;
+          rope(() => {
+            ctx.moveTo(base, e.y);
+            ctx.quadraticCurveTo(base + 0.05, e.y + 1.2, topX, topY);
+          }, 0.07);
+          const hang = e.y + 2.3 - Math.min(1, e.sprung * 4) * 0.9;
+          rope(() => {
+            ctx.moveTo(topX, topY);
+            ctx.lineTo(e.x, hang);
+          }, 0.03);
+          rope(() => ctx.ellipse(e.x, hang - 0.08, 0.12, 0.08, 0, 0, Math.PI * 2), 0.04);
+        }
         ctx.restore();
       } else if (e.kind === 'thunder') {
         // Storm cloud hovering over the leader, then a red warning beam.

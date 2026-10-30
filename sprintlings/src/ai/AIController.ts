@@ -229,9 +229,12 @@ export class AIController {
         use = b.stun <= 0 && t >= 0 && sim.racers[t].body.x - b.x < 40;
         break;
       }
-      case 'lasso':
-        use = b.stun <= 0 && nearestRivalAhead(sim, this.index, AbilityTuning.lasso.range) >= 0;
+      case 'lasso': {
+        // Rope a rival ahead, or lay a trap for one close behind.
+        const behind = sim.racers.some((r) => !sim.sameTeam(r.index, this.index) && r.body.phase === 'run' && b.x - r.body.x > 2.5 && b.x - r.body.x < 14 && Math.abs(r.body.y - b.y) < 1);
+        use = b.stun <= 0 && (nearestRivalAhead(sim, this.index, AbilityTuning.lasso.range) >= 0 || behind || heldFor > 6);
         break;
+      }
       case 'thunder': {
         const leader = sim.standings.find((i) => sim.racers[i].body.phase !== 'finished');
         use = leader !== undefined && !sim.sameTeam(leader, this.index);

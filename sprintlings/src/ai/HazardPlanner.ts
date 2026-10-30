@@ -3,7 +3,7 @@ import { ABILITIES, AbilityTuning } from '../abilities/AbilityDefinition';
 import { stepBody } from '../player/PlayerMovement';
 import { makeBodyInput, type BodyInput, type MovementWorld } from '../physics/PhysicsWorld';
 import type { Track } from '../game/Track';
-import { bodyHeight, copyBody, makeBody, type RaceEventType, type RacerBody, type SeekerEntity } from '../game/RaceState';
+import { bodyHeight, copyBody, makeBody, trapTouched, type RaceEventType, type RacerBody, type SeekerEntity } from '../game/RaceState';
 import type { RaceSimulation } from '../game/RaceManager';
 import { approach } from '../shared/math';
 
@@ -72,15 +72,7 @@ class PredictionWorld implements MovementWorld {
   }
 
   touchSnare(racer: number, body: RacerBody): number {
-    if (body.invuln > 0) return -1;
-    const tune = AbilityTuning.snare;
-    for (const e of this.sim.entities) {
-      if (e.kind !== 'snare' || !e.alive || this.sim.sameTeam(e.owner, racer)) continue;
-      if (Math.abs(e.x - body.x) > tune.halfWidth + GameplayConfig.hitbox.halfWidth) continue;
-      if (body.y > e.y + tune.height || body.y + GameplayConfig.hitbox.height < e.y) continue;
-      return 200000 + e.id;
-    }
-    return -1;
+    return trapTouched(this.sim.entities, racer, body, (a, b) => this.sim.sameTeam(a, b));
   }
 
   /** Advances predicted seekers aimed at this racer and reports a hit. */
@@ -322,7 +314,7 @@ export function needsPlanning(sim: RaceSimulation, racer: number, dist: number):
   for (const e of sim.entities) {
     if (!e.alive) continue;
     if (e.kind === 'seeker' && e.target === racer) return true;
-    if (e.kind === 'snare' && !sim.sameTeam(e.owner, racer) && e.x > b.x - 1 && e.x < end) return true;
+    if ((e.kind === 'snare' || e.kind === 'noose') && !sim.sameTeam(e.owner, racer) && e.x > b.x - 1 && e.x < end) return true;
     if (e.kind === 'sap' && !sim.sameTeam(e.owner, racer) && e.x1 > b.x - 1 && e.x0 < end) return true;
   }
   return false;

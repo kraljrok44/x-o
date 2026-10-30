@@ -123,7 +123,7 @@ export const ABILITIES: Record<AbilityId, AbilityDefinition> = {
   lasso: {
     id: 'lasso',
     name: 'Lasso',
-    description: 'Ropes the nearest rival just ahead and yanks them off their feet.',
+    description: 'Ropes the nearest rival just ahead. With nobody in reach it is laid on the trail as a rope trap that yanks the next rival up.',
     activationTime: 0,
     duration: 0,
     range: 7,
@@ -202,7 +202,7 @@ export const AbilityTuning = {
   },
   snare: { offsetBehind: 1.6, halfWidth: 0.45, height: 0.7 },
   sap: { offsetBehind: 1.5, length: 4.2 },
-  lasso: { range: 7, stun: 0.75 },
+  lasso: { range: 7, stun: 0.75, trapBehind: 1.4, trapTime: 12 },
   thunder: { warn: 1.0, stun: 1.0 },
   bomb: { vx: 9, vy: 7, radius: 1.6, stun: 0.85, fuse: 1.4 },
 } as const;
