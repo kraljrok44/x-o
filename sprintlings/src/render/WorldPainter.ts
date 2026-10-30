@@ -15,7 +15,7 @@ import {
 } from '../obstacles/ObstacleBase';
 import type { GraphicsQuality } from './GameRenderer';
 import type { BiomeTheme } from './BiomeTheme';
-import { ellipse, hash, mix, rgba, roundRect, shade, star, tint, type Ctx } from './draw';
+import { ellipse, hash, mix, noise1, rgba, roundRect, shade, star, tint, type Ctx } from './draw';
 
 /**
  * Paints the course in world space (+y up): terrain runs with grass caps,
@@ -155,11 +155,17 @@ export class WorldPainter {
     for (const run of this.runs) {
       if (run.x1 < left || run.x0 > right) continue;
       const pts = run.pts;
+      // Paths cover only the visible stretch (plus a margin so cut ends stay off screen):
+      // a run can span the whole course and clipping to it is costly.
+      let i0 = 0;
+      while (i0 + 2 < pts.length && pts[i0 + 2] < left - 2) i0 += 2;
+      let i1 = i0;
+      while (i1 + 2 < pts.length && pts[i1] < right + 2) i1 += 2;
       // Soil body.
       ctx.beginPath();
-      ctx.moveTo(pts[0], bottom);
-      for (let i = 0; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
-      ctx.lineTo(pts[pts.length - 2], bottom);
+      ctx.moveTo(pts[i0], bottom);
+      for (let i = i0; i <= i1; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+      ctx.lineTo(pts[i1], bottom);
       ctx.closePath();
       if (flat) ctx.fillStyle = th.soil;
       else {
@@ -172,6 +178,7 @@ export class WorldPainter {
 
       ctx.save();
       ctx.clip();
+      if (!flat) this.paintSoil(ctx, run, left, right);
       // Specks (pebbles, roots, gems) at deterministic world positions.
       if (!flat) {
         const x0 = Math.max(run.x0, left);
@@ -183,9 +190,19 @@ export class WorldPainter {
             const sx = x + hash(x * 7.1 + k) * 0.8;
             const sy = top - 0.55 - hash(x * 3.7 + k * 11) * 3.2;
             const r = 0.05 + hash(x * 9.3 + k) * 0.08;
+            const col = th.speck[(((k + Math.floor(x * 5)) % th.speck.length) + th.speck.length) % th.speck.length];
+            // Pebble with a shadowed underside and a lit top.
+            ctx.beginPath();
+            ellipse(ctx, sx + r * 0.15, sy - r * 0.2, r * 1.35, r);
+            ctx.fillStyle = rgba(th.soilDeep, 0.45);
+            ctx.fill();
             ctx.beginPath();
             ellipse(ctx, sx, sy, r * 1.3, r);
-            ctx.fillStyle = th.speck[(k + Math.floor(x * 5)) % th.speck.length];
+            ctx.fillStyle = col;
+            ctx.fill();
+            ctx.beginPath();
+            ellipse(ctx, sx - r * 0.3, sy + r * 0.35, r * 0.6, r * 0.35);
+            ctx.fillStyle = rgba(tint(col, 0.5), 0.6);
             ctx.fill();
           }
         }
@@ -194,7 +211,7 @@ export class WorldPainter {
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
       ctx.beginPath();
-      for (let i = 0; i + 3 < pts.length; i += 2) {
+      for (let i = i0; i < i1; i += 2) {
         if (Math.abs(pts[i + 2] - pts[i]) < 1e-6) continue;
         ctx.moveTo(pts[i] - 0.05, pts[i + 1]);
         ctx.lineTo(pts[i + 2] + 0.05, pts[i + 3]);
@@ -202,8 +219,8 @@ export class WorldPainter {
       ctx.lineWidth = 0.56;
       ctx.strokeStyle = th.grass;
       ctx.stroke();
-      if (!flat) {
-        // Scallops hanging under the cap.
+      if (!flat && th.id === 'snow') {
+        // Snow lumps hanging under the cap.
         ctx.fillStyle = th.grass;
         for (let i = 0; i + 3 < pts.length; i += 2) {
           const ax = pts[i];
@@ -221,7 +238,7 @@ export class WorldPainter {
         }
         // Light strip on top of the grass.
         ctx.beginPath();
-        for (let i = 0; i + 3 < pts.length; i += 2) {
+        for (let i = i0; i < i1; i += 2) {
           if (Math.abs(pts[i + 2] - pts[i]) < 1e-6) continue;
           ctx.moveTo(pts[i], pts[i + 1] - 0.08);
           ctx.lineTo(pts[i + 2], pts[i + 3] - 0.08);
@@ -234,12 +251,132 @@ export class WorldPainter {
 
       // Outline: top polyline and both ends down to the bottom.
       ctx.beginPath();
-      ctx.moveTo(pts[0], bottom);
-      for (let i = 0; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
-      ctx.lineTo(pts[pts.length - 2], bottom);
+      ctx.moveTo(pts[i0], bottom);
+      for (let i = i0; i <= i1; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+      ctx.lineTo(pts[i1], bottom);
       ctx.lineWidth = OL_W;
       ctx.strokeStyle = th.outline;
       ctx.stroke();
+      // Tufts soften the outline, so they go on top of it.
+      if (!flat && th.id !== 'snow') {
+        this.paintGrass(ctx, pts, left, right);
+        this.drawFlowers(ctx, pts, left, right);
+      }
+    }
+  }
+
+  /** Painted soil: strata following the surface, soft brush dabs and a shadow under the grass lip. */
+  private paintSoil(ctx: Ctx, run: Run, left: number, right: number): void {
+    const th = this.th;
+    const pts = run.pts;
+    // Only the visible stretch: runs can span the whole course.
+    let i0 = 0;
+    while (i0 + 2 < pts.length && pts[i0 + 2] < left - 1) i0 += 2;
+    let i1 = i0;
+    while (i1 + 2 < pts.length && pts[i1] < right + 1) i1 += 2;
+    const along = (dy: number, wobble: number) => {
+      ctx.beginPath();
+      for (let i = i0; i <= i1; i += 2) {
+        const x = pts[i];
+        const y = pts[i + 1] + dy + (wobble ? (hash(Math.round(x * 3) + dy * 7) - 0.5) * wobble : 0);
+        if (i === i0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+    };
+    ctx.lineJoin = 'round';
+    for (let k = 1; k <= 3; k++) {
+      along(-0.9 - k * 1.05, 0.12);
+      ctx.lineWidth = 0.42;
+      ctx.strokeStyle = rgba(th.soilDeep, 0.2);
+      ctx.stroke();
+      along(-0.62 - k * 1.05, 0.12);
+      ctx.lineWidth = 0.07;
+      ctx.strokeStyle = 'rgba(255,240,210,0.09)';
+      ctx.stroke();
+    }
+    const x0 = Math.max(run.x0, left);
+    const x1 = Math.min(run.x1, right);
+    for (let x = Math.floor(x0 / 1.3) * 1.3; x < x1; x += 1.3) {
+      const top = this.track.solidTop(x);
+      if (Number.isNaN(top)) continue;
+      ctx.beginPath();
+      ellipse(ctx, x + hash(x * 2.3) * 1.1, top - 0.9 - hash(x * 5.9) * 3, 0.4 + hash(x * 1.7) * 0.5, 0.14 + hash(x * 8.1) * 0.12, (hash(x) - 0.5) * 0.4);
+      ctx.fillStyle = hash(x * 4.4) > 0.5 ? 'rgba(255,240,210,0.08)' : rgba(th.soilDeep, 0.16);
+      ctx.fill();
+    }
+    // Ambient shadow tucked under the grass cap.
+    along(-0.42, 0);
+    ctx.lineWidth = 0.42;
+    ctx.strokeStyle = rgba(th.soilDeep, 0.5);
+    ctx.stroke();
+  }
+
+  /** Tufted grass: clumps of blades rising from the cap and soft wisps hanging under it. */
+  private paintGrass(ctx: Ctx, pts: number[], left: number, right: number): void {
+    const th = this.th;
+    const fills = [shade(th.grass, 0.28), mix(th.grass, th.grassLight, 0.55), shade(th.grass, 0.12)];
+    for (let pass = 0; pass < 3; pass++) {
+      ctx.beginPath();
+      for (let i = 0; i + 3 < pts.length; i += 2) {
+        const ax = pts[i];
+        const bx = pts[i + 2];
+        if (Math.abs(bx - ax) < 1e-6) continue;
+        const sx0 = Math.max(ax, left - 0.5);
+        const sx1 = Math.min(bx, right + 0.5);
+        const step = pass === 2 ? 0.23 : 0.11;
+        for (let x = Math.ceil(sx0 / step) * step; x < sx1; x += step) {
+          const n = Math.round(x / step);
+          const k = (x - ax) / (bx - ax);
+          const y = pts[i + 1] + (pts[i + 3] - pts[i + 1]) * k;
+          const r = hash(n * 1.37 + pass * 17);
+          // Clumps: blade height swells and fades along the ground.
+          const clump = noise1(x * 0.9, 3 + pass);
+          if (pass === 2) {
+            if (x - ax < 0.15 || bx - x < 0.15 || r > 0.75) continue;
+            const len = 0.08 + clump * 0.14 + r * 0.05;
+            ctx.moveTo(x - 0.1, y - 0.22);
+            ctx.quadraticCurveTo(x - 0.02, y - 0.24 - len * 0.5, x + 0.03, y - 0.24 - len);
+            ctx.quadraticCurveTo(x + 0.03, y - 0.24 - len * 0.4, x + 0.1, y - 0.22);
+            continue;
+          }
+          if (pass === 1 && r > 0.6) continue;
+          const hgt = (pass === 0 ? 0.12 : 0.07) + clump * (pass === 0 ? 0.26 : 0.18) + r * 0.06;
+          const lean = (hash(n * 2.71) - 0.3) * 0.16;
+          const wdt = pass === 0 ? 0.06 : 0.045;
+          ctx.moveTo(x - wdt, y - 0.05);
+          ctx.quadraticCurveTo(x + lean * 0.2, y + hgt * 0.65, x + lean, y + hgt);
+          ctx.quadraticCurveTo(x + lean * 0.5 + wdt * 0.3, y + hgt * 0.35, x + wdt, y - 0.05);
+        }
+      }
+      ctx.fillStyle = fills[pass];
+      ctx.fill();
+    }
+  }
+
+  /** Tiny wildflowers dotted along the grass. */
+  private drawFlowers(ctx: Ctx, pts: number[], left: number, right: number): void {
+    const colors = this.th.decor;
+    for (let i = 0; i + 3 < pts.length; i += 2) {
+      const ax = pts[i];
+      const bx = pts[i + 2];
+      if (Math.abs(bx - ax) < 1e-6) continue;
+      for (let x = Math.ceil(Math.max(ax, left) / 1.1) * 1.1; x < Math.min(bx, right); x += 1.1) {
+        const r = hash(x * 3.3);
+        if (r > 0.35 || x - ax < 0.3 || bx - x < 0.3) continue;
+        const k = (x - ax) / (bx - ax);
+        const y = pts[i + 1] + (pts[i + 3] - pts[i + 1]) * k + 0.14 + r * 0.2;
+        ctx.fillStyle = colors[Math.floor(r * 30) % colors.length];
+        ctx.beginPath();
+        for (let p = 0; p < 5; p++) {
+          const a = (p / 5) * Math.PI * 2 + r * 6;
+          ellipse(ctx, x + Math.cos(a) * 0.045, y + Math.sin(a) * 0.045, 0.04, 0.04);
+        }
+        ctx.fill();
+        ctx.fillStyle = '#fff3b0';
+        ctx.beginPath();
+        ellipse(ctx, x, y, 0.025, 0.025);
+        ctx.fill();
+      }
     }
   }
 
@@ -264,7 +401,13 @@ export class WorldPainter {
       }
       ctx.beginPath();
       roundRect(ctx, p.x0, y - h, p.x1 - p.x0, h, 0.12);
-      ctx.fillStyle = th.plank;
+      if (this.quality === 'low') ctx.fillStyle = th.plank;
+      else {
+        const g = ctx.createLinearGradient(0, y, 0, y - h);
+        g.addColorStop(0, tint(th.plank, 0.18));
+        g.addColorStop(1, shade(th.plank, 0.22));
+        ctx.fillStyle = g;
+      }
       ctx.fill();
       ctx.lineWidth = OL_W;
       ctx.strokeStyle = th.outline;

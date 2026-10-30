@@ -319,6 +319,7 @@ export class RaceScene {
 
     // --- overlays (screen space) ---------------------------------------------------
     cam.applyScreen(ctx, pr);
+    this.bg.drawOverlay(ctx, w, h, cam.x, cam.scale, this.time);
     for (const v of this.visuals) this.drawTag(ctx, v, v === me);
     for (const v of this.visuals) this.drawBubble(ctx, v, dt);
     this.drawOffscreen(ctx, fv);

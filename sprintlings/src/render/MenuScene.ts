@@ -4,7 +4,7 @@ import { Background } from './Background';
 import { BIOME_THEMES } from './BiomeTheme';
 import { cosmeticLayers, mountKind, paletteFor, trailStyle } from './Cosmetics2D';
 import { Particles } from './Particles';
-import { ellipse, shade, type Ctx } from './draw';
+import { ellipse, hash, mix, rgba, shade, tint, type Ctx } from './draw';
 import type { GameRenderer } from './GameRenderer';
 import { MonsterAnimator, emoteStyle } from './MonsterAnimator';
 import { drawMonster, makeAnchors } from './CharacterRig';
@@ -95,6 +95,7 @@ export class MenuScene {
     const h = gr.height;
     const unit = Math.min(w / 19, h / 9.5);
     this.bg.draw(ctx, w, h, pr, this.time * 1.2, 0, unit, this.time);
+    this.bg.drawOverlay(ctx, w, h, this.time * 1.2, unit, this.time);
     if (!this.loadout) return;
 
     const portrait = w < h;
@@ -213,21 +214,61 @@ export class MenuScene {
     ctx.lineTo(cx + rw * 0.25, gy + s * 0.68);
     ctx.quadraticCurveTo(cx + rw * 0.75, gy + s * 0.5, cx + rw, gy);
     ctx.closePath();
-    ctx.fillStyle = th.soil;
+    const sg = ctx.createLinearGradient(0, gy, 0, gy + s * 1.05);
+    sg.addColorStop(0, th.soil);
+    sg.addColorStop(1, th.soilDeep);
+    ctx.fillStyle = sg;
     ctx.fill();
+    // Painted strata and a shadow under the grass.
+    ctx.save();
+    ctx.clip();
+    for (let k = 0; k < 3; k++) {
+      ctx.beginPath();
+      ctx.moveTo(cx - rw, gy + s * (0.22 + k * 0.2));
+      ctx.quadraticCurveTo(cx, gy + s * (0.32 + k * 0.22), cx + rw, gy + s * (0.2 + k * 0.2));
+      ctx.lineWidth = s * 0.07;
+      ctx.strokeStyle = rgba(th.soilDeep, 0.3);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ellipse(ctx, cx, gy + s * 0.08, rw, s * 0.2);
+    ctx.fillStyle = rgba(th.soilDeep, 0.55);
+    ctx.fill();
+    ctx.restore();
     ctx.lineWidth = Math.max(2, s * 0.04);
     ctx.strokeStyle = th.outline;
     ctx.stroke();
-    // Grass top.
+    // Grass top: lit from above, darker toward the front rim.
     ctx.beginPath();
     ellipse(ctx, cx, gy, rw, s * 0.18);
-    ctx.fillStyle = th.grass;
+    const gg = ctx.createLinearGradient(0, gy - s * 0.18, 0, gy + s * 0.18);
+    gg.addColorStop(0, th.grassLight);
+    gg.addColorStop(1, shade(th.grass, 0.12));
+    ctx.fillStyle = gg;
     ctx.fill();
     ctx.stroke();
     ctx.beginPath();
-    ellipse(ctx, cx - rw * 0.15, gy - s * 0.04, rw * 0.7, s * 0.08);
-    ctx.fillStyle = th.grassLight;
+    ellipse(ctx, cx - rw * 0.2, gy - s * 0.05, rw * 0.55, s * 0.06);
+    ctx.fillStyle = rgba(tint(th.grassLight, 0.4), 0.6);
     ctx.fill();
+    // Grass tufts spilling over the front rim.
+    if (this.biome !== 'snow') {
+      for (let pass = 0; pass < 2; pass++) {
+        ctx.beginPath();
+        for (let i = 0; i < 46; i++) {
+          const a = (i / 46) * Math.PI;
+          const x = cx + Math.cos(a) * rw * 0.97;
+          const y = gy + Math.sin(a) * s * 0.17;
+          const hgt = s * (0.05 + hash(i * 3.1 + pass) * 0.08);
+          const lean = (hash(i * 1.7) - 0.5) * s * 0.05;
+          ctx.moveTo(x - s * 0.025, y + s * 0.02);
+          ctx.quadraticCurveTo(x, y - hgt * 0.6, x + lean, y - hgt);
+          ctx.quadraticCurveTo(x + lean * 0.4, y - hgt * 0.4, x + s * 0.025, y + s * 0.02);
+        }
+        ctx.fillStyle = pass === 0 ? shade(th.grass, 0.25) : mix(th.grass, th.grassLight, 0.5);
+        ctx.fill();
+      }
+    }
     // Flowers / crystals on the rim.
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2 + 0.4;
