@@ -244,6 +244,11 @@ export class RaceScene {
       case 'drop':
         p.emit({ kind: 'puff', x: e.x, y: e.y, color: 'rgba(255,255,255,0.6)', count: 3, speed: 1, size: 0.1, life: 0.3 });
         break;
+      case 'streak':
+        p.emit({ kind: 'ring', x: e.x, y: e.y + 0.6, color: '#ff8a1c', count: 1, speed: 0, size: 0.5, life: 0.45 });
+        p.emit({ kind: 'spark', x: e.x, y: e.y + 0.5, color: '#ffb020', count: 10, speed: 3.5, dir: Math.PI, spread: 1.2, size: 0.12, life: 0.45 });
+        if (local) this.camera.shake(0.05);
+        break;
       case 'startBoost':
         p.emit({ kind: 'ring', x: e.x, y: e.y + 0.5, color: '#ffe14d', count: 1, speed: 0, size: 0.4, life: 0.5 });
         p.emit({ kind: 'spark', x: e.x, y: e.y + 0.5, color: '#ffe14d', count: 8, speed: 3, size: 0.12, life: 0.45 });

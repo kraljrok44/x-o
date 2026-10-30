@@ -221,7 +221,7 @@ export class AIController {
       case 'shield': {
         const storm = sim.entities.some((e) => e.alive && e.kind === 'thunder' && e.target === this.index);
         const threat = storm || this.incoming.some((s) => s.x > b.x - 12);
-        use = threat || this.lastIncidents > 0 || heldFor > 14;
+        use = threat || this.lastIncidents > 0 || heldFor > 6;
         break;
       }
       case 'seeker': {
@@ -232,7 +232,7 @@ export class AIController {
       case 'lasso': {
         // Rope a rival ahead, or lay a trap for one close behind.
         const behind = sim.racers.some((r) => !sim.sameTeam(r.index, this.index) && r.body.phase === 'run' && b.x - r.body.x > 2.5 && b.x - r.body.x < 14 && Math.abs(r.body.y - b.y) < 1);
-        use = b.stun <= 0 && (nearestRivalAhead(sim, this.index, AbilityTuning.lasso.range) >= 0 || behind || heldFor > 6);
+        use = b.stun <= 0 && (nearestRivalAhead(sim, this.index, AbilityTuning.lasso.range) >= 0 || behind || heldFor > 4);
         break;
       }
       case 'thunder': {
@@ -245,7 +245,7 @@ export class AIController {
         use =
           b.stun <= 0 &&
           (sim.racers.some((r) => !sim.sameTeam(r.index, this.index) && r.body.phase === 'run' && r.body.x - b.x > 1.5 && r.body.x - b.x < 7 && Math.abs(r.body.y - b.y) < 1.5) ||
-            heldFor > 12);
+            heldFor > 5);
         break;
       }
       case 'snare':
@@ -256,7 +256,7 @@ export class AIController {
           // Only worth it when the chaser runs on the same level as us.
           return gap > 2.5 && gap < 13 && Math.abs(r.body.y - b.y) < 1;
         });
-        use = behind || heldFor > 10;
+        use = behind || heldFor > 4.5;
         break;
       }
     }

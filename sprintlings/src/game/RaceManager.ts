@@ -19,6 +19,8 @@ import {
   emptyStats,
   makeBody,
   trapTouched,
+  STREAK_BOOST,
+  STREAK_EVERY,
   type Entity,
   type RaceEvent,
   type RaceEventType,
@@ -114,6 +116,7 @@ export class RaceSimulation implements MovementWorld {
         prevJumpHeld: false,
         prevDownHeld: false,
         startBoostArmed: false,
+        streak: 0,
       };
       return racer;
     });
@@ -172,14 +175,20 @@ export class RaceSimulation implements MovementWorld {
         break;
       case 'hurdleCleared':
         r.stats.hurdlesCleared++;
+        if (++r.streak % STREAK_EVERY === 0) {
+          r.body.padBoost = Math.max(r.body.padBoost, STREAK_BOOST);
+          this.emitAt('streak', racer, r.streak, x, y);
+        }
         break;
       case 'hit':
       case 'bonk':
       case 'seekerHit':
         r.stats.hitsTaken++;
+        r.streak = 0;
         break;
       case 'abilityHit':
         r.stats.hitsTaken++;
+        r.streak = 0;
         if (this.racers[value]) this.racers[value].stats.hitsLanded++;
         break;
       case 'shieldBlock':
@@ -187,6 +196,7 @@ export class RaceSimulation implements MovementWorld {
         break;
       case 'fall':
         r.stats.falls++;
+        r.streak = 0;
         break;
       default:
         break;

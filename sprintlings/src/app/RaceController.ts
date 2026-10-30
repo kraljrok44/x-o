@@ -305,6 +305,12 @@ export class RaceController {
         case 'boostPad':
           if (local) a.play('boost');
           break;
+        case 'streak':
+          if (local) {
+            a.play('boost');
+            this.hud.callout(`🔥 ${t('Hot streak')} ×${e.value}`);
+          }
+          break;
         case 'bounce':
           a.play('bounce', vol, pan);
           break;

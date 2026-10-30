@@ -169,7 +169,13 @@ export interface Racer {
   prevDownHeld: boolean;
   /** Start boost earned by pressing jump right at "GO". */
   startBoostArmed: boolean;
+  /** Hurdles cleared since the last stumble or fall; every few earn a burst. */
+  streak: number;
 }
+
+/** Clean hurdles in a row that earn a hot-streak burst, and how long it lasts. */
+export const STREAK_EVERY = 3;
+export const STREAK_BOOST = 0.75;
 
 export interface SeekerEntity {
   kind: 'seeker';
@@ -271,6 +277,8 @@ export type RaceEventType =
   | 'jump'
   | 'land'
   | 'hurdleCleared'
+  /** Several hurdles cleared in a row (value = streak length): a short speed burst. */
+  | 'streak'
   | 'hit'
   | 'bonk'
   | 'shieldBlock'
