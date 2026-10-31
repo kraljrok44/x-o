@@ -55,13 +55,43 @@ Tipke je mogoče spremeniti v Nastavitvah. Pritisk skoka točno ob »START« da 
 
 Integracija (HTML5 SDK v3): `SDK.init`, `loadingStart/Stop` ob nalaganju, `gameplayStart/Stop` (dirka, premor, cilj), `happytime` ob zmagi, `midgame` oglasi samo na naravnih prekinitvah po rezultatih (nikoli med dirko), `rewarded` samo po izrecnem pritisku in potrditvi, zvok se med oglasom utiša, napredek se shrani v **SDK data modul** (oblak za prijavljene uporabnike), upoštevana je nastavitev `muteAudio`, smerne tipke/preslednica ne drsajo strani. Nakupi s pravim denarjem in zunanje povezave so na portalu izklopljeni.
 
-### GameMonetize
-1. Nastavi ID igre: `VITE_GAMEMONETIZE_GAME_ID=<tvoj id> npm run build:gamemonetize` (ali v datoteki `.env.gamemonetize`).
-2. Zapakiraj vsebino `dist/gamemonetize` in jo naloži; nato »Verify Game« in »Request activation«.
+### GameMonetize (oglasi, online dirke, plačila, pogoji)
 
-Dokumentirani SDK ponuja samo vmesne video oglase (`sdk.showBanner()`) in dogodka `SDK_GAME_PAUSE`/`SDK_GAME_START`; ob njiju igra utiša zvok in se ustavi. Oglasi z nagrado niso del dokumentiranega API-ja, zato so gumbi zanje na tem portalu skriti.
+**1. Strežnik** (računi, preverjene nagrade, online dirke, Stripe). GameMonetize gosti samo statične datoteke igre, zato strežnik teče pri tebi (npr. Fly.io, Render, Railway, VPS) z bazo PostgreSQL:
 
-> Opomba: SDK-ja sta implementirana po javni dokumentaciji, a v tem okolju ju ni bilo mogoče preizkusiti v živo (omrežje do portalov je bilo blokirano). Pred objavo ju preveri v portalovem testnem orodju.
+```bash
+cp server.env.example server.env      # izpolni DATABASE_URL, PUBLIC_URL, Stripe ključe in cene
+docker build -t sprintlings-server .
+docker run -p 8787:8787 --env-file server.env sprintlings-server
+```
+
+Strežnik mora biti dosegljiv prek **https** (in WebSocket `wss://…/ws`). `CORS_ORIGINS=*` je varen, ker API uporablja žetone v glavi, ne piškotkov.
+
+**2. Stripe** (prava plačila): v Stripe ustvari en *Price* na izdelek iz `src/config/ProductCatalog.ts` in ga vpiši kot `STRIPE_PRICE_<ID>`. Webhook nastavi na `https://<strežnik>/api/purchases/webhook/stripe` (dogodek `checkout.session.completed`) in vpiši `STRIPE_WEBHOOK_SECRET`. Najprej preizkusi s testnimi ključi (`sk_test_…`): v trgovini je ob cenah oznaka TEST. Plačilo se odpre v novem zavihku (Stripe Checkout); predmeti se dodelijo na strežniku šele po potrjenem plačilu.
+
+**3. Build za GameMonetize:**
+
+```bash
+cp .env.gamemonetize.example .env.gamemonetize   # ID igre, VITE_SERVER_URL, VITE_ENABLE_PURCHASES, podatki podjetja
+npm run build:gamemonetize
+```
+
+Zapakiraj vsebino `dist/gamemonetize` (index.html v korenu ZIP-a), naloži, nato »Verify Game« in »Request activation«.
+
+| Spremenljivka | Učinek |
+| --- | --- |
+| `VITE_GAMEMONETIZE_GAME_ID` | vklopi oglase (vmesni video oglasi med dirkami, nikoli med dirko) |
+| `VITE_SERVER_URL` | računi na strežniku, online dirke, preverjene nagrade; brez nje igra deluje z lokalnim profilom brez online načina |
+| `VITE_ENABLE_PURCHASES=true` | prava plačila prek Stripe (samo skupaj z `VITE_SERVER_URL`) |
+| `VITE_LEGAL_NAME/ADDRESS/EMAIL/COUNTRY` | podatki upravljavca v Pogojih uporabe in Politiki zasebnosti |
+
+**Oglasi:** dokumentirani SDK ponuja samo vmesne video oglase (`sdk.showBanner()`) in dogodka `SDK_GAME_PAUSE`/`SDK_GAME_START`; ob njiju igra utiša zvok in se ustavi. Oglasi z nagrado niso del dokumentiranega API-ja, zato so gumbi zanje na tem portalu skriti.
+
+**Online dirke (lockstep):** igralec izbere »Online race«; strežnik zbere do 4 igralce (prazna mesta zapolnijo boti), počaka, da vsi naložijo progo, nato vsem po tikih pošilja vnose vseh igralcev (zamik vnosa 6 tikov ≈ 100 ms) in vsako sekundo kontrolni seštevek stanja. Vsak odjemalec poganja isto deterministično simulacijo, zato vsi vidijo isto dirko; nagrade obračuna strežnik iz svoje simulacije.
+
+**Pogoji uporabe:** po prvi (tutorial) dirki se pokaže okno s Pogoji uporabe in Politiko zasebnosti (dve potrditveni polji: prebral/sprejemam in starost 13+ ali soglasje staršev). Brez sprejetja ni online dirk in nakupov; dostopni so tudi v Nastavitvah. Sprejeta različica in čas se shranita na profil (in na strežnik). Besedilo v `src/legal/Terms.ts` je **predloga** – pred objavo naj jo pregleda pravnik; ob vsebinski spremembi povečaj `TERMS_VERSION`.
+
+> Pred objavo preveri: (1) ali GameMonetize dovoljuje lastna plačila in povezavo na zunanji strežnik – v tem okolju njihove strani in pogojev ni bilo mogoče odpreti; (2) ali portal v iframe-u dovoli odpiranje novega zavihka (Stripe Checkout) – sicer igra prosi za dovoljenje pojavnih oken; (3) v nekaterih brskalnikih (Safari) je shramba v iframe-u omejena, zato lahko igralec ob ponovnem obisku dobi nov gostujoči račun.
 
 ## Arhitektura
 

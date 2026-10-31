@@ -77,9 +77,14 @@ export class GameMonetizePlatform implements Platform {
   readonly id = 'gamemonetize' as const;
   readonly displayName = 'GameMonetize';
   readonly ads: GameMonetizeAdProvider = new GameMonetizeAdProvider();
-  readonly ownPurchasesAllowed = false;
+  /**
+   * Our own server (accounts, online races, verified rewards) is used when
+   * the build sets VITE_SERVER_URL; real-money purchases additionally need
+   * VITE_ENABLE_PURCHASES=true and run through the server's Stripe checkout.
+   */
+  readonly usesOwnServer = !!import.meta.env.VITE_SERVER_URL;
+  readonly ownPurchasesAllowed = this.usesOwnServer && import.meta.env.VITE_ENABLE_PURCHASES === 'true';
   readonly externalLinksAllowed = false;
-  readonly usesOwnServer = false;
   onMuteRequest: ((muted: boolean) => void) | null = null;
   onPauseRequest: ((paused: boolean) => void) | null = null;
 

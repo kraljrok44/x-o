@@ -22,6 +22,8 @@ export async function createAuthority(platform: Platform, browserStore: KeyValue
   if (platform.usesOwnServer) {
     const { connectServerAuthority } = await import('../network/ServerAuthority');
     const server = await connectServerAuthority();
+    // A portal build may use our server for accounts and online races without selling anything.
+    if (server && !platform.ownPurchasesAllowed) return { ...server, purchases: new UnavailablePurchaseService(t('Purchases with real money are not available in this version of the game.')) };
     if (server) return server;
   }
   const cloud = platform.cloudStore();
