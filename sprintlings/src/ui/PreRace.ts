@@ -24,7 +24,16 @@ const TIPS = [
  * Loading lobby: every racer's card (animal, level, trophies) while the
  * course is prepared in the background; the race starts once it is ready.
  */
-export function preRace(ctx: AppContext, ticket: RaceTicket, onGo: () => void, onCancel: () => void, load: () => number = () => 1): Screen {
+export function preRace(
+  ctx: AppContext,
+  ticket: RaceTicket,
+  onGo: () => void,
+  onCancel: () => void,
+  load: () => number = () => 1,
+  /** Online: which card is you, and the race starts when the server does (no Ready / countdown). */
+  online: { yourIndex: number; waitFor: () => boolean } | null = null,
+): Screen {
+  const meIndex = online?.yourIndex ?? 0;
   const info = trackInfo(ticket.trackId);
   let left = 4.2;
   let started = false;
@@ -42,23 +51,25 @@ export function preRace(ctx: AppContext, ticket: RaceTicket, onGo: () => void, o
   // Bots get a trophy count and animal level close to yours (display only).
   const rng = new Rng(ticket.seed ^ 0x5eed);
   const card = (r: RaceTicket['racers'][number], i: number) => {
-    const trophies = i === 0 ? p.trophies : Math.max(0, p.trophies + rng.int(-120, 120));
-    const lvl = i === 0 ? animalLevel(p, r.characterId) : Math.max(1, Math.min(20, animalLevel(p, p.loadout.characterId) + rng.int(-2, 3)));
+    const isMe = i === meIndex;
+    const human = !isMe && !!online && r.isPlayer;
+    const trophies = isMe ? p.trophies : Math.max(0, p.trophies + rng.int(-120, 120));
+    const lvl = isMe ? animalLevel(p, r.characterId) : Math.max(1, Math.min(20, animalLevel(p, p.loadout.characterId) + rng.int(-2, 3)));
     const lg = leagueFor(trophies);
-    const mate = ticket.mode === 'duos' && (r.team ?? i) === (ticket.racers[0].team ?? 0);
+    const mate = ticket.mode === 'duos' && (r.team ?? i) === (ticket.racers[meIndex].team ?? 0);
     return h(
       'div',
-      { class: `panel racer-card ${i === 0 ? 'me' : mate ? 'mate' : 'rival'}`, style: `animation-delay:${0.15 + i * 0.35}s` },
+      { class: `panel racer-card ${isMe ? 'me' : mate ? 'mate' : 'rival'}`, style: `animation-delay:${0.15 + i * 0.35}s` },
       h('img', { src: ctx.thumbs.portrait(r.characterId, r.variantId ?? null, r.cosmetics ?? {}), alt: '', style: 'width:100%;max-width:120px;aspect-ratio:1' }),
-      h('div', { class: 'card__name' }, i === 0 ? `${r.name} (${t('You')})` : r.name),
-      h('div', { class: 'small muted' }, `${CHARACTERS[r.characterId].name} · ${t('Lv {n}', { n: lvl })}`),
-      h('div', { class: 'small', style: `color:${lg.color};font-weight:700;-webkit-text-stroke:0.4px #3a1f10` }, `${lg.icon} ${trophies}`),
+      h('div', { class: 'card__name' }, isMe ? `${r.name} (${t('You')})` : r.name),
+      h('div', { class: 'small muted' }, human ? `${CHARACTERS[r.characterId].name} · 🌐 ${t('Online rider')}` : `${CHARACTERS[r.characterId].name} · ${t('Lv {n}', { n: lvl })}`),
+      human ? null : h('div', { class: 'small', style: `color:${lg.color};font-weight:700;-webkit-text-stroke:0.4px #3a1f10` }, `${lg.icon} ${trophies}`),
     );
   };
   const all = ticket.racers.map(card);
   const cards: HTMLElement[] =
     ticket.mode === 'duos'
-      ? [...all.filter((_, i) => (ticket.racers[i].team ?? i) === (ticket.racers[0].team ?? 0)), h('div', { class: 'lobby-vs' }, 'VS'), ...all.filter((_, i) => (ticket.racers[i].team ?? i) !== (ticket.racers[0].team ?? 0))]
+      ? [...all.filter((_, i) => (ticket.racers[i].team ?? i) === (ticket.racers[meIndex].team ?? 0)), h('div', { class: 'lobby-vs' }, 'VS'), ...all.filter((_, i) => (ticket.racers[i].team ?? i) !== (ticket.racers[meIndex].team ?? 0))]
       : all;
   const tip = TIPS[Math.floor(rng.next() * TIPS.length)];
   const touch = matchMedia('(pointer: coarse)').matches;
@@ -82,7 +93,7 @@ export function preRace(ctx: AppContext, ticket: RaceTicket, onGo: () => void, o
           h('div', { class: 'row row--wrap small' }, h('span', { class: 'chip' }, `⤒ ${touch ? t('Tap / JUMP (hold = higher)') : t('Space / W / ↑ or tap')}`), h('span', { class: 'chip' }, `⤓ ${touch ? t('▼ / swipe down') : t('S / ↓ or swipe down')}`), h('span', { class: 'chip' }, `✦ ${touch ? t('Ability button') : t('E / right click')}`)),
           h('div', { class: 'small muted', style: 'margin-top:6px' }, t('Press jump right at GO for a start boost!')),
         ),
-        h('div', { class: 'row', style: 'justify-content:center' }, h('button', { class: 'btn btn--ghost', onClick: () => ((started = true), onCancel()) }, t('Back')), readyBtn),
+        h('div', { class: 'row', style: 'justify-content:center' }, h('button', { class: 'btn btn--ghost', onClick: () => ((started = true), onCancel()) }, online ? t('Leave') : t('Back')), online ? null : readyBtn),
       ),
     ),
   );
@@ -97,6 +108,12 @@ export function preRace(ctx: AppContext, ticket: RaceTicket, onGo: () => void, o
           readyBtn.disabled = false;
           bar.classList.add('done');
         }
+      }
+      if (online) {
+        timer.textContent = loaded < 1 ? '…' : '⏳';
+        if (loaded >= 1) barText.textContent = '✓ ' + t('Waiting for the other riders…');
+        if (online.waitFor()) go();
+        return;
       }
       left -= dt;
       timer.textContent = String(Math.max(0, Math.ceil(left)));

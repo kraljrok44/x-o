@@ -165,6 +165,12 @@ export class LocalAuthority implements GameAuthority {
     });
   }
 
+  async acceptTerms(version: string) {
+    this.mutate((d, now) => {
+      d.terms = { version, at: now };
+    });
+  }
+
   adEligibility(placement: RewardedPlacement, raceId?: string): AdEligibility {
     return rewardedEligibility(cloneProfile(this.p), placement, this.now(), raceId);
   }

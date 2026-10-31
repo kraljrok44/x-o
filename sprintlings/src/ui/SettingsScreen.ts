@@ -5,6 +5,7 @@ import { h } from './dom';
 import { t } from './i18n';
 import { topbar } from './Topbar';
 import type { Screen } from './UIRoot';
+import { showTerms, termsAccepted } from './TermsDialog';
 
 export function settingsScreen(ctx: AppContext, params: { from?: 'race' } = {}): Screen {
   const bar = topbar(ctx, { back: () => back(), title: t('Settings') });
@@ -140,6 +141,12 @@ export function settingsScreen(ctx: AppContext, params: { from?: 'race' } = {}):
         h('h2', { class: 'panel__title', style: 'margin:12px 0 4px' }, t('Data')),
         setting('Anonymous gameplay statistics', seg('analyticsConsent', [['granted', t('On')], ['denied', t('Off')]])),
         h('p', { class: 'small muted' }, ctx.authority.storageLabel),
+        h(
+          'div',
+          { class: 'row row--wrap', style: 'margin-bottom:10px' },
+          h('button', { class: 'btn btn--small', onClick: () => void showTerms(ctx, termsAccepted(ctx) ? 'view' : 'accept') }, '📜 ' + t('Terms & Privacy')),
+          h('span', { class: 'small muted' }, termsAccepted(ctx) ? '✓ ' + t('Accepted') : t('Not accepted yet')),
+        ),
         params.from === 'race'
           ? null
           : h(

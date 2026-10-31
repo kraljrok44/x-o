@@ -40,6 +40,10 @@ export interface AppContext {
   ui: UIRoot;
   go(screen: ScreenId, params?: Record<string, unknown>): void;
   startRace(trackId: string, mode: RaceMode): void;
+  /** Queues for an online race against other players (needs our server and accepted terms). */
+  startOnline(): void;
+  /** Base URL of our server when connected to it, else null (online races unavailable). */
+  readonly serverUrl: string | null;
   /** Shows an error from an authority call as a friendly toast. */
   fail(err: unknown): void;
 }

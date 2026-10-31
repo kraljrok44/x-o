@@ -33,6 +33,20 @@ export function modeSelect(ctx: AppContext): Screen {
     );
   }
   const remixLocked = level < 3;
+  // Online first: it is the headline mode whenever our server is reachable.
+  grid.prepend(
+    h(
+      'button',
+      {
+        class: `card track-card track-card--online ${ctx.serverUrl ? '' : 'locked'}`,
+        onClick: () => ctx.startOnline(),
+      },
+      h('div', { style: 'font-size:44px' }, '🌐'),
+      h('div', { class: 'card__name' }, t('Online race')),
+      h('div', { class: 'small' }, t('Race real riders from around the world. Empty seats are filled with bots.')),
+      ctx.serverUrl ? null : h('div', { class: 'small' }, t('Needs a connection to the game server.')),
+    ),
+  );
   grid.append(
     h(
       'button',

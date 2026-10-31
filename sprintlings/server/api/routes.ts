@@ -12,6 +12,7 @@ import {
 import { EconomyError } from '../../src/economy/EconomyError';
 import { equip } from '../../src/economy/InventoryService';
 import { rerollQuest } from '../../src/progression/QuestService';
+import { TERMS_VERSION } from '../../src/legal/Terms';
 import { serverRng, type AccountService } from '../economy/AccountService';
 import type { AuthService } from '../auth/AuthService';
 import type { PurchaseService } from '../purchases/PurchaseService';
@@ -101,6 +102,15 @@ export function registerRoutes(r: Router, s: Services): void {
     }),
   );
   r.add('POST', '/api/profile/tutorial', op((p) => void (p.tutorialDone = true)));
+  r.add(
+    'POST',
+    '/api/profile/terms',
+    op((p, now, b) => {
+      // Only the version this server ships can be accepted; the time is the server's.
+      if (str(b.version, 'version', 40) !== TERMS_VERSION) throw new EconomyError('invalid', 'Please reload the game to see the latest terms.');
+      p.terms = { version: TERMS_VERSION, at: now };
+    }),
+  );
   r.add(
     'POST',
     '/api/ads/interstitial',

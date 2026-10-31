@@ -8,6 +8,7 @@ import { AIController } from '../../src/ai/AIController';
 import type { RaceTicket } from '../../src/game/RaceVerifier';
 import type { PlayerProfile } from '../../src/economy/Profile';
 import type { ServerMessage } from '../../src/network/ServerMessages';
+import { simHash } from '../../src/network/simHash';
 
 let api: Api;
 beforeAll(async () => {
@@ -90,8 +91,8 @@ describe('server races', () => {
   });
 });
 
-describe('online matchmaking (experimental)', () => {
-  it('two players get matched into an authoritative room and receive snapshots', async () => {
+describe('online matchmaking', () => {
+  it('matches two players into one room and keeps their lockstep simulations identical to the server', async () => {
     const tokens = [await api.guest(), await api.guest()];
     const url = api.srv.url.replace('http', 'ws') + '/ws';
     const got: ServerMessage[][] = [[], []];
@@ -100,7 +101,15 @@ describe('online matchmaking (experimental)', () => {
         (tk, i) =>
           new Promise<WebSocket>((resolve) => {
             const ws = new WebSocket(url);
-            ws.on('message', (d) => got[i].push(JSON.parse(String(d)) as ServerMessage));
+            ws.on('message', (d) => {
+              const m = JSON.parse(String(d)) as ServerMessage;
+              got[i].push(m);
+              // Loaded instantly; player 0 taps jump a few times and fires a powerup.
+              if (m.t === 'match') {
+                ws.send(JSON.stringify({ t: 'ready' }));
+                for (const [tick, bits] of [[200, 1], [205, 0], [260, 1], [262, 0], [300, 8], [301, 0]]) if (i === 0) ws.send(JSON.stringify({ t: 'input', tick, bits }));
+              }
+            });
             ws.on('open', () => {
               ws.send(JSON.stringify({ t: 'hello', token: tk }));
               setTimeout(() => {
@@ -111,14 +120,41 @@ describe('online matchmaking (experimental)', () => {
           }),
       ),
     );
-    await new Promise((r) => setTimeout(r, 1500));
-    for (const list of got) {
-      const match = list.find((m) => m.t === 'match');
-      expect(match && match.t === 'match' && match.room.racers.length).toBe(4);
-      expect(list.some((m) => m.t === 'snap')).toBe(true);
-    }
-    const rooms = got.map((l) => l.find((m) => m.t === 'match')).map((m) => (m && m.t === 'match' ? m.room.roomId : ''));
-    expect(rooms[0]).toBe(rooms[1]);
+    await new Promise((r) => setTimeout(r, 7500));
     sockets.forEach((s) => s.close());
-  });
+    const matches = got.map((l) => l.find((m) => m.t === 'match'));
+    for (const m of matches) expect(m && m.t === 'match' && m.room.racers.length).toBe(4);
+    const room0 = matches[0]!.t === 'match' ? matches[0]!.room : null;
+    const room1 = matches[1]!.t === 'match' ? matches[1]!.room : null;
+    expect(room0!.roomId).toBe(room1!.roomId);
+    expect(new Set([room0!.yourIndex, room1!.yourIndex]).size).toBe(2);
+    // Replay what one client received, exactly as OnlineLink does, and compare fingerprints.
+    for (const list of got) {
+      const room = (list.find((m) => m.t === 'match') as Extract<ServerMessage, { t: 'match' }>).room;
+      const inputs = new Map<number, number[]>();
+      const hashes = new Map<number, number>();
+      for (const m of list) {
+        if (m.t === 'ticks') m.inputs.forEach((b, k) => inputs.set(m.from + k, b));
+        if (m.t === 'hash') hashes.set(m.tick, m.h);
+      }
+      expect(inputs.size).toBeGreaterThan(300);
+      expect(hashes.size).toBeGreaterThan(4);
+      const sim = new RaceSimulation({ track: getTrack(room.trackId), seed: room.seed, racers: room.racers, finishGrace: 12 });
+      let compared = 0;
+      while (inputs.has(sim.tick)) {
+        const bits = inputs.get(sim.tick)!;
+        sim.step(bits.map((b) => ({ jumpHeld: (b & 1) !== 0, down: (b & 2) !== 0, special: (b & 4) !== 0, use: (b & 8) !== 0 })));
+        const h = hashes.get(sim.tick);
+        if (h !== undefined) {
+          expect(simHash(sim)).toBe(h);
+          compared++;
+        }
+      }
+      expect(compared).toBeGreaterThan(4);
+      // Player 0's taps reached the server and were relayed at their ticks.
+      expect(inputs.get(200)?.[room0!.yourIndex]).toBe(1);
+      expect(inputs.get(205)?.[room0!.yourIndex]).toBe(0);
+      expect(inputs.get(300)?.[room0!.yourIndex]).toBe(8);
+    }
+  }, 20000);
 });

@@ -18,6 +18,7 @@ import { t } from '../ui/i18n';
 import { EMOTES, RaceHUD } from '../ui/RaceHUD';
 import type { Screen } from '../ui/UIRoot';
 import type { AppContext } from './AppContext';
+import type { OnlineLink } from '../network/OnlineLink';
 
 const ABILITY_SFX: Record<AbilityId, SfxId> = { dash: 'dash', shield: 'shield', seeker: 'seeker', snare: 'snare', sap: 'sap', lasso: 'lasso', thunder: 'thunder', bomb: 'whoosh' };
 const MAX_STEPS_PER_FRAME = 5;
@@ -45,21 +46,27 @@ export class RaceController {
   onQuit: (() => void) | null = null;
   onRestart: (() => void) | null = null;
 
+  /** This player's racer index (0 offline; the server's slot online). */
+  readonly me: number;
+
   constructor(
     private readonly ctx: AppContext,
     readonly ticket: RaceTicket,
+    /** Set for online races: inputs come from the server, tick by tick. */
+    readonly online: OnlineLink | null = null,
   ) {
-    this.sim = new RaceSimulation({ track: getTrack(ticket.trackId), seed: ticket.seed, racers: ticket.racers });
-    this.scene = new RaceScene(ctx.renderer, this.sim, 0);
+    this.me = online?.me ?? 0;
+    this.sim = new RaceSimulation({ track: getTrack(ticket.trackId), seed: ticket.seed, racers: ticket.racers, ...(online ? { finishGrace: 12 } : {}) });
+    this.scene = new RaceScene(ctx.renderer, this.sim, this.me);
     void this.scene.loadExtras();
     const s = ctx.settings.value;
     const touch = s.touchControls === 'on' || (s.touchControls === 'auto' && matchMedia('(pointer: coarse)').matches);
     this.touch = touch;
-    this.hud = new RaceHUD(this.sim, 0, ctx.input, touch, s.showFps, (r) => ctx.thumbs.portrait(r.characterId, r.variantId, {}, true));
+    this.hud = new RaceHUD(this.sim, this.me, ctx.input, touch, s.showFps, (r) => ctx.thumbs.portrait(r.characterId, r.variantId, {}, true));
     this.hud.pauseBtn.addEventListener('click', () => this.pause());
-    this.hud.onEmote = (slot) => this.emote(0, slot);
-    ctx.input.onEmote = (slot) => this.emote(0, slot);
-    this.tutorial = !ctx.authority.profile.tutorialDone;
+    this.hud.onEmote = (slot) => this.emote(this.me, slot);
+    ctx.input.onEmote = (slot) => this.emote(this.me, slot);
+    this.tutorial = !online && !ctx.authority.profile.tutorialDone;
     this.scene.shakeEnabled = s.cameraShake && !s.reducedMotion;
   }
 
@@ -68,18 +75,18 @@ export class RaceController {
   /** Quick chat bubble (purely cosmetic, never touches the simulation). */
   private emote(index: number, slot: number): void {
     if (this.phase === 'results' || this.phase === 'lobby') return;
-    if (index === 0) {
+    if (index === this.me) {
       const now = performance.now() / 1000;
       if (now - this.lastEmote < 1.2) return;
       this.lastEmote = now;
     }
     this.scene.say(index, EMOTES[slot]);
-    if (index === 0) this.ctx.audio.play('click');
+    if (index === this.me) this.ctx.audio.play('click');
   }
 
   /** Bots chat a little: brag after a hit, grumble when hit, GG at the finish. */
   private botChat(e: RaceEvent): void {
-    const bot = (i: number) => i > 0 && !!this.sim.racers[i] && !this.sim.racers[i].isPlayer;
+    const bot = (i: number) => i !== this.me && !!this.sim.racers[i] && !this.sim.racers[i].isPlayer;
     const roll = (p: number) => Math.random() < p;
     if ((e.type === 'abilityHit' || e.type === 'seekerHit') && e.special !== 'pickpocket') {
       if (bot(e.value) && roll(0.35)) this.emote(e.value, 1);
@@ -147,7 +154,7 @@ export class RaceController {
             return true;
           },
         },
-        { label: t('Restart'), kind: 'ghost', run: () => this.onRestart?.() },
+        ...(this.online ? [] : [{ label: t('Restart'), kind: 'ghost' as const, run: () => this.onRestart?.() }]),
         { label: '▶ ' + t('Resume'), kind: 'good', run: () => this.resume() },
       ],
       { dismissable: false },
@@ -175,6 +182,7 @@ export class RaceController {
   }
 
   frame(dt: number): void {
+    if (this.online) return this.onlineFrame(dt);
     if (this.phase === 'racing' || this.phase === 'finishing') {
       this.acc += Math.min(dt, 0.1);
       let steps = 0;
@@ -200,12 +208,45 @@ export class RaceController {
     if (this.phase !== 'lobby') this.hud.update(dt);
   }
 
+  /**
+   * Online: send this frame's input, then step the simulation through the
+   * ticks the server has relayed (a little faster when behind). The race
+   * keeps running while the pause menu is open.
+   */
+  private onlineFrame(dt: number): void {
+    const link = this.online!;
+    const running = this.phase === 'racing' || this.phase === 'finishing' || this.phase === 'paused';
+    if (running) {
+      if (this.phase === 'racing') link.sendInput(this.ctx.input.sample());
+      this.acc += Math.min(dt, 0.25);
+      const behind = link.buffered(this.sim.tick);
+      let want = Math.floor(this.acc / TICK_DT) + (behind > 8 ? Math.min(4, behind - 6) : 0);
+      let steps = 0;
+      while (want-- > 0 && steps < 10 && link.has(this.sim.tick) && this.sim.phase !== 'done') {
+        const events = this.sim.step(link.take(this.sim.tick));
+        steps++;
+        link.check(this.sim);
+        this.scene.onTick(events);
+        this.handleEvents(events);
+      }
+      // Starved (waiting for the server): do not bank time and then rush.
+      this.acc = Math.min(Math.max(0, this.acc - steps * TICK_DT), TICK_DT * 2);
+      if (this.phase === 'finishing') {
+        this.updateSpectate(dt);
+        this.finishTimer -= dt;
+      }
+      if ((this.sim.phase === 'done' || (this.phase === 'finishing' && this.finishTimer <= 0)) && link.end) this.settle();
+    }
+    this.scene.frame(dt, running ? Math.min(1, this.acc / TICK_DT) : 1);
+    if (this.phase !== 'lobby') this.hud.update(dt);
+  }
+
   /** Kill feed: who hit whom with which powerup, and who finished. */
   private feed(e: RaceEvent): void {
     const sim = this.sim;
     const victim = sim.racers[e.racer];
     if (!victim) return;
-    const mine = (i: number) => sim.sameTeam(i, 0);
+    const mine = (i: number) => sim.sameTeam(i, this.me);
     let owner = -1;
     let icon = '';
     if (e.type === 'seekerHit') {
@@ -230,7 +271,7 @@ export class RaceController {
 
   private handleEvents(events: readonly RaceEvent[]): void {
     const a = this.ctx.audio;
-    const me = this.sim.racers[0].body;
+    const me = this.sim.racers[this.me].body;
     for (const e of events) {
       this.feed(e);
       this.botChat(e);
@@ -242,7 +283,7 @@ export class RaceController {
         a.play('go');
         continue;
       }
-      const local = e.racer === 0;
+      const local = e.racer === this.me;
       const near = Math.abs(e.x - me.x) < 22;
       const vol = local ? 1 : near ? 0.3 : 0;
       if (vol === 0) continue;
@@ -270,7 +311,7 @@ export class RaceController {
           break;
         case 'seekerHit':
           a.play('hit', vol, pan);
-          if (!local && e.value === 0) this.hud.callout('💥 Hit!');
+          if (!local && e.value === this.me) this.hud.callout('💥 Hit!');
           break;
         case 'bonk':
           a.play('bonk', vol, pan);
@@ -287,7 +328,7 @@ export class RaceController {
           if (e.special === 'pickpocket') {
             a.play('item', vol, pan);
             if (local) this.hud.callout('🦝 ' + t('Your powerup was stolen!'));
-            if (e.value === 0) this.hud.callout('🦝 ' + t('Stolen!'));
+            if (e.value === this.me) this.hud.callout('🦝 ' + t('Stolen!'));
             break;
           }
           a.play('hit', vol, pan);
@@ -373,6 +414,7 @@ export class RaceController {
   /** Fast-forwards the remaining racers, then hands the race to the authority for verification. */
   private settle(): void {
     if (this.settled) return;
+    if (this.online) return this.settleOnline();
     this.settled = true;
     this.hud.showSpectate(null, () => {});
     this.ctx.input.onEmote = null;
@@ -394,9 +436,43 @@ export class RaceController {
     this.onFinished?.(summary, settlement);
   }
 
+  /** Online results come from the server's own simulation and settlement. */
+  private settleOnline(): void {
+    const link = this.online!;
+    if (!link.end) return;
+    this.settled = true;
+    this.hud.showSpectate(null, () => {});
+    this.ctx.input.onEmote = null;
+    this.ctx.input.enabled = false;
+    this.ctx.platform.gameplayStop();
+    this.phase = 'results';
+    if (this.pauseModal) this.ctx.ui.closeModal(this.pauseModal);
+    this.pauseModal = null;
+    this.ctx.audio.setMusicIntensity(0.5);
+    const summary = summarizeRace(this.sim);
+    // The server's standings are authoritative (they match unless this client drifted).
+    for (const s of link.end.standings) {
+      const r = summary.racers.find((x) => x.index === s.index);
+      if (r) {
+        r.place = s.place;
+        r.finishTime = s.finishTime;
+      }
+    }
+    summary.racers.sort((a, b) => a.place - b.place);
+    const end = link.end;
+    const settlement = (async () => {
+      await this.ctx.authority.refresh?.();
+      if (!end.settlement) throw new Error(t('The race server could not record this race.'));
+      return end.settlement;
+    })();
+    link.close();
+    this.ctx.analytics.track('race_finish', { track: this.ticket.trackId, place: summary.racers.find((r) => r.index === this.me)?.place ?? 0, online: true, desync: link.desynced });
+    this.onFinished?.(summary, settlement);
+  }
+
   private updateTutorial(): void {
     const sim = this.sim;
-    const r = sim.racers[0];
+    const r = sim.racers[this.me];
     const b = r.body;
     if (sim.phase === 'countdown') {
       this.hud.setHint(t('Press jump right at GO for a start boost!'));
@@ -442,6 +518,7 @@ export class RaceController {
    * authority's verification still applies.
    */
   fastForward(ticks: number, skill: 'rookie' | 'perfect' = 'perfect'): void {
+    if (this.online) return;
     this.autopilot ??= new AIController(0, skill, 12345);
     for (let i = 0; i < ticks && this.phase === 'racing' && this.sim.phase !== 'done'; i++) {
       const input = this.sim.phase === 'countdown' ? this.autopilot.decideCountdown(this.sim) : this.autopilot.decide(this.sim);
@@ -453,6 +530,7 @@ export class RaceController {
   }
 
   dispose(): void {
+    this.online?.close();
     this.ctx.input.enabled = false;
     this.scene.dispose();
     document.body.classList.remove('touch-on');

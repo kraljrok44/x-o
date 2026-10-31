@@ -20,7 +20,6 @@ interface Conn {
 /**
  * Online matchmaking over WebSocket (/ws). Players queue; a room starts
  * when 4 players are waiting or after a short wait (bots fill the rest).
- * Experimental: the client UI does not expose online races yet (see README).
  */
 export class MatchmakingService {
   private readonly wss: WebSocketServer;
@@ -70,7 +69,9 @@ export class MatchmakingService {
       } else if (msg.t === 'leave') {
         this.queue = this.queue.filter((x) => x !== c);
       } else if (msg.t === 'input' && c.room) {
-        c.room.setInput(c.index, msg.bits);
+        c.room.setInput(c.index, msg.bits, msg.tick);
+      } else if (msg.t === 'ready' && c.room) {
+        c.room.markReady(c.index);
       }
     });
     ws.on('close', () => {
@@ -79,6 +80,7 @@ export class MatchmakingService {
         // Disconnected racers keep running with no input; rewards are still settled.
         c.player.connected = false;
         c.player.input.jumpHeld = false;
+        c.room?.markReady(c.index);
       }
     });
   }
@@ -102,7 +104,7 @@ export class MatchmakingService {
         setup: { id: profile.id, name: profile.name, characterId: profile.loadout.characterId, isPlayer: true, cosmetics: visibleLoadout(profile), variantId: profile.loadout.variants[profile.loadout.characterId] ?? null },
         send: (m) => this.send(c, m),
         input: { jumpHeld: false, down: false, use: false },
-        connected: true,
+        connected: c.ws.readyState === c.ws.OPEN,
       };
       players.push(player);
       c.player = player;

@@ -41,11 +41,18 @@ export interface GameAuthority {
   equip(slot: LoadoutSlot | 'variant' | 'character', id: string | null): Promise<void>;
   setName(name: string): Promise<void>;
   completeTutorial(): Promise<void>;
+  /** Records acceptance of the given Terms / Privacy Policy version. */
+  acceptTerms(version: string): Promise<void>;
 
   adEligibility(placement: RewardedPlacement, raceId?: string): AdEligibility;
   /** Called only after the ad provider confirmed completion. */
   grantAdReward(placement: RewardedPlacement, completionToken: string, raceId?: string): Promise<GrantResult>;
   noteInterstitial(): void;
+
+  /** Re-reads the profile from the source of truth (after an online race settled server side). */
+  refresh?(): Promise<void>;
+  /** Account token for the online race socket (server authority only). */
+  onlineToken?(): string | null;
 
   /** Ensures pending writes are persisted (page hide). */
   flush(): Promise<void>;

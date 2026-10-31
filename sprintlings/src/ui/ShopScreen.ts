@@ -12,6 +12,7 @@ import { h, priceChip } from './dom';
 import { t } from './i18n';
 import { showChestOpening } from './ChestOpening';
 import { topbar } from './Topbar';
+import { ensureTerms } from './TermsDialog';
 import type { Screen } from './UIRoot';
 
 type Tab = ShopCategory | 'gems';
@@ -400,9 +401,16 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
   };
 
   const buyProduct = async (o: ProductOffer) => {
+    if (!(await ensureTerms(ctx))) return;
     const ok = await ctx.ui.confirm(
       t('Confirm purchase'),
-      h('div', { class: 'stack' }, h('div', null, h('b', null, o.product.name), ' – ', o.product.description), h('div', { class: 'row' }, `${t('Price')}: `, h('b', null, o.priceLabel), o.test ? h('span', { class: 'chip chip--test' }, 'TEST – sandbox, no real money') : null)),
+      h(
+        'div',
+        { class: 'stack' },
+        h('div', null, h('b', null, o.product.name), ' – ', o.product.description),
+        h('div', { class: 'row' }, `${t('Price')}: `, h('b', null, o.priceLabel), o.test ? h('span', { class: 'chip chip--test' }, 'TEST – sandbox, no real money') : null),
+        h('div', { class: 'small muted' }, t('Items are delivered right after payment. By buying you ask for immediate delivery and accept that the 14-day right of withdrawal ends once the items are delivered.')),
+      ),
       t('Buy'),
     );
     if (!ok) return;

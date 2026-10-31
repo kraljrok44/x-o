@@ -33,6 +33,9 @@ import type { AppContext, ScreenId } from './AppContext';
 import { createAuthority } from './createAuthority';
 import { showFatal } from './GameBootstrap';
 import { RaceController } from './RaceController';
+import { MatchmakingClient } from '../network/MatchmakingClient';
+import { OnlineLink } from '../network/OnlineLink';
+import { ensureTerms, showTerms, termsAccepted } from '../ui/TermsDialog';
 import { SceneManager } from './SceneManager';
 import { APP_TRANSITIONS, StateMachine, type AppState } from './StateMachine';
 
@@ -119,6 +122,7 @@ export class Application implements AppContext {
     const auth = await createAuthority(this.platform, browserStore);
     this.authority = auth.authority;
     this.purchases = auth.purchases;
+    this.serverUrl = auth.serverUrl;
     await this.authority.init();
     if (!this.authority.profile.tutorialDone && this.authority.profile.name === 'Sprinter') {
       const portalName = await this.platform.userName();
@@ -287,5 +291,109 @@ export class Application implements AppContext {
     if (this.state.state !== 'menu') this.state.go('menu');
     this.audio.playMenuMusic();
     this.go('menu');
+    // Right after the tutorial race (and once per session until accepted): terms for online play and purchases.
+    if (this.authority.profile.tutorialDone && !termsAccepted(this) && !this.termsAsked) {
+      this.termsAsked = true;
+      void showTerms(this, 'accept');
+    }
+  }
+
+  private termsAsked = false;
+  serverUrl: string | null = null;
+
+  async startOnline(): Promise<void> {
+    if (this.state.state !== 'menu' && this.state.state !== 'results') return;
+    const token = this.authority.onlineToken?.() ?? null;
+    if (!this.serverUrl || !token) {
+      this.ui.toast(t('Online races need a connection to the game server. Please check your internet and reload.'), 'bad', 4000);
+      return;
+    }
+    if (!(await ensureTerms(this))) return;
+    this.audio.unlock();
+    const client = new MatchmakingClient(this.serverUrl, token);
+    const status = h('p', { style: 'text-align:center' }, t('Connecting…'));
+    let cancelled = false;
+    const modal = this.ui.modal(t('Online race'), h('div', { class: 'stack' }, h('div', { class: 'spinner' }), status), [
+      {
+        label: t('Cancel'),
+        kind: 'ghost',
+        run: () => {
+          cancelled = true;
+          client.send({ t: 'leave' });
+          client.close();
+        },
+      },
+    ], { dismissable: false });
+    try {
+      await client.connect();
+    } catch {
+      this.ui.closeModal(modal);
+      if (!cancelled) this.ui.toast(t('Could not reach the race server. Please try again.'), 'bad');
+      return;
+    }
+    if (cancelled) return client.close();
+    client.onClose = () => {
+      if (cancelled) return;
+      this.ui.closeModal(modal);
+      this.ui.toast(t('Connection to the race server was lost.'), 'bad');
+    };
+    client.onMessage = (m) => {
+      if (m.t === 'queued') status.textContent = t('Finding riders… {n}/4 (bots fill empty seats)', { n: m.players });
+      else if (m.t === 'error') {
+        this.ui.closeModal(modal);
+        client.close();
+        this.ui.toast(m.message === 'unauthorized' ? t('Please reload the game to sign in again.') : m.message, 'bad');
+      } else if (m.t === 'match') {
+        this.ui.closeModal(modal);
+        this.launchOnline(new OnlineLink(client, m.room));
+      }
+    };
+    client.queue();
+  }
+
+  private launchOnline(link: OnlineLink): void {
+    this.disposeRace();
+    if (this.state.state !== 'menu') this.state.go('menu');
+    const race = new RaceController(this, link.ticket, link);
+    this.race = race;
+    this.scenes.race = race;
+    this.state.go('lobby');
+    link.onDisconnect = () => {
+      if (race.phase === 'results') return;
+      this.ui.toast(t('Connection to the race server was lost.'), 'bad', 4000);
+      this.toMenu();
+    };
+    race.onQuit = () => this.toMenu();
+    race.onFinished = (summary, settlement) => {
+      this.state.go('results');
+      this.ui.show(
+        resultsScreen(this, summary, settlement, {
+          again: () => void this.afterResults(() => (this.toMenu(), this.startOnline())),
+          done: () => void this.afterResults(() => this.toMenu()),
+        }),
+      );
+    };
+    let readySent = false;
+    this.ui.show(
+      preRace(
+        this,
+        link.ticket,
+        () => {
+          this.state.go('race');
+          this.ui.show(race.hudScreen());
+          race.begin();
+        },
+        () => this.toMenu(),
+        () => {
+          const p = race.preload();
+          if (p >= 1 && !readySent) {
+            readySent = true;
+            link.ready();
+          }
+          return p;
+        },
+        { yourIndex: link.me, waitFor: () => link.started },
+      ),
+    );
   }
 }

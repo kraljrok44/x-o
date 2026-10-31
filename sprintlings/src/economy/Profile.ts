@@ -113,6 +113,8 @@ export interface PlayerProfile {
   /** Highest server/clock time seen, to detect clocks moved backwards. */
   lastSeenTime: number;
   tutorialDone: boolean;
+  /** Which version of the Terms / Privacy Policy the player accepted, and when (authority time). */
+  terms?: { version: string; at: number };
   /** Ranked ladder (see progression/LeagueService). */
   trophies: number;
   bestTrophies: number;

@@ -8,20 +8,36 @@ import { ABILITY_IDS } from '../../src/abilities/AbilityDefinition';
 import { settleRace } from '../../src/economy/EconomyService';
 import { PHASE_CODES, type RacerSnap, type ServerMessage } from '../../src/network/ServerMessages';
 import type { AccountService } from '../economy/AccountService';
+import { simHash } from '../../src/network/simHash';
 
 export interface RoomPlayer {
   accountId: string;
   setup: RacerSetup;
   send(msg: ServerMessage): void;
-  /** Latest input state; presses latch until the next tick consumes them. */
+  /** Input state applied at the current tick; presses latch until a tick consumes them. */
   input: TickInput;
   connected: boolean;
+  /** Has loaded the course (or gave up waiting). */
+  ready?: boolean;
+  /** Inputs scheduled for future ticks (tick -> bits). */
+  pending?: Map<number, number>;
 }
 
+/** Input delay in ticks: covers the round trip so inputs arrive before their tick. */
+export const INPUT_DELAY = 6;
+/** Longest wait for every client to finish loading before the race starts anyway. */
+const READY_TIMEOUT_MS = 8000;
+/** Ticks per input batch sent to clients, and how often a state hash goes out. */
+const BATCH = 2;
+const HASH_EVERY = 60;
+
 /**
- * Authoritative online race. Runs the same deterministic simulation as the
- * client at 60 Hz, applies only validated input bits, broadcasts snapshots
- * at 20 Hz and settles rewards from its own result.
+ * Authoritative online race (lockstep). Waits until every client has loaded
+ * the course, then runs the deterministic simulation at 60 Hz, applying each
+ * player's validated input at the tick it was scheduled for. The applied
+ * inputs go out in small batches so every client steps the identical race;
+ * a state hash every second lets clients detect drift. Rewards are settled
+ * from the server's own result.
  */
 export class RaceRoom {
   readonly id = `room_${randomUUID()}`;
@@ -43,21 +59,49 @@ export class RaceRoom {
     const racers: RacerSetup[] = players.map((p) => ({ ...p.setup, isPlayer: true, difficulty: undefined }));
     for (const bot of base.racers.slice(1)) if (racers.length < 4) racers.push(bot);
     this.sim = new RaceSimulation({ track: getTrack(trackId), seed, racers, finishGrace: 12 });
-    players.forEach((p, i) => p.send({ t: 'match', room: { roomId: this.id, trackId, seed, racers, yourIndex: i } }));
+    for (const p of players) p.pending = new Map();
+    players.forEach((p, i) => p.send({ t: 'match', room: { roomId: this.id, trackId, seed, racers, yourIndex: i, inputDelay: INPUT_DELAY } }));
   }
 
+  private started = false;
+  private readyTimer: ReturnType<typeof setTimeout> | null = null;
+  private batchFrom = 0;
+  private batch: number[][] = [];
+
+  /** Starts once every connected player is ready, or after a timeout. */
   start(): void {
+    this.readyTimer = setTimeout(() => this.go(), READY_TIMEOUT_MS);
+    this.checkReady();
+  }
+
+  markReady(index: number): void {
+    const p = this.players[index];
+    if (p) p.ready = true;
+    this.checkReady();
+  }
+
+  private checkReady(): void {
+    if (this.players.every((p) => p.ready || !p.connected)) this.go();
+  }
+
+  private go(): void {
+    if (this.started || this.ended) return;
+    this.started = true;
+    if (this.readyTimer) clearTimeout(this.readyTimer);
     this.last = performance.now();
     this.timer = setInterval(() => this.pump(), 1000 / 60);
   }
 
-  setInput(index: number, bits: number): void {
+  /** Schedules validated input bits for `tick` (late input lands on the next tick to run). */
+  setInput(index: number, bits: number, tick = this.sim.tick): void {
     const p = this.players[index];
     if (!p || !Number.isInteger(bits) || bits < 0 || (bits & ~15) !== 0) return;
-    p.input.jumpHeld = (bits & 1) !== 0;
-    p.input.down = (bits & 2) !== 0;
-    p.input.use ||= (bits & 8) !== 0;
-    p.input.special ||= (bits & 4) !== 0;
+    if (!Number.isInteger(tick)) return;
+    // Far-future input is clamped (at most 10 s ahead) so a client cannot queue up a whole race.
+    const at = Math.max(this.sim.tick, Math.min(tick, this.sim.tick + 600));
+    const prev = p.pending!.get(at);
+    // Same tick twice: the newest held state wins, presses accumulate.
+    p.pending!.set(at, prev === undefined ? bits : (bits & 3) | ((prev | bits) & 12));
   }
 
   /** Steps as many ticks as wall time allows (bounded). */
@@ -74,14 +118,31 @@ export class RaceRoom {
   }
 
   private tick(): void {
+    const tick = this.sim.tick;
+    const applied = this.sim.racers.map(() => 0);
+    this.players.forEach((p, i) => {
+      const bits = p.pending!.get(tick);
+      if (bits !== undefined) {
+        p.pending!.delete(tick);
+        p.input.jumpHeld = (bits & 1) !== 0;
+        p.input.down = (bits & 2) !== 0;
+        p.input.special = (bits & 4) !== 0;
+        p.input.use = (bits & 8) !== 0;
+      }
+      if (!p.connected) p.input.jumpHeld = p.input.down = false;
+      applied[i] = (p.input.jumpHeld ? 1 : 0) | (p.input.down ? 2 : 0) | (p.input.special ? 4 : 0) | (p.input.use ? 8 : 0);
+    });
     const inputs = this.players.map((p) => ({ ...p.input }));
     for (const p of this.players) p.input.use = p.input.special = false;
-    const events = this.sim.step(inputs);
-    if (events.length) {
-      const list = events.map((e) => ({ type: e.type, racer: e.racer, value: e.value }));
-      this.broadcast({ t: 'events', tick: this.sim.tick, events: list });
+    this.sim.step(inputs);
+    if (this.batch.length === 0) this.batchFrom = tick;
+    this.batch.push(applied);
+    if (this.batch.length >= BATCH || this.sim.phase === 'done') {
+      this.broadcast({ t: 'ticks', from: this.batchFrom, inputs: this.batch });
+      this.batch = [];
     }
-    if (this.sim.tick % 3 === 0) this.broadcast({ t: 'snap', tick: this.sim.tick, racers: this.snapshot() });
+    if (this.sim.tick % HASH_EVERY === 0) this.broadcast({ t: 'hash', tick: this.sim.tick, h: simHash(this.sim) });
+    if (this.sim.tick % 6 === 0) this.broadcast({ t: 'snap', tick: this.sim.tick, racers: this.snapshot() });
     if (this.sim.phase === 'done') void this.end();
   }
 
@@ -114,7 +175,7 @@ export class RaceRoom {
           const { result } = await this.accounts.mutate(p.accountId, (prof, now) =>
             settleRace(prof, ticket, { raceId: ticket.raceId, trackId: this.trackId, mode: 'race', place: me.place, racerCount: summary.racers.length, finished: me.finishTime !== null, finishTime: me.finishTime, stats: me.stats }, now),
           );
-          if (p.connected) p.send({ t: 'end', standings, coins: result.breakdown.coins });
+          if (p.connected) p.send({ t: 'end', standings, coins: result.breakdown.coins, settlement: result });
         } catch {
           if (p.connected) p.send({ t: 'end', standings });
         }
@@ -125,6 +186,7 @@ export class RaceRoom {
 
   stop(): void {
     if (this.timer) clearInterval(this.timer);
+    if (this.readyTimer) clearTimeout(this.readyTimer);
     this.ended = true;
   }
 }

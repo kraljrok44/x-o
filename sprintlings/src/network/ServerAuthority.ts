@@ -22,6 +22,10 @@ export class NetworkClient {
     this.token = token;
   }
 
+  get authToken(): string | null {
+    return this.token;
+  }
+
   async call<T>(method: 'GET' | 'POST', path: string, body?: unknown, timeoutMs = 15000): Promise<T> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -78,6 +82,14 @@ export class ServerAuthority implements GameAuthority {
     return () => this.listeners.delete(cb);
   }
 
+  onlineToken(): string | null {
+    return this.net.authToken;
+  }
+
+  async refresh(): Promise<void> {
+    this.setProfile(await this.init());
+  }
+
   setProfile(p: PlayerProfile): void {
     this.p = p;
     for (const l of this.listeners) l(p);
@@ -126,6 +138,9 @@ export class ServerAuthority implements GameAuthority {
   }
   async completeTutorial() {
     await this.op('/api/profile/tutorial');
+  }
+  async acceptTerms(version: string) {
+    await this.op('/api/profile/terms', { version });
   }
 
   adEligibility(placement: RewardedPlacement, raceId?: string): AdEligibility {

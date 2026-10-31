@@ -1,13 +1,13 @@
 import type { ClientMessage, ServerMessage } from './ServerMessages';
 
 /**
- * Client side of online matchmaking (experimental, not yet exposed in the
- * UI). Connects to /ws, authenticates with the account token, queues and
- * forwards per-tick input bits to the authoritative server room.
+ * Client side of online matchmaking. Connects to /ws, authenticates with
+ * the account token, queues and forwards input bits to the server room.
  */
 export class MatchmakingClient {
   private ws: WebSocket | null = null;
   onMessage: ((m: ServerMessage) => void) | null = null;
+  onClose: (() => void) | null = null;
 
   constructor(
     private readonly baseUrl: string,
@@ -24,6 +24,9 @@ export class MatchmakingClient {
         resolve();
       };
       ws.onerror = () => reject(new Error('Could not connect to the race server.'));
+      ws.onclose = () => {
+        if (this.ws === ws) this.onClose?.();
+      };
       ws.onmessage = (e) => {
         try {
           this.onMessage?.(JSON.parse(String(e.data)) as ServerMessage);
@@ -47,7 +50,8 @@ export class MatchmakingClient {
   }
 
   close(): void {
-    this.ws?.close();
+    const ws = this.ws;
     this.ws = null;
+    ws?.close();
   }
 }
