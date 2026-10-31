@@ -7,6 +7,7 @@ import type { RaceSimulation } from '../game/RaceManager';
 import type { SeekerEntity, TickInput } from '../game/RaceState';
 import { DIFFICULTIES, type DifficultyId, type DifficultyProfile } from './DifficultyProfile';
 import { DROP_TICKS, HazardPlanner, needsPlanning, type Plan } from './HazardPlanner';
+import { dhypot } from '../shared/DetMath';
 
 const NOOP: Plan = { jumpTick: -1, hold: 0, drop: false };
 
@@ -147,7 +148,7 @@ export class AIController {
         use = true;
         break;
       case 'howl':
-        use = rivals.some((r) => Math.hypot(r.body.x - b.x, r.body.y - b.y) < 8);
+        use = rivals.some((r) => dhypot(r.body.x - b.x, r.body.y - b.y) < 8);
         break;
     }
     if (use) this.specialSince = -1;

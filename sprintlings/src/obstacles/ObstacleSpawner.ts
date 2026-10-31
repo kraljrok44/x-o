@@ -3,6 +3,7 @@ import { Track, type Biome, type GroundPiece, type PlacedSegment, type TrackData
 import { SegmentContext, emptyDraft, type TrackDraft } from '../game/TrackSegment';
 import { SEGMENT_BY_ID } from './HazardPatterns';
 import { hazardExtent } from './ObstacleBase';
+import { dsin } from '../shared/DetMath';
 
 export interface SegmentPlacement {
   id: string;
@@ -82,7 +83,9 @@ function addHills(draft: TrackDraft, rng: Rng, length: number): void {
       const rise = rng.range(HILL.minRise, HILL.maxRise) * (rng.next() < HILL.dipChance ? -0.7 : 1);
       const bump = (bx: number) => {
         const t = (bx - x) / len;
-        return t <= 0 || t >= 1 ? 0 : rise * Math.sin(Math.PI * t) ** 2;
+        if (t <= 0 || t >= 1) return 0;
+        const sn = dsin(Math.PI * t);
+        return rise * sn * sn;
       };
       if (x > at) out.push({ id: draft.nextId++, x0: at, x1: x, y0: p.y0, y1: p.y0, oneWay: false });
       for (let k = 0; k < HILL.sub; k++) {

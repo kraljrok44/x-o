@@ -4,6 +4,7 @@ import type { RaceSimulation } from '../game/RaceManager';
 import type { Racer } from '../game/RaceState';
 import { applyHit } from './StatusEffectSystem';
 import { ITEM_LIFETIME } from './AbilityDefinition';
+import { dhypot } from '../shared/DetMath';
 
 export const SPECIAL_IDS: readonly SpecialId[] = ['quickDash', 'doubleHop', 'ironHide', 'pickpocket', 'stampede', 'howl'];
 
@@ -45,7 +46,7 @@ function pickpocketTarget(sim: RaceSimulation, racer: Racer): number {
   let bestD: number = SpecialTuning.pickpocket.range;
   for (const r of sim.racers) {
     if (r.item === null || sim.sameTeam(r.index, racer.index) || r.body.phase !== 'run') continue;
-    const d = Math.hypot(r.body.x - me.x, r.body.y - me.y);
+    const d = dhypot(r.body.x - me.x, r.body.y - me.y);
     if (d < bestD) {
       bestD = d;
       best = r.index;
@@ -89,7 +90,7 @@ export function trySpecial(sim: RaceSimulation, racer: Racer): boolean {
     case 'howl':
       for (const r of sim.racers) {
         if (sim.sameTeam(r.index, racer.index) || r.body.phase !== 'run') continue;
-        if (Math.hypot(r.body.x - b.x, r.body.y - b.y) > SpecialTuning.howl.range) continue;
+        if (dhypot(r.body.x - b.x, r.body.y - b.y) > SpecialTuning.howl.range) continue;
         if (r.body.shield > 0) continue;
         r.body.slow = SpecialTuning.howl.duration;
       }

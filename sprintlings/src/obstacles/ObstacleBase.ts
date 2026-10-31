@@ -1,3 +1,5 @@
+import { dcos, dsin } from '../shared/DetMath';
+
 /**
  * Side-view track coordinates used by the whole simulation:
  *   x  distance along the course (forward, left -> right on screen), 0 = start line
@@ -178,21 +180,21 @@ export interface Point {
 
 /** Saw centre at time t (writes into `out`, allocation free). */
 export function sawCenter(h: SawHazard, t: number, out: Point): Point {
-  const off = h.axis === 'none' ? 0 : h.amplitude * Math.sin(((t + h.phase) / h.period) * Math.PI * 2);
+  const off = h.axis === 'none' ? 0 : h.amplitude * dsin(((t + h.phase) / h.period) * Math.PI * 2);
   out.x = h.axis === 'x' ? h.x + off : h.x;
   out.y = h.axis === 'y' ? h.y + h.lift + off : h.y + h.lift;
   return out;
 }
 
 export function pendulumAngle(h: PendulumHazard, t: number): number {
-  return h.amplitude * Math.sin(((t + h.phase) / h.period) * Math.PI * 2);
+  return h.amplitude * dsin(((t + h.phase) / h.period) * Math.PI * 2);
 }
 
 /** Pendulum ball centre at time t (writes into `out`). */
 export function pendulumBall(h: PendulumHazard, t: number, out: Point): Point {
   const angle = pendulumAngle(h, t);
-  out.x = h.x + Math.sin(angle) * h.length;
-  out.y = h.y + h.pivotLift - Math.cos(angle) * h.length;
+  out.x = h.x + dsin(angle) * h.length;
+  out.y = h.y + h.pivotLift - dcos(angle) * h.length;
   return out;
 }
 
