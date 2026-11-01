@@ -14,9 +14,7 @@ import type { Track } from '../game/Track';
 import { bodyHeight, type RacerBody } from '../game/RaceState';
 
 export interface ContactResult {
-  /** Damaging hazard touched this tick, or null. */
   hit: Hazard | null;
-  /** Terrain the racer stands in: 0 none, 1 mud. */
   terrain: number;
   boostPad: Hazard | null;
   spring: Hazard | null;
@@ -29,7 +27,6 @@ export function makeContactResult(): ContactResult {
 const hb = GameplayConfig.hitbox;
 const tmp: Point = { x: 0, y: 0 };
 
-/** Racer box vs circle overlap. */
 function circleHit(body: RacerBody, cx: number, cy: number, r: number): boolean {
   const nx = Math.max(body.x - hb.halfWidth, Math.min(cx, body.x + hb.halfWidth));
   const ny = Math.max(body.y, Math.min(cy, body.y + bodyHeight(body)));
@@ -38,15 +35,10 @@ function circleHit(body: RacerBody, cx: number, cy: number, r: number): boolean 
   return dx * dx + dy * dy < r * r;
 }
 
-/** Racer box vs axis-aligned box. */
 function boxHit(body: RacerBody, x0: number, x1: number, y0: number, y1: number): boolean {
   return body.x + hb.halfWidth > x0 && body.x - hb.halfWidth < x1 && body.y + bodyHeight(body) > y0 && body.y < y1;
 }
 
-/**
- * Tests a racer against every hazard near it at time t. Writes into `out`
- * to avoid allocations.
- */
 export function resolveHazardContacts(track: Track, body: RacerBody, t: number, out: ContactResult): ContactResult {
   out.hit = null;
   out.terrain = 0;
@@ -79,9 +71,6 @@ export function resolveHazardContacts(track: Track, body: RacerBody, t: number, 
         if (flameState(h, t) === 'active' && boxHit(body, h.x - h.halfWidth, h.x + h.halfWidth, h.y, h.y + h.height)) out.hit = h;
         break;
       case 'crusher': {
-        // Only a slammed block hurts: a raised one clears even a full jump, and
-        // jumping over the slammed block always works, so every arrival time
-        // has an answer.
         const lift = crusherLift(h, t);
         if (lift <= 0.3 && boxHit(body, h.x - h.halfWidth, h.x + h.halfWidth, h.y, h.y + lift + CRUSHER_BLOCK)) out.hit = h;
         break;
@@ -114,7 +103,6 @@ export function resolveHazardContacts(track: Track, body: RacerBody, t: number, 
   return out;
 }
 
-/** Stun length for a hazard kind before passive modifiers. */
 export function stunFor(kind: Hazard['kind']): number {
   const st = GameplayConfig.stun;
   switch (kind) {

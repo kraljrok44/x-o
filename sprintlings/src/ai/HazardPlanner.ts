@@ -7,13 +7,9 @@ import { bodyHeight, copyBody, makeBody, trapTouched, type RaceEventType, type R
 import type { RaceSimulation } from '../game/RaceManager';
 import { approach } from '../shared/math';
 
-/** One candidate course of action evaluated by a rollout. */
 export interface Plan {
-  /** Tick (relative to plan start) to press jump, or -1 for no jump. */
   jumpTick: number;
-  /** How many ticks jump is held once pressed. */
   hold: number;
-  /** Hold down from the start of the plan: drops through a platform, or slides on solid ground. */
   drop: boolean;
 }
 
@@ -29,14 +25,11 @@ const MID_HOLD = 14;
 const SHORT_HOLD = 6;
 const JUMP_TICKS = [-1, 0, 3, 7, 12, 18, 26, 36, 48];
 const SETTLE_TICKS = 50;
-/** Ticks down is held for a drop (on a platform) or a slide (on solid ground). */
 export const DROP_TICKS = 4;
 export const SLIDE_TICKS = 30;
 
-/** Side-effect-free MovementWorld used for look-ahead rollouts. */
 class PredictionWorld implements MovementWorld {
   track!: Track;
-  /** Tick being simulated. Time is derived from it exactly as the race does, so timed hazards match bit for bit. */
   tick = 0;
   private countdownTicks = 0;
   incidents = 0;
@@ -75,7 +68,6 @@ class PredictionWorld implements MovementWorld {
     return trapTouched(this.sim.entities, racer, body, (a, b) => this.sim.sameTeam(a, b));
   }
 
-  /** Advances predicted seekers aimed at this racer and reports a hit. */
   stepSeekers(body: RacerBody, dt: number, homing: number): boolean {
     const speed = ABILITIES.seeker.speed;
     const r = AbilityTuning.seeker.radius;
@@ -100,7 +92,6 @@ class PredictionWorld implements MovementWorld {
   }
 }
 
-/** True when the racer is airborne below the next solid ground and over a pit: it can no longer land. */
 function isDoomed(track: Track, b: RacerBody): boolean {
   if (b.grounded || b.vy > 0) return false;
   if (!Number.isNaN(track.groundBelow(b.x, b.y + 0.02, -1, true))) return false;
@@ -111,12 +102,6 @@ function isDoomed(track: Track, b: RacerBody): boolean {
   return b.y < -1;
 }
 
-/**
- * Look-ahead planner: simulates a handful of candidate action sequences with
- * the real movement code and picks the one that makes the most progress
- * without incidents. Being exact rather than heuristic is what lets the same
- * planner double as the track passability validator.
- */
 export class HazardPlanner {
   private readonly world = new PredictionWorld();
   private readonly scratch: RacerBody = makeBody(0, 0);
@@ -125,7 +110,6 @@ export class HazardPlanner {
   private readonly results: PlanScore[] = [];
   private readonly glimmerSeen = new Set<number>();
   evaluations = 0;
-  /** How long the current batch of down-plans holds down. */
   downTicks = DROP_TICKS;
 
   constructor() {
@@ -141,10 +125,6 @@ export class HazardPlanner {
     for (let i = 0; i < this.plans.length; i++) this.results.push({ plan: this.plans[i], score: 0, incidents: 0, fell: false });
   }
 
-  /**
-   * Evaluates all plans for `racer` and returns them sorted best first.
-   * `heldTicks` is how much longer the racer's current jump will be held.
-   */
   plan(
     sim: RaceSimulation,
     racer: number,
@@ -195,11 +175,6 @@ export class HazardPlanner {
     let seekerHits = 0;
     let doomed = false;
     const total = horizon + SETTLE_TICKS;
-    // After the plan's own decisions, a reflex jumps at gap edges and walls so
-    // a plan isn't judged doomed just because its horizon ends before a
-    // needed jump. Press/hold bookkeeping mirrors AIController exactly.
-    // A plan without a jump gets no reflex inside its horizon, otherwise
-    // "do nothing" would look as good as the jump the reflex makes for it.
     const reflexFrom = p.jumpTick >= 0 ? p.jumpTick + p.hold : horizon;
     const stepUp = GameplayConfig.jump.stepUp;
     let holdEnd = heldTicks;
@@ -209,7 +184,6 @@ export class HazardPlanner {
     for (let k = 0; k < total; k++) {
       const inPlan = k < horizon;
       if (!inPlan && b.grounded) break;
-      // Holding jump on the ground does nothing; the controller lets go on landing.
       if (b.grounded && k > pressedK + 1 && holdEnd > k) holdEnd = k;
       if (pressAt < k && k >= reflexFrom && holdEnd <= k && b.grounded && b.phase === 'run') {
         const ahead = track.groundBelow(b.x + 0.45, b.y + stepUp, b.dropTimer > 0 ? b.dropId : -1, true);
@@ -220,7 +194,6 @@ export class HazardPlanner {
       }
       if (k === pressAt) {
         if (prevHeld) {
-          // A press needs a released key first.
           pressAt = k + 1;
           holdEnd = k;
         } else {
@@ -294,7 +267,6 @@ export class HazardPlanner {
   }
 }
 
-/** Cheap pre-check: is anything that needs a decision within `dist` ahead? */
 export function needsPlanning(sim: RaceSimulation, racer: number, dist: number): boolean {
   const b = sim.racers[racer].body;
   const track = sim.track;
@@ -308,7 +280,6 @@ export function needsPlanning(sim: RaceSimulation, racer: number, dist: number):
   for (let x = b.x; x <= end; x += 1) {
     const g = track.solidTop(x);
     if (Number.isNaN(g) || Math.abs(g - b.y) > 0.3) return true;
-    // A floating platform above: worth considering for the high route.
     if (track.groundBelow(x, b.y + 3, -1, true) !== g) return true;
   }
   for (const e of sim.entities) {

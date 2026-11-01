@@ -3,7 +3,6 @@ import type { KeyValueStore } from '../persistence/KeyValueStore';
 import { newId } from '../shared/ids';
 import { loadScript, type Platform } from './Platform';
 
-/** The subset of the CrazyGames HTML5 SDK v3 we use. */
 interface CrazySDK {
   init(): Promise<void>;
   environment: 'local' | 'crazygames' | 'disabled';
@@ -61,7 +60,6 @@ class CrazyGamesAdProvider implements AdProvider {
             started = true;
             this.onAdStart?.();
           },
-          // CrazyGames calls adFinished only when the ad ran to completion.
           adFinished: () => finish({ status: 'completed', token: newId('cg'), verifiedBy: 'provider-callback' }),
           adError: (e) =>
             finish({ status: 'failed', reason: e?.code === 'unfilled' ? 'No video is available right now. Please try again later.' : 'The video could not be played.' }),
@@ -69,7 +67,6 @@ class CrazyGamesAdProvider implements AdProvider {
       } catch {
         finish({ status: 'failed', reason: 'The video could not be played.' });
       }
-      // Safety net so the UI never hangs.
       setTimeout(() => finish({ status: 'failed', reason: 'The video timed out.' }), 90_000);
     });
   }
@@ -83,7 +80,6 @@ class CrazyGamesAdProvider implements AdProvider {
   }
 }
 
-/** CrazyGames data module (cloud save for logged-in players, local otherwise). */
 class CrazyDataStore implements KeyValueStore {
   readonly name = 'crazygames-data';
   async get(key: string): Promise<string | null> {
@@ -97,14 +93,12 @@ class CrazyDataStore implements KeyValueStore {
     try {
       sdk()?.data?.setItem(`sprintlings_${key}`, value);
     } catch {
-      /* ignore */
     }
   }
   async remove(key: string): Promise<void> {
     try {
       sdk()?.data?.removeItem(`sprintlings_${key}`);
     } catch {
-      /* ignore */
     }
   }
 }
@@ -132,7 +126,6 @@ export class CrazyGamesPlatform implements Platform {
       try {
         ads.adblock = (await s.ad.hasAdblock?.()) ?? false;
       } catch {
-        /* ignore */
       }
       this.ads = ads;
       if (s.game.settings?.muteAudio) this.onMuteRequest?.(true);
@@ -150,7 +143,6 @@ export class CrazyGamesPlatform implements Platform {
     try {
       fn(s);
     } catch {
-      /* SDK errors must never break the game */
     }
   }
 

@@ -7,7 +7,6 @@ import { t } from './i18n';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-/** Inline SVG of a banded wooden strongbox; the lid is a separate group so it can swing open. */
 function chestSvg(): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', '0 0 200 170');
@@ -33,12 +32,6 @@ function chestSvg(): SVGSVGElement {
   return svg;
 }
 
-/**
- * Full-screen chest reveal: the strongbox drops in, rattles, bursts open
- * with light rays and flying coins, then the prize rises out with its
- * rarity glow. Tapping skips straight to the reveal. `grant` is what the
- * authority actually awarded, so the animation never shows something else.
- */
 export function showChestOpening(ctx: AppContext, grant: GrantResult, title = 'Strongbox'): Promise<void> {
   return new Promise((resolve) => {
     const id = grant.items[0] ?? grant.duplicates[0]?.id;

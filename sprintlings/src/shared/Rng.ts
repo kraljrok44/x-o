@@ -1,8 +1,3 @@
-/**
- * Small deterministic PRNG (mulberry32). Every gameplay random decision goes
- * through an instance of this so a race can be re-simulated bit-for-bit from
- * its seed and the player's input log (see game/RaceReplay.ts).
- */
 export class Rng {
   private state: number;
 
@@ -10,7 +5,6 @@ export class Rng {
     this.state = seed >>> 0 || 0x9e3779b9;
   }
 
-  /** Uniform float in [0, 1). */
   next(): number {
     this.state = (this.state + 0x6d2b79f5) >>> 0;
     let t = this.state;
@@ -35,7 +29,6 @@ export class Rng {
     return items[Math.floor(this.next() * items.length)];
   }
 
-  /** Picks a key from a weight table; weights need not sum to 1. */
   weighted<K extends string>(table: Readonly<Record<K, number>>): K {
     const keys = Object.keys(table) as K[];
     let total = 0;
@@ -63,7 +56,6 @@ export class Rng {
   }
 }
 
-/** Stable 32-bit hash of a string (FNV-1a). */
 export function hashString(text: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {

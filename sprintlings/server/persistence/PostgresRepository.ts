@@ -8,7 +8,6 @@ import type { Account, PurchaseRecord, Repository } from './Repository';
 
 const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'migrations');
 
-/** PostgreSQL implementation. Run migrations with `migrate()` at startup. */
 export class PostgresRepository implements Repository {
   readonly kind = 'postgres';
   private readonly pool: pg.Pool;
@@ -17,7 +16,6 @@ export class PostgresRepository implements Repository {
     this.pool = new pg.Pool({ connectionString, max: 10 });
   }
 
-  /** Applies pending SQL migrations in filename order (each file runs once). */
   async migrate(): Promise<number[]> {
     await this.pool.query('CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())');
     const done = new Set((await this.pool.query<{ version: number }>('SELECT version FROM schema_migrations')).rows.map((r) => r.version));

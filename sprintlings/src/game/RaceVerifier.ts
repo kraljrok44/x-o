@@ -11,7 +11,6 @@ import type { RaceOutcome } from '../progression/QuestService';
 export type RaceMode = 'race' | 'practice' | 'remix' | 'duos';
 export type DifficultyChoice = 'auto' | 'easy' | 'normal' | 'hard';
 
-/** Issued by the authority before a race; the only valid basis for rewards. */
 export interface RaceTicket {
   raceId: string;
   trackId: string;
@@ -39,7 +38,6 @@ export function botDifficulties(choice: DifficultyChoice, level: number): Diffic
   }
 }
 
-/** Builds a race ticket with a seeded bot lineup. */
 export function createTicket(
   raceId: string,
   trackId: string,
@@ -74,11 +72,6 @@ export function createTicket(
 
 export type VerifyResult = { ok: true; outcome: RaceOutcome; ticks: number } | { ok: false; reason: string };
 
-/**
- * Re-simulates a race from its ticket and the player's input log. The
- * result of this re-simulation, never a client-reported placing, is what
- * rewards are based on.
- */
 export function verifyRace(ticket: RaceTicket, log: unknown): VerifyResult {
   let track;
   try {

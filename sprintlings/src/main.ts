@@ -9,7 +9,6 @@ import { checkSupport, showFatal } from './app/GameBootstrap';
 
 const root = document.getElementById('app')!;
 
-// Keep portals' iframes from scrolling on arrow keys / space even before the game has focus.
 window.addEventListener('keydown', (e) => {
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code) && !(e.target instanceof HTMLInputElement)) e.preventDefault();
 });

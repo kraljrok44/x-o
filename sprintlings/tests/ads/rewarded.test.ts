@@ -78,7 +78,6 @@ describe('rewarded ads', () => {
     const r = await s.run('free_coins');
     expect(r.status).toBe('rewardGranted');
     expect(a.profile.wallet.coins).toBe(before + 20);
-    // A duplicated completion callback (same token) must not pay again.
     await expect(a.grantAdReward('free_coins', 'same_token')).rejects.toThrow();
     expect(a.profile.wallet.coins).toBe(before + 20);
   });

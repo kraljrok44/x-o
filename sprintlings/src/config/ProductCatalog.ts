@@ -1,9 +1,3 @@
-/**
- * Real-money products (design doc section 12). Prices are NOT defined here:
- * the UI shows only the localized price returned by the payment provider.
- * `testPriceLabel` is used exclusively by the sandbox provider and is always
- * rendered with a "TEST" marker.
- */
 export type ProductKind = 'consumable' | 'permanent';
 
 export interface ProductDefinition {
@@ -12,7 +6,6 @@ export interface ProductDefinition {
   name: string;
   description: string;
   grants: { gems?: number; cosmetics?: string[]; entitlements?: string[] };
-  /** Can only be bought once per account even though it contains currency. */
   oncePerAccount?: boolean;
   testPriceLabel: string;
   highlight?: string;

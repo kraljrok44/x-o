@@ -25,7 +25,6 @@ export interface Emit {
   color: string;
   count?: number;
   speed?: number;
-  /** Base direction in radians and spread (default: all around). */
   dir?: number;
   spread?: number;
   size?: number;
@@ -34,10 +33,6 @@ export interface Emit {
   drag?: number;
 }
 
-/**
- * Pooled world-space particles (+y up). Cheap shapes only; the cap scales
- * with graphics quality.
- */
 export class Particles {
   private readonly pool: Particle[] = [];
   private readonly live: Particle[] = [];

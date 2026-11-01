@@ -62,7 +62,6 @@ export function itemVisual(ctx: AppContext, def: CosmeticDefinition): HTMLElemen
 
 const SLOT_NAMES: Record<string, string> = { hat: 'Hat', eyes: 'Eyewear', back: 'Back', trail: 'Trail', emote: 'Emote', variant: 'Colour', outfit: 'Outfit', hand: 'Held prop', mount: 'Mount' };
 
-/** Current outfit with every bundle item put on. */
 function bundleLoadout(current: Record<string, string>, items: readonly string[]): Record<string, string> {
   const out = { ...current };
   for (const i of items) {
@@ -72,7 +71,6 @@ function bundleLoadout(current: Record<string, string>, items: readonly string[]
   return out;
 }
 
-/** Card picture for a bundle: your animal wearing the whole set. */
 function bundleVisual(ctx: AppContext, items: readonly string[]): HTMLElement {
   const p = ctx.authority.profile;
   const cid = p.loadout.characterId;
@@ -92,7 +90,6 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
   const grid = h('div', { class: 'grid' });
   const detail = h('div', { class: 'panel shop-detail', style: 'padding:12px;margin-top:12px' });
 
-  /** The whole outfit on your animal; it turns now and then so a back item shows too. */
   const previewItems = (items: readonly string[]) => {
     const p = ctx.authority.profile;
     const base = { characterId: p.loadout.characterId, variantId: p.loadout.variants[p.loadout.characterId] ?? null, cosmetics: bundleLoadout(visibleLoadout(p), items) };
@@ -119,11 +116,9 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
       base.characterId = id.slice(5) as CharacterId;
       base.variantId = null;
     }
-    // Items worn on the back are only visible side-on, so the model turns.
     ctx.menu.show(base, def?.slot === 'emote', def?.slot === 'back', def?.slot === 'trail');
   };
 
-  /** A tab's offers, cheapest first: coins before gems, then by price. */
   const sortedOffers = (cat: Tab): ShopOffer[] => {
     const p = ctx.authority.profile;
     const cost = (o: ShopOffer) => (o.kind === 'bundle' ? bundlePrice(p, o.id) : o.price.amount);
@@ -132,7 +127,6 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
       .sort((a, b) => (a.price.currency === b.price.currency ? cost(a) - cost(b) : a.price.currency === 'coins' ? -1 : 1));
   };
 
-  // Tabs with nothing on sale right now (e.g. Seasonal between events) are hidden.
   const renderTabs = () =>
     tabs.replaceChildren(...TABS.filter(([id]) => id === 'gems' || sortedOffers(id).length > 0).map(([id, label]) => h('button', { class: `btn btn--small tab ${tab === id ? 'active' : ''}`, onClick: () => ((tab = id), (selected = null), render()) }, t(label))));
 
@@ -252,7 +246,6 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
         ),
       );
     } else if (o.kind === 'bundle') {
-      // Owned set: put the whole outfit on in one go.
       actions.append(
         h(
           'button',
@@ -323,7 +316,6 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
     );
   };
 
-  /** Real-money cosmetic sets (no Gems inside) belong with the other bundles. */
   const isCosmeticPack = (o: ProductOffer) => !!o.product.grants.cosmetics?.length && !o.product.grants.gems;
 
   const appendPackBundles = async () => {
@@ -345,7 +337,6 @@ export function shopScreen(ctx: AppContext, params: { tab?: Tab } = {}): Screen 
           {
             class: `card ${isCosmeticPack(o) ? 'pack-card' : ''}`,
             style: o.product.grants.cosmetics?.length ? 'cursor:pointer' : 'cursor:default',
-            // Sets with cosmetics are tried on the animal when tapped.
             onClick: o.product.grants.cosmetics?.length ? () => previewItems(o.product.grants.cosmetics!) : undefined,
           },
           o.product.grants.cosmetics?.length

@@ -1,9 +1,5 @@
 import type { ClientMessage, ServerMessage } from './ServerMessages';
 
-/**
- * Client side of online matchmaking. Connects to /ws, authenticates with
- * the account token, queues and forwards input bits to the server room.
- */
 export class MatchmakingClient {
   private ws: WebSocket | null = null;
   onMessage: ((m: ServerMessage) => void) | null = null;
@@ -31,7 +27,6 @@ export class MatchmakingClient {
         try {
           this.onMessage?.(JSON.parse(String(e.data)) as ServerMessage);
         } catch {
-          /* ignore malformed frames */
         }
       };
     });

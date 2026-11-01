@@ -11,7 +11,6 @@ function racers() {
   return [human('me', 'moss'), bot('a', 'rookie', 'kip'), bot('b', 'racer', 'pebble'), bot('c', 'ace', 'lumi')];
 }
 
-/** A scripted "player": jumps periodically, drops down and fires abilities at random. */
 function scripted(seed: number) {
   const rng = new Rng(seed);
   let hold = 0;

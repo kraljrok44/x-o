@@ -26,7 +26,6 @@ describe('abilities', () => {
 
   it('Homing Rocket homes in on the racer ahead and stuns it', () => {
     const sim = duo();
-    // b gets a head start.
     sim.racers[1].body.x = 12;
     sim.racers[0].item = 'seeker';
     sim.step([input({ use: true }), input({})]);

@@ -66,7 +66,6 @@ describe('new powerups', () => {
     let blast = false;
     let hit = false;
     for (let i = 0; i < 120; i++) {
-      // Keep the target parked where the bomb comes down.
       sim.racers[1].body.speed = 0;
       sim.racers[1].body.x = Math.max(sim.racers[1].body.x, sim.racers[0].body.x + 2);
       for (const e of sim.step(idle)) {
@@ -173,7 +172,6 @@ describe('animal specials', () => {
 describe('lasso rope trap', () => {
   it('with nobody ahead the lasso becomes a rope trap that yanks a rival up', () => {
     const sim = duo();
-    // Rival well behind: nobody in lasso range ahead.
     sim.racers[1].body.x = sim.racers[0].body.x - 8;
     sim.racers[0].item = 'lasso';
     sim.step([input({ use: true }), input({})]);

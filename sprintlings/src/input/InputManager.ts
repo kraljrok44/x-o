@@ -40,25 +40,17 @@ export function keyLabel(code: string): string {
   return code.replace('Left', ' L').replace('Right', ' R');
 }
 
-/**
- * Collects keyboard, mouse, touch and gamepad input and turns it into one
- * TickInput per simulation tick. Presses are latched until the next tick so
- * a tap shorter than a tick is never lost; jump is level-triggered.
- */
 export class InputManager {
   private bindings: KeyBindings = { ...DEFAULT_BINDINGS };
   private codeToAction = new Map<string, InputAction>();
   private jumpSources = new Set<string>();
   private downSources = new Set<string>();
-  /** Ticks a swipe-down keeps "down" held (long enough to drop through a platform). */
   private downPulse = 0;
   private latched = { use: false, special: false, jumpTap: false, downTap: false };
   private readonly out: TickInput = { jumpHeld: false, down: false, use: false, special: false };
   enabled = false;
   onPause: (() => void) | null = null;
-  /** Quick chat: keys 1-4 during a race. */
   onEmote: ((slot: number) => void) | null = null;
-  /** Called on any input so the app can unlock audio etc. */
   onActivity: (() => void) | null = null;
   private capture: ((code: string) => void) | null = null;
   private touchStart = new Map<number, { x: number; y: number; t: number; handled: boolean }>();
@@ -87,7 +79,6 @@ export class InputManager {
     return this.bindings;
   }
 
-  /** Next key or mouse button pressed is passed to `cb` instead of the game (rebinding UI). */
   captureNext(cb: (code: string) => void): void {
     this.capture = cb;
   }
@@ -154,7 +145,6 @@ export class InputManager {
       return;
     }
     const used = this.handle(e.code, down);
-    // Stop space/arrows from scrolling the page inside portal iframes.
     if (used || ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   }
 
@@ -178,8 +168,6 @@ export class InputManager {
     if (down) this.handle(code, true);
   }
 
-  // --- touch: on-screen buttons are wired via bindTouchButton; free swipes here ---
-
   private onTouchStart(e: TouchEvent): void {
     this.onActivity?.();
     if (!this.enabled) return;
@@ -202,7 +190,6 @@ export class InputManager {
         this.downPulse = 8;
         st.handled = true;
       } else if (dx > min * 1.5 && Math.abs(dx) > Math.abs(dy)) {
-        // Swipe forward fires the ability.
         this.latched.use = true;
         st.handled = true;
       } else if (dy < -min && Math.abs(dy) > Math.abs(dx)) {
@@ -219,14 +206,12 @@ export class InputManager {
       const st = this.touchStart.get(t.identifier);
       this.touchStart.delete(t.identifier);
       this.jumpSources.delete(`touch${t.identifier}`);
-      // A quick tap with no swipe is a jump.
       if (this.enabled && st && !st.handled && performance.now() - st.t < 220) {
         this.latched.jumpTap = true;
       }
     }
   }
 
-  /** Wires an on-screen touch button (instant response on touchstart). */
   bindTouchButton(el: HTMLElement, action: 'jump' | 'down' | 'ability' | 'special'): void {
     const id = `btn_${action}_${Math.random().toString(36).slice(2, 6)}`;
     const down = (e: Event) => {
@@ -280,7 +265,6 @@ export class InputManager {
     this.padPrev = now;
   }
 
-  /** Consumes latched presses and returns the input for the next tick. */
   sample(): TickInput {
     this.pollGamepad();
     const o = this.out;
@@ -290,7 +274,6 @@ export class InputManager {
       this.downPulse = 0;
       return o;
     }
-    // A tap released before the tick still counts as one tick of holding.
     o.jumpHeld = this.jumpSources.size > 0 || this.latched.jumpTap;
     o.down = this.downSources.size > 0 || this.latched.downTap || this.downPulse > 0;
     if (this.downPulse > 0) this.downPulse--;
@@ -300,7 +283,6 @@ export class InputManager {
     return o;
   }
 
-  /** Clears held state, e.g. when a race starts or resumes. */
   reset(): void {
     this.jumpSources.clear();
     this.downSources.clear();

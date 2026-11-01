@@ -6,8 +6,6 @@ import { StandalonePlatform } from './StandalonePlatform';
 declare const __PLATFORM__: string;
 
 export async function createPlatform(): Promise<Platform> {
-  // __PLATFORM__ is a build-time constant, so unused branches (including the
-  // development ad simulator) are removed from portal and production builds.
   if (__PLATFORM__ === 'crazygames') return new CrazyGamesPlatform();
   if (__PLATFORM__ === 'gamemonetize') return new GameMonetizePlatform();
   if (__PLATFORM__ === 'dev') {

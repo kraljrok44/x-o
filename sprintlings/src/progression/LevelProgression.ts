@@ -1,7 +1,6 @@
 import { EconomyConfig } from '../config/EconomyConfig';
 import { CHARACTERS, CHARACTER_IDS, type CharacterId } from '../player/CharacterDefinition';
 
-/** Total XP required to reach `level` from level 1. */
 export function totalXpForLevel(level: number): number {
   let total = 0;
   for (let l = 1; l < level; l++) total += EconomyConfig.level.xpToNext(l);
@@ -33,7 +32,6 @@ export interface LevelReward {
   characters: CharacterId[];
 }
 
-/** What reaching `level` grants. */
 export function rewardForLevel(level: number): LevelReward {
   const cfg = EconomyConfig.level;
   return {

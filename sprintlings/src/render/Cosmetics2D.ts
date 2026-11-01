@@ -3,11 +3,6 @@ import { COSMETIC_BY_ID } from '../shop/CosmeticCatalog';
 import { ellipse, mix, roundRect, shade, star, tint, type Ctx } from './draw';
 import type { EyeAnchor, MonsterPose, MountLayer, RigAnchors, RigLayers } from './CharacterRig';
 
-/**
- * Vector cosmetics drawn on the monster rig, in body space (+y up, origin
- * at the body centre). Purely visual: the simulation never reads them.
- */
-
 const OL = '#2a1d2e';
 const LW = 0.035;
 
@@ -38,7 +33,6 @@ function drawHat(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monste
     case 'hat_sombrero': {
       const tall = m === 'hat_tengallon' ? 1.5 : m === 'hat_sombrero' ? 0.85 : 1;
       const brim = m === 'hat_sombrero' ? 1.55 : 1.05;
-      // Brim curling up at both ends.
       ctx.beginPath();
       ctx.moveTo(-w * 0.62 * brim, 0.1);
       ctx.quadraticCurveTo(-w * 0.5 * brim, -0.02, 0, -0.02);
@@ -47,7 +41,6 @@ function drawHat(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monste
       ctx.quadraticCurveTo(-w * 0.45 * brim, 0.05, -w * 0.62 * brim, 0.1);
       ctx.closePath();
       outlined(ctx, shade(color, 0.08));
-      // Crown with the classic pinch on top.
       const ch = w * 0.42 * tall;
       ctx.beginPath();
       ctx.moveTo(-w * 0.3, 0.04);
@@ -56,7 +49,6 @@ function drawHat(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monste
       ctx.quadraticCurveTo(w * 0.34, ch * 0.8, w * 0.3, 0.04);
       ctx.closePath();
       outlined(ctx, color);
-      // Band.
       ctx.beginPath();
       ctx.moveTo(-w * 0.31, 0.1);
       ctx.lineTo(w * 0.31, 0.1);
@@ -79,7 +71,6 @@ function drawHat(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monste
       ctx.beginPath();
       roundRect(ctx, -w * 0.55, -0.01, w * 1.1, 0.07, 0.03);
       outlined(ctx, shade(color, 0.25));
-      // Lamp.
       ctx.beginPath();
       roundRect(ctx, w * 0.12, w * 0.1, 0.12, 0.1, 0.03);
       outlined(ctx, '#3a3448');
@@ -311,7 +302,6 @@ function drawHat(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monste
       break;
     }
     case 'hat_fedora': {
-      // Pinched crown, dark band, brim dipping at the front.
       ctx.beginPath();
       ctx.moveTo(-w * 0.62, 0.02);
       ctx.quadraticCurveTo(0, -0.08, w * 0.66, 0.05);
@@ -340,7 +330,6 @@ function drawHat(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monste
       break;
     }
     case 'hat_astro': {
-      // Glass dome round the whole head, with a collar ring at the neck.
       ctx.rotate(-(0.12 + pose.wobbleA * 0.12));
       ctx.translate(-a.headTop.x, -(a.headTop.y - 0.04));
       const r = w * 0.74;
@@ -377,8 +366,6 @@ function drawHat(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monste
 function drawEyewear(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: MonsterPose): void {
   if (pose.eyes === 'dizzy') return;
   const [near, far] = a.eyes;
-  // Two-lens items sit on both eyes; single-lens items (monocle, patch) on
-  // the near eye, the character's right eye that faces the camera while racing.
   const both = [near, far];
   ctx.save();
   ctx.lineJoin = 'round';
@@ -398,7 +385,6 @@ function drawEyewear(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Mo
     ctx.strokeStyle = stroke;
     ctx.stroke();
   };
-  // Temple arm back toward the ear in the side view.
   const temple = (r: number, stroke = color) => {
     if (!a.side) return;
     ctx.beginPath();
@@ -445,7 +431,6 @@ function drawEyewear(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Mo
       break;
     }
     case 'eyes_patch': {
-      // Strap round the head, patch over the near eye only.
       ctx.beginPath();
       if (a.side) {
         ctx.moveTo(near.x - 0.25, near.y + 0.13);
@@ -512,7 +497,6 @@ function drawEyewear(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Mo
       break;
     }
     case 'eyes_visor': {
-      // One band across both eyes.
       const xl = Math.min(near.x - near.r * 1.4 * near.sx, far.x - far.r * 1.4 * far.sx);
       const xr = Math.max(near.x + near.r * 1.4 * near.sx, far.x + far.r * 1.4 * far.sx);
       const cy = (near.y + far.y) / 2;
@@ -546,7 +530,6 @@ function drawBack(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monst
   ctx.lineCap = 'round';
   switch (m) {
     case 'back_scarf': {
-      // Neck wrap plus two tails fluttering behind.
       ctx.beginPath();
       for (let k = 0; k < 2; k++) {
         const off = k * 0.08;
@@ -567,7 +550,6 @@ function drawBack(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monst
     }
     case 'back_pack': {
       ctx.beginPath();
-      // Hangs off the back far enough to be seen past the torso.
       roundRect(ctx, bx - 0.26, -0.27, 0.34, 0.42, 0.08);
       outlined(ctx, color);
       ctx.beginPath();
@@ -598,7 +580,6 @@ function drawBack(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monst
       break;
     }
     case 'back_cape': {
-      // Poncho cape hanging from the shoulders and billowing back.
       const wave = Math.sin(t * 10) * 0.04;
       ctx.beginPath();
       ctx.moveTo(bx + 0.08, 0.22);
@@ -608,7 +589,6 @@ function drawBack(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monst
       ctx.quadraticCurveTo(bx + 0.02, -0.1, bx + 0.08, 0.22);
       ctx.closePath();
       outlined(ctx, color);
-      // Woven stripes.
       ctx.save();
       ctx.clip();
       ctx.lineWidth = 0.035;
@@ -643,7 +623,6 @@ function drawBack(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monst
       break;
     }
     case 'back_jetpack': {
-      // Twin oxygen tanks with orange caps and a little nozzle.
       for (const k of [1, 0]) {
         const x = bx - 0.18 + k * 0.1;
         ctx.beginPath();
@@ -690,9 +669,6 @@ function drawBack(ctx: Ctx, m: string, color: string, a: RigAnchors, pose: Monst
   ctx.restore();
 }
 
-// --- outfits --------------------------------------------------------------------------
-
-/** Ermine trim: white fur with black tail tips. */
 function ermine(ctx: Ctx, x0: number, y0: number, x1: number, y1: number, h: number): void {
   ctx.beginPath();
   ctx.moveTo(x0, y0);
@@ -720,12 +696,10 @@ function outfitFor(m: string, color: string): OutfitDef | undefined {
     case 'outfit_royal':
       return {
         palette: { vest: '#8e1b22', shirt: '#f6ead2', pants: '#6e1820', scarf: '#ffc93c' },
-        // The mantle hangs from the shoulders behind the body, down to the ankles.
         under: (ctx, a, pose) => {
           const bx = a.back.x;
           const sway = Math.sin(pose.time * 6) * 0.03 + pose.wobbleB * 0.04;
           if (!a.side) {
-            // Facing the camera: the mantle frames the body evenly on both sides.
             ctx.beginPath();
             ctx.moveTo(-0.24, 0.22);
             ctx.lineTo(0.24, 0.22);
@@ -762,7 +736,6 @@ function outfitFor(m: string, color: string): OutfitDef | undefined {
           ctx.stroke();
           ermine(ctx, bx - 0.5 - w + sway, -0.5, bx + 0.05 + w + sway * 0.5, -0.52, 0.07);
         },
-        // Front edges of the mantle, a gold clasp and an ermine collar.
         over: (ctx, a) => {
           const { wTop, y0, y1 } = a.torso;
           const edge = (dir: number, x: number) => {
@@ -784,7 +757,6 @@ function outfitFor(m: string, color: string): OutfitDef | undefined {
             edge(1, wTop - 0.05);
           }
           ermine(ctx, a.side ? -0.16 : -wTop + 0.02, y1 + 0.02, a.side ? 0.14 : wTop - 0.02, y1 + 0.02, 0.07);
-          // Clasp: two gold discs joined by a chain.
           const cy = y1 - 0.08;
           const xs = a.side ? [0.1] : [-0.1, 0.1];
           if (xs.length > 1) {
@@ -810,7 +782,6 @@ function outfitFor(m: string, color: string): OutfitDef | undefined {
       return {
         palette: { shirt: '#f2f2f4', vest: '#2b2b35', pants: '#2b2b35', boots: '#141418', scarf: '#a3161c' },
         overClip: (ctx, a) => {
-          // Pinstripes over the jacket.
           const { wTop, y0, y1 } = a.torso;
           ctx.strokeStyle = 'rgba(225,225,240,0.32)';
           ctx.lineWidth = 0.012;
@@ -824,7 +795,6 @@ function outfitFor(m: string, color: string): OutfitDef | undefined {
         over: (ctx, a) => {
           const { y0, y1 } = a.torso;
           const tx = a.side ? 0.09 : 0;
-          // Long red tie and a pocket square.
           ctx.beginPath();
           ctx.moveTo(tx - 0.025, y1 - 0.04);
           ctx.lineTo(tx + 0.025, y1 - 0.04);
@@ -853,7 +823,6 @@ function outfitFor(m: string, color: string): OutfitDef | undefined {
         palette: { shirt: '#eef1f6', vest: '#dde2ea', pants: '#dde2ea', boots: '#9aa3b2', scarf: '#ff7a2a' },
         overClip: (ctx, a) => {
           const { wTop, y0, y1 } = a.torso;
-          // Blue stripe across the chest and a small control panel.
           ctx.fillStyle = '#3f6fb0';
           ctx.fillRect(-wTop - 0.1, y1 - 0.22, wTop * 2 + 0.2, 0.05);
           const cx = a.side ? 0.06 : 0;
@@ -879,8 +848,6 @@ function outfitFor(m: string, color: string): OutfitDef | undefined {
   }
   return undefined;
 }
-
-// --- props held in the right hand (hand space: +y runs up the prop) ----------------------
 
 function drawHandProp(ctx: Ctx, m: string, color: string, pose: MonsterPose): void {
   ctx.lineJoin = 'round';
@@ -940,7 +907,6 @@ function drawHandProp(ctx: Ctx, m: string, color: string, pose: MonsterPose): vo
       break;
     }
     case 'hand_cane': {
-      // Gold knob in the fist, black cane down toward the ground.
       ctx.rotate(0.55);
       rod(0.05, -0.62, 0.035, '#1a1a20');
       ctx.beginPath();
@@ -975,8 +941,6 @@ function drawHandProp(ctx: Ctx, m: string, color: string, pose: MonsterPose): vo
   }
 }
 
-// --- mounts (world space at the rider's feet; the mount faces +x) -------------------------
-
 function limb(ctx: Ctx, x0: number, y0: number, x1: number, y1: number, x2: number, y2: number, w: number, fill: string): void {
   ctx.beginPath();
   ctx.moveTo(x0, y0);
@@ -999,7 +963,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
         top: 1.6,
         front: (ctx, pose) => {
           const g = pose.gait ?? 0;
-          // Stick from the wheel behind to the head in front, the head bobbing a little.
           const bob = Math.sin(g * 2) * 0.02 * (pose.runAmt ?? 0);
           const hx = 0.42;
           const hy = 0.78 + bob;
@@ -1075,7 +1038,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
             }
           };
           legs(true);
-          // Tail, body, neck and head.
           const tsw = Math.sin(pose.time * 7) * 0.06;
           limb(ctx, -0.36, by + 0.06, -0.55, by - 0.02 + tsw, -0.5, by - 0.28 + tsw, 0.07, shade(color, 0.35));
           ctx.beginPath();
@@ -1108,7 +1070,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
           ctx.fillStyle = OL;
           ctx.fill();
           ctx.restore();
-          // Mane along the neck.
           ctx.beginPath();
           for (let k = 0; k < 5; k++) {
             const t = k / 4;
@@ -1120,7 +1081,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
           ctx.lineWidth = 0.04;
           ctx.strokeStyle = shade(color, 0.45);
           ctx.stroke();
-          // Saddle.
           ctx.beginPath();
           ctx.moveTo(-0.2, by + 0.13);
           ctx.quadraticCurveTo(-0.02, by + 0.06, 0.14, by + 0.15);
@@ -1144,7 +1104,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
           const leg = (off: number, c: string) => {
             const fx = 0.02 + Math.sin(g + off) * 0.3 * run;
             const fy = Math.max(0, Math.cos(g + off)) * 0.16 * run;
-            // Backward knee, long shin, three-toed foot.
             limb(ctx, -0.02, by - 0.08, -0.16 + fx * 0.3, (by + fy) * 0.55, fx, fy + 0.03, 0.06, c);
             ctx.beginPath();
             ctx.moveTo(fx - 0.06, fy);
@@ -1156,7 +1115,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
             ctx.stroke();
           };
           leg(Math.PI, shade('#d9a24a', 0.25));
-          // Tail plumes.
           for (let k = 0; k < 3; k++) {
             ctx.beginPath();
             ellipse(ctx, -0.36 - k * 0.04, by + 0.08 + k * 0.05, 0.16, 0.05, 0.4 + k * 0.25 + Math.sin(pose.time * 6 + k) * 0.05);
@@ -1165,7 +1123,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
           ctx.beginPath();
           ellipse(ctx, -0.04, by, 0.32, 0.17);
           outlined(ctx, color);
-          // Neck and big hooked beak.
           limb(ctx, 0.16, by + 0.06, 0.3, by + 0.18, 0.3, by + 0.36, 0.11, color);
           ctx.save();
           ctx.translate(0.32, by + 0.4);
@@ -1191,7 +1148,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
           ctx.strokeStyle = '#e8473b';
           ctx.stroke();
           ctx.restore();
-          // Saddle blanket.
           ctx.beginPath();
           roundRect(ctx, -0.18, by + 0.1, 0.3, 0.08, 0.03);
           outlined(ctx, '#e8473b');
@@ -1206,7 +1162,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
         top: 1.55,
         behind: (ctx, pose) => {
           const t = pose.time;
-          // Flies low, wings beating, legs tucked.
           const by = 0.62 + Math.sin(t * 4) * 0.04;
           const flap = Math.sin(t * 8);
           const wing = (far: boolean) => {
@@ -1227,7 +1182,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
             ctx.stroke();
           };
           wing(true);
-          // Tail with a spade tip.
           const tw = Math.sin(t * 5) * 0.06;
           limb(ctx, -0.3, by, -0.55, by - 0.05 + tw, -0.72, by + 0.06 + tw, 0.07, color);
           ctx.beginPath();
@@ -1236,7 +1190,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
           ctx.lineTo(-0.8, by + 0.0 + tw);
           ctx.closePath();
           outlined(ctx, shade(color, 0.2));
-          // Tucked legs.
           for (const x of [-0.16, 0.18]) limb(ctx, x, by - 0.08, x + 0.04, by - 0.18, x + 0.1, by - 0.16, 0.06, shade(color, 0.15));
           ctx.beginPath();
           ellipse(ctx, -0.02, by, 0.34, 0.15);
@@ -1245,7 +1198,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
           ellipse(ctx, 0.0, by - 0.06, 0.26, 0.07);
           ctx.fillStyle = '#f2e2a8';
           ctx.fill();
-          // Back spikes.
           ctx.beginPath();
           for (let k = 0; k < 4; k++) {
             const x = -0.3 + k * 0.06;
@@ -1255,7 +1207,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
           }
           ctx.fillStyle = '#ffd23f';
           ctx.fill();
-          // Neck and head with horns.
           limb(ctx, 0.2, by + 0.04, 0.36, by + 0.1, 0.42, by + 0.24, 0.1, color);
           ctx.save();
           ctx.translate(0.46, by + 0.28);
@@ -1282,7 +1233,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
           ctx.fillStyle = OL;
           ctx.fill();
           ctx.restore();
-          // Saddle.
           ctx.beginPath();
           roundRect(ctx, -0.18, by + 0.1, 0.3, 0.07, 0.03);
           outlined(ctx, '#7a2a1e');
@@ -1299,7 +1249,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
           const t = pose.time;
           const y = 0.36 + Math.sin(t * 3) * 0.04;
           limb(ctx, -0.5, y - 0.02, 0, y + 0.02, 0.6, y + 0.05, 0.045, color);
-          // Straw bristles fanned at the back, tied with a red band.
           ctx.save();
           ctx.translate(-0.5, y - 0.02);
           ctx.beginPath();
@@ -1322,7 +1271,6 @@ function mountFor(m: string, color: string): MountLayer | undefined {
           roundRect(ctx, -0.03, -0.05, 0.06, 0.1, 0.02);
           outlined(ctx, '#e8473b');
           ctx.restore();
-          // A few sparkles trailing behind.
           for (let k = 0; k < 3; k++) {
             const ph = (t * 1.5 + k / 3) % 1;
             ctx.save();
@@ -1339,13 +1287,11 @@ function mountFor(m: string, color: string): MountLayer | undefined {
   return undefined;
 }
 
-/** Mount kind for an equipped mount id (the animator seats the rider accordingly). */
 export function mountKind(id: string | undefined): MountLayer['kind'] | undefined {
   const m = model(id);
   return m ? mountFor(m.model, m.color)?.kind : undefined;
 }
 
-/** Highest point of the character on its mount (name tags sit above it). */
 export function mountedHeight(id: string | undefined, riderHeight: number): number {
   const m = model(id);
   const mt = m ? mountFor(m.model, m.color) : undefined;
@@ -1354,7 +1300,6 @@ export function mountedHeight(id: string | undefined, riderHeight: number): numb
   return Math.max(mt.top * 0.7, mt.saddle - 0.42 * mt.riderScale + riderHeight * mt.riderScale);
 }
 
-/** Builds the back/front cosmetic layers for a loadout (null when nothing to draw). */
 export function cosmeticLayers(loadout: Record<string, string>): RigLayers {
   const hat = model(loadout.hat);
   const eyes = model(loadout.eyes);
@@ -1376,12 +1321,10 @@ export function cosmeticLayers(loadout: Record<string, string>): RigLayers {
   return out;
 }
 
-/** Palette for a character's colour variant (or its base palette). */
 export function paletteFor(base: CharacterPalette, variants: { id: string; palette: CharacterPalette }[], variantId: string | null): CharacterPalette {
   return (variantId && variants.find((v) => v.id === variantId)?.palette) || base;
 }
 
-/** Trail particle look for a trail cosmetic id. */
 export function trailStyle(id: string | undefined): { kind: 'dust' | 'sparkle' | 'leaf' | 'bubble' | 'note' | 'flame' | 'ribbon'; color: string } {
   const m = model(id);
   const color = m?.color ?? '#e8dcc8';

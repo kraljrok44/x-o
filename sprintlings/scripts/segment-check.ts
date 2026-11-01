@@ -1,8 +1,3 @@
-/**
- * Runs the perfect solver over each segment in isolation and prints every
- * incident. Timed hazards are re-tested with their phase shifted across a
- * whole cycle, so a pattern only passes if it is fair for any arrival time.
- */
 import { buildTrack } from '../src/obstacles/ObstacleSpawner';
 import { SEGMENTS } from '../src/obstacles/HazardPatterns';
 import { RaceSimulation } from '../src/game/RaceManager';

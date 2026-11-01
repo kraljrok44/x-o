@@ -2,7 +2,6 @@ import { CHARACTER_IDS, type CharacterId } from '../player/CharacterDefinition';
 import type { PlayerProfile } from '../economy/Profile';
 import type { RaceOutcome } from './QuestService';
 
-/** Trophy leagues (Fun Run style ranked ladder). Trophies never cost money. */
 export interface League {
   id: string;
   name: string;
@@ -30,10 +29,6 @@ export function nextLeague(trophies: number): League | null {
   return LEAGUES.find((l) => l.min > trophies) ?? null;
 }
 
-/**
- * Trophy change for a verified race. Practice never counts. Solo races pay
- * by place, Duos by the team result; leaving early always costs a little.
- */
 export function trophyDelta(outcome: RaceOutcome): number {
   if (outcome.mode === 'practice' || outcome.racerCount < 2) return 0;
   if (!outcome.finished) return -12;
@@ -42,7 +37,6 @@ export function trophyDelta(outcome: RaceOutcome): number {
   return table[Math.min(outcome.place, table.length) - 1];
 }
 
-/** Animal Level from the XP earned while racing with that animal. */
 export const MAX_ANIMAL_LEVEL = 20;
 
 export function animalLevelForXp(xp: number): number {
@@ -51,7 +45,6 @@ export function animalLevelForXp(xp: number): number {
   return level;
 }
 
-/** Total XP needed to reach `level` with one animal. */
 export function animalXpForLevel(level: number): number {
   return 40 * (level - 1) * level;
 }
@@ -68,7 +61,6 @@ export interface RankChange {
   animalXpAfter: number;
 }
 
-/** Applies trophies and animal XP for a settled race. */
 export function applyRank(profile: PlayerProfile, characterId: CharacterId, outcome: RaceOutcome, xp: number): RankChange {
   const trophiesBefore = profile.trophies;
   profile.trophies = Math.max(0, trophiesBefore + trophyDelta(outcome));

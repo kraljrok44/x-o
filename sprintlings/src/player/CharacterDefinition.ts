@@ -1,9 +1,3 @@
-/**
- * Playable western critters: anthropomorphic animals in frontier outfits. All share identical base movement stats; each has one
- * small, situational passive so no monster is the best choice everywhere and
- * nothing that can be bought guarantees an advantage. Characters unlock with
- * Coins or account level only (never premium currency).
- */
 export type CharacterId = 'moss' | 'kip' | 'pebble' | 'lumi' | 'ember' | 'hoot';
 
 export type PassiveId =
@@ -23,14 +17,10 @@ export interface PassiveDefinition {
 export type BodyPlan = 'fox' | 'rabbit' | 'bear' | 'raccoon' | 'bull' | 'wolf';
 
 export interface CharacterPalette {
-  /** Fur. */
   body: string;
-  /** Light fur: muzzle, chest, inner ears. */
   belly: string;
-  /** Nose, horns, markings. */
   accent: string;
   eye: string;
-  /** Outfit. */
   shirt: string;
   vest: string;
   pants: string;
@@ -45,11 +35,9 @@ export interface SpecialDefinition {
   name: string;
   icon: string;
   description: string;
-  /** Seconds before it can be used again. */
   cooldown: number;
 }
 
-/** Every animal has one active special on its own button, with a cooldown. */
 export const SPECIALS: Record<SpecialId, SpecialDefinition> = {
   quickDash: { id: 'quickDash', name: 'Quick Getaway', icon: '🦊', description: 'A short burst of speed.', cooldown: 12 },
   doubleHop: { id: 'doubleHop', name: 'Double Hop', icon: '🐰', description: 'Jump again in mid-air.', cooldown: 8 },
@@ -64,17 +52,13 @@ export interface CharacterDefinition {
   name: string;
   species: string;
   tagline: string;
-  /** Which species the renderer draws (render/CharacterRig.ts). */
   bodyPlan: BodyPlan;
   palette: CharacterPalette;
-  /** Alternate palettes unlockable as colour variants (shop category "colours"). */
   variants: { id: string; name: string; palette: CharacterPalette }[];
   passive: PassiveId;
   special: SpecialId;
-  /** Cosmetic slots the body plan supports. */
   cosmeticSlots: ('hat' | 'eyes' | 'back' | 'trail' | 'emote')[];
   unlock: { coins: number; level: number } | 'starter';
-  /** Ability the AI prefers to hoard/fire first when holding a choice (flavour only). */
   homeBiome: 'forest' | 'canyon' | 'crystal';
 }
 
@@ -89,10 +73,6 @@ export const PASSIVES: Record<PassiveId, PassiveDefinition> = {
 
 const ALL_SLOTS: CharacterDefinition['cosmeticSlots'] = ['hat', 'eyes', 'back', 'trail', 'emote'];
 
-/*
- * Ids are kept from the first release so existing saves keep their unlocks;
- * names and looks are the western critter cast. Every design is original.
- */
 export const CHARACTERS: Record<CharacterId, CharacterDefinition> = {
   moss: {
     id: 'moss',

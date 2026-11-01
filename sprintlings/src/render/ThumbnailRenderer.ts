@@ -5,7 +5,6 @@ import { MonsterAnimator } from './MonsterAnimator';
 import type { GameRenderer } from './GameRenderer';
 import { drawMonster, makeAnchors, monsterHeight, neutralPose } from './CharacterRig';
 
-/** Renders monster and cosmetic portraits into cached data URLs for the DOM UI. */
 export class ThumbnailRenderer {
   private readonly cache = new Map<string, string>();
   private readonly size = 192;
@@ -27,14 +26,12 @@ export class ThumbnailRenderer {
     if (mount) sideOn = true;
     const height = mountedHeight(cosmetics.mount, monsterHeight(def.bodyPlan)) + (cosmetics.hat ? 0.3 : 0.1);
     const scale = closeUp ? this.size / 0.95 : this.size / Math.max(1.45, height + 0.15);
-    // Riders and prop holders get their seated / holding pose from the animator.
     let pose = neutralPose();
     if (mount || cosmetics.hand) {
       const an = new MonsterAnimator(7);
       for (let i = 0; i < 40; i++) an.update(1 / 30, i / 30, { mode: 'idle', speed: 0, vy: 0, grounded: true, phase: 'grid', stun: 0, boosting: false, blocked: false, ready: false, faceSide: !!mount, mount, holding: !!cosmetics.hand });
       pose = { ...an.pose, footNear: { ...an.pose.footNear }, footFar: { ...an.pose.footFar } };
     }
-    // Side-on shows what is worn on the back.
     pose.facing = sideOn ? 0 : 1;
     if (sideOn) pose.lookX = 0.6;
     pose.mouth = 'happy';
@@ -45,12 +42,10 @@ export class ThumbnailRenderer {
       pose.armFar = cosmetics.hand ? 0.9 : 0.5;
     }
     if (mount) {
-      // Whole mount and rider, side-on.
       const z = this.size / Math.max(1.9, height + 0.3);
       ctx.translate(this.size * 0.55, this.size - (this.size - height * z) / 2 - 6);
       ctx.scale(z, -z);
     } else if (sideOn) {
-      // Zoom on the torso so the back item fills the card.
       const z = this.size / 1.35;
       ctx.translate(this.size * 0.56, this.size * 0.5);
       ctx.scale(z, -z);
@@ -66,7 +61,6 @@ export class ThumbnailRenderer {
     return url;
   }
 
-  /** Thumbnail for a cosmetic: shown on Bloop (or the item's own character for colours). */
   item(itemId: string): string {
     const def = COSMETIC_BY_ID[itemId];
     if (!def) return '';

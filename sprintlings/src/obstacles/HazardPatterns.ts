@@ -1,17 +1,5 @@
 import type { SegmentTemplate } from '../game/TrackSegment';
 
-/**
- * Hand-authored side-view segment library. Positions are relative to the
- * segment start. Reference numbers (TrackSegment/GameplayConfig): a full jump
- * rises ~2.2 u and travels ~7.5 u; one-way platforms sit 1.8 u up so they're
- * comfortably reachable.
- *
- * Rules every segment follows (checked by TrackValidator):
- *  - pits are <= 4.5 u unless a spring is provided right before them,
- *  - consecutive jump requirements leave landing room,
- *  - timed hazards always have a safe window at normal speed,
- *  - every segment ends on solid ground.
- */
 type SegmentDef = Pick<SegmentTemplate, 'id' | 'length' | 'difficulty' | 'build'> &
   Partial<Omit<SegmentTemplate, 'id' | 'length' | 'difficulty' | 'build'>>;
 

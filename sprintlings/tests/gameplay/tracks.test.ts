@@ -13,7 +13,6 @@ describe('tracks', () => {
       expect(report.problems).toEqual([]);
       expect(track.length).toBeGreaterThanOrEqual(550);
       expect(track.length).toBeLessThanOrEqual(750);
-      // A race should last between one minute and 90 seconds.
       expect(report.solverTime!).toBeGreaterThan(60);
       expect(report.solverTime!).toBeLessThan(90);
     });

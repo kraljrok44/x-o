@@ -20,17 +20,12 @@ const TIPS = [
   'Press 1-4 for quick chat.',
 ] as const;
 
-/**
- * Loading lobby: every racer's card (animal, level, trophies) while the
- * course is prepared in the background; the race starts once it is ready.
- */
 export function preRace(
   ctx: AppContext,
   ticket: RaceTicket,
   onGo: () => void,
   onCancel: () => void,
   load: () => number = () => 1,
-  /** Online: which card is you, and the race starts when the server does (no Ready / countdown). */
   online: { yourIndex: number; waitFor: () => boolean } | null = null,
 ): Screen {
   const meIndex = online?.yourIndex ?? 0;
@@ -48,7 +43,6 @@ export function preRace(
   const barText = h('div', { class: 'load-bar__text' }, t('Loading track…'));
   const bar = h('div', { class: 'load-bar' }, barFill, barText);
   const p = ctx.authority.profile;
-  // Bots get a trophy count and animal level close to yours (display only).
   const rng = new Rng(ticket.seed ^ 0x5eed);
   const card = (r: RaceTicket['racers'][number], i: number) => {
     const isMe = i === meIndex;

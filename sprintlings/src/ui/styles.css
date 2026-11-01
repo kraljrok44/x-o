@@ -1,5 +1,4 @@
 :root {
-  /* Frontier palette: saddle-leather ink, parchment, painted wood. */
   --ink: #3a1f10;
   --ink-2: #7a5235;
   --paper: #fff3d6;
@@ -52,7 +51,6 @@ html, body {
 button { font-family: inherit; }
 .hidden { display: none !important; }
 
-/* ---------- buttons ---------- */
 .btn {
   appearance: none;
   border: 3px solid var(--line);
@@ -94,7 +92,6 @@ button { font-family: inherit; }
 }
 @keyframes pop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
 
-/* ---------- panels ---------- */
 .panel {
   background: var(--paper);
   border: 3px solid var(--line);
@@ -118,7 +115,6 @@ button { font-family: inherit; }
 .ico-coin { background: radial-gradient(circle at 35% 35%, #fff6c2, var(--coin) 55%, #e09a12); }
 .ico-gem { border-radius: 4px; transform: rotate(45deg) scale(0.85); background: linear-gradient(135deg, #c8f6ff, var(--gem) 60%, #1a9ec4); }
 
-/* ---------- screen layout ---------- */
 .screen { position: absolute; inset: 0; display: flex; flex-direction: column; animation: fadeIn 0.18s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .topbar {
@@ -142,7 +138,6 @@ button { font-family: inherit; }
 @media (max-width: 420px) { .wallet .chip { font-size: 14px; padding: 4px 8px; } .btn--icon { width: 46px; height: 46px; } }
 .list-item .row { flex-wrap: wrap; }
 
-/* ---------- loading ---------- */
 .loading { background: radial-gradient(circle at 50% 30%, #5b3fa8, #1b1530 70%); align-items: center; justify-content: center; color: #fff; text-align: center; }
 .logo { font-weight: 700; font-size: clamp(48px, 11vw, 104px); letter-spacing: 1px; line-height: 0.95; color: #fff;
   text-shadow: 0 5px 0 var(--line), 0 0 30px rgba(155, 128, 255, 0.6); -webkit-text-stroke: 3px var(--line); paint-order: stroke fill; }
@@ -151,7 +146,6 @@ button { font-family: inherit; }
 .loadbar { width: min(360px, 80vw); height: 18px; border-radius: 12px; border: 3px solid #fff; margin: 28px auto 10px; overflow: hidden; background: rgba(255,255,255,0.15); }
 .loadbar > div { height: 100%; width: 0; background: linear-gradient(90deg, var(--coin), #ff8a5c); transition: width 0.2s; }
 
-/* ---------- main menu ---------- */
 .menu-main { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 12px; flex: 1; padding: 0 14px calc(18px + var(--safe-bottom)); min-height: 0; }
 .menu-side { display: flex; flex-direction: column; gap: 10px; align-self: center; align-items: flex-start; }
 .menu-side--right { align-items: flex-end; }
@@ -176,7 +170,6 @@ button { font-family: inherit; }
   .menu-title { top: calc(64px + var(--safe-top)); }
 }
 
-/* ---------- cards / grids ---------- */
 .tabs { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 10px; scrollbar-width: none; touch-action: pan-x; }
 .tabs::-webkit-scrollbar { display: none; }
 .tab { flex: 0 0 auto; }
@@ -212,7 +205,6 @@ button { font-family: inherit; }
 .progress > div { height: 100%; background: linear-gradient(90deg, #8fe07a, var(--good)); transition: width 0.6s ease-out; }
 .progress--xp > div { background: linear-gradient(90deg, #c2a5ff, var(--xp)); }
 
-/* ---------- track select ---------- */
 .track-card { min-height: 170px; justify-content: flex-end; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,0.4); overflow: hidden; }
 .track-card .card__name { font-size: 22px; }
 .track-card--forest { background: linear-gradient(160deg, #8fe07a, #2f7a3a); }
@@ -225,13 +217,11 @@ button { font-family: inherit; }
 .seg button:last-child { border-right: 0; }
 .seg button.active { background: var(--coin); }
 
-/* ---------- lobby ---------- */
 .lobby-racers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 @media (max-width: 640px) { .lobby-racers { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .racer-card { text-align: center; padding: 12px 8px; }
 .racer-card .emoji { font-size: 40px; }
 
-/* ---------- HUD ---------- */
 .hud { position: absolute; inset: 0; pointer-events: none; }
 .hud * { pointer-events: none; }
 .hud .interactive, .hud .interactive * { pointer-events: auto; }
@@ -276,7 +266,6 @@ button { font-family: inherit; }
 body.touch-on .hud-ability { right: 28px; bottom: calc(150px + var(--safe-bottom)); width: 88px; height: 88px; }
 @media (max-height: 480px) { body.touch-on .hud-ability { right: 150px; bottom: calc(18px + var(--safe-bottom)); } }
 
-/* ---------- results ---------- */
 .results { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 14px; }
 @media (max-width: 760px) { .results { grid-template-columns: 1fr; } }
 .standing { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 3px solid var(--line); border-radius: 12px; background: var(--paper); margin-bottom: 8px; }
@@ -288,7 +277,6 @@ body.touch-on .hud-ability { right: 28px; bottom: calc(150px + var(--safe-bottom
 .reward-total { font-size: 22px; font-weight: 700; padding-top: 8px; }
 .levelup { background: linear-gradient(90deg, #c2a5ff, #ffe08a); border: 3px solid var(--line); border-radius: 12px; padding: 8px 12px; font-weight: 700; animation: pop 0.8s 3; }
 
-/* ---------- modals ---------- */
 .modal-backdrop { position: absolute; inset: 0; background: rgba(20, 12, 45, 0.6); display: flex; align-items: center; justify-content: center; padding: 16px; animation: fadeIn 0.15s; z-index: 30; }
 .modal { width: min(460px, 100%); max-height: 90vh; overflow-y: auto; }
 .modal .panel__title { font-size: 24px; }
@@ -296,14 +284,12 @@ body.touch-on .hud-ability { right: 28px; bottom: calc(150px + var(--safe-bottom
 .odds { width: 100%; border-collapse: collapse; font-size: 14px; }
 .odds td { padding: 4px 6px; border-bottom: 1px solid #e5def5; }
 
-/* ---------- toasts ---------- */
 .toast { background: var(--paper); border: 3px solid var(--line); border-radius: 14px; padding: 8px 14px; font-weight: 600; box-shadow: var(--shadow); animation: toastIn 0.25s ease-out; max-width: 100%; }
 .toast--good { background: #dcffe4; }
 .toast--bad { background: #ffe0e4; }
 .toast--gold { background: #fff3c4; }
 @keyframes toastIn { from { transform: translateY(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
 
-/* ---------- season ---------- */
 .season-track { display: grid; grid-auto-flow: column; grid-auto-columns: 112px; gap: 10px; overflow-x: auto; padding: 6px 2px 14px; touch-action: pan-x; }
 .tier { display: flex; flex-direction: column; gap: 6px; }
 .tier__num { text-align: center; font-weight: 700; }
@@ -313,20 +299,17 @@ body.touch-on .hud-ability { right: 28px; bottom: calc(150px + var(--safe-bottom
 .tier__cell.claimed::after { content: '✓'; position: absolute; top: 4px; right: 8px; color: var(--good-2); font-weight: 700; font-size: 18px; }
 .tier__cell .btn { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 
-/* ---------- daily ---------- */
 .calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
 .day { border: 3px solid var(--line); border-radius: 12px; padding: 8px 4px; text-align: center; background: var(--paper); font-size: 13px; }
 .day.done { background: #dcffe4; }
 .day.today { outline: 4px solid var(--coin); }
 
-/* ---------- settings ---------- */
 .setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 2px dashed #e5def5; }
 .setting label { font-weight: 600; }
 input[type=range] { width: 160px; accent-color: var(--accent); }
 .keycap { min-width: 64px; }
 .keycap.listening { background: var(--warn); animation: pop 0.6s infinite; }
 
-/* ---------- misc ---------- */
 .test-ad { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; display: flex; align-items: center; justify-content: center; font-family: var(--font); }
 .test-ad__box { background: #fff; border: 4px dashed #c0182c; border-radius: 16px; padding: 24px; text-align: center; width: min(420px, 90vw); }
 .test-ad__label { color: #c0182c; font-weight: 700; font-size: 13px; }
@@ -341,7 +324,6 @@ input[type=range] { width: 160px; accent-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.001s !important; transition-duration: 0.001s !important; } }
 body.reduced-motion *, body.reduced-motion *::before { animation-duration: 0.001s !important; transition-duration: 0.001s !important; }
 
-/* --- Chest reveal ---------------------------------------------------------- */
 .chest-overlay { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: radial-gradient(circle at 50% 45%, rgba(60,30,10,0.75), rgba(20,10,5,0.92)); animation: fadein 0.25s ease-out; cursor: pointer; }
 .chest-stage { position: relative; width: min(420px, 92vw); height: min(520px, 86vh); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
 .chest-title { position: absolute; top: 0; left: 0; right: 0; text-align: center; font-family: var(--font-display); font-size: 30px; color: #ffe8b0; -webkit-text-stroke: 3px #3a1f10; paint-order: stroke fill; }
@@ -365,7 +347,6 @@ body.reduced-motion *, body.reduced-motion *::before { animation-duration: 0.001
 @keyframes sparkfly { from { transform: translate(0, 0) scale(0.4); opacity: 1; } to { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1); opacity: 0; } }
 @keyframes spin { to { rotate: 360deg; } }
 
-/* ---------- western skin (overrides) ---------- */
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 html, body { background: #2a160b; }
 .panel {
@@ -429,7 +410,6 @@ html, body { background: #2a160b; }
 .hud-feed-line .rival { color: #ff8a7a; }
 .hud-feed-line.fade { opacity: 0; }
 
-/* Animal special: round badge with a cooldown ring, next to the powerup slot. */
 .hud-special {
   position: absolute; right: calc(124px + env(safe-area-inset-right, 0px)); bottom: calc(22px + var(--safe-bottom));
   width: 74px; height: 74px; border-radius: 50%; border: 4px solid var(--line); overflow: hidden;
@@ -489,7 +469,6 @@ body.touch-on .hud-emotes { bottom: auto; top: 30%; flex-direction: column; }
 .bundle-item { display: flex; flex-direction: column; gap: 2px; text-align: center; }
 .bundle-item .card__swatch { height: 64px !important; font-size: 28px; }
 
-/* Mobile comfort: keep controls clear of rounded corners, camera cutouts and home indicators. */
 @media (pointer: coarse) {
   .btn { min-height: 52px; touch-action: manipulation; }
   .btn--small { min-height: 44px; }
@@ -516,7 +495,6 @@ body.touch-on .hud-emotes { bottom: auto; top: 30%; flex-direction: column; }
   body.touch-on .hud-ability { right: calc(150px + env(safe-area-inset-right, 0px)); bottom: calc(14px + var(--safe-bottom)); }
 }
 
-/* ---------- stage + panel screens (shop, locker, characters) ---------- */
 .side-layout { flex: 1; min-height: 0; display: flex; }
 .side-layout--wide { flex-direction: row; }
 .side-layout--tall { flex-direction: column; }
@@ -530,7 +508,6 @@ body.touch-on .hud-emotes { bottom: auto; top: 30%; flex-direction: column; }
 .side-layout--tall .side-panel { flex: 1 1 auto; min-height: 0; }
 .side-panel .tabs { justify-content: flex-start; }
 .side-panel .tab { font-size: 14px; padding: 6px 12px; }
-/* Compact, centred cards with readable labels. */
 .side-panel .grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 9px; }
 .side-panel .card { padding: 7px; gap: 4px; align-items: stretch; text-align: center; box-shadow: 0 3px 0 var(--line); }
 .side-panel .card__swatch { height: 74px; }
@@ -551,13 +528,10 @@ body.touch-on .hud-emotes { bottom: auto; top: 30%; flex-direction: column; }
   .side-panel .card__name { font-size: 13px; }
   .side-panel .tab { font-size: 13px; padding: 4px 10px; min-height: 38px; }
 }
-/* The selected item's details stay in view at the bottom of the panel. */
 .side-panel .shop-detail { position: sticky; bottom: 0; z-index: 2; max-height: 46%; overflow-y: auto; box-shadow: 0 -6px 16px rgba(42, 22, 11, 0.25), 0 4px 0 var(--line); }
 .side-panel .shop-detail:empty { display: none; }
 @media (max-height: 480px) { .side-panel .shop-detail { max-height: 58%; padding: 8px !important; } .side-panel .shop-detail .panel__title { font-size: 17px; } }
-/* Prices inside buttons stay dark on their light chip. */
 .btn .chip { color: var(--ink); text-shadow: none; -webkit-text-stroke: 0; }
-/* Phones: more, smaller cards and a slimmer details bar. */
 @media (max-width: 520px), (max-height: 480px) {
   .side-panel .grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 7px; }
   .side-panel .card__swatch { height: 60px; }
@@ -572,7 +546,6 @@ body.touch-on .hud-emotes { bottom: auto; top: 30%; flex-direction: column; }
   .side-panel .bundle-items { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 5px; }
   .side-panel .bundle-item .card__swatch { height: 46px !important; }
 }
-/* Short landscape phones: the details bar shrinks to name + buy button. */
 @media (max-height: 480px) {
   .side-panel .shop-detail { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 10px; max-height: 34%; }
   .side-panel .shop-detail > p, .side-panel .shop-detail > .bundle-items, .side-panel .shop-detail > .row--wrap:not(:last-of-type) { display: none; }
@@ -586,7 +559,6 @@ body.touch-on .hud-emotes { bottom: auto; top: 30%; flex-direction: column; }
   .side-panel .shop-detail > * { flex: 0 0 auto; width: auto; }
   .side-panel .shop-detail .row { gap: 6px; }
 }
-/* Card pictures carry an inline height; the compact panel overrides it. */
 .side-panel .grid .card__swatch { height: 74px !important; }
 @media (max-width: 520px), (max-height: 480px) { .side-panel .grid .card__swatch { height: 60px !important; } }
 @media (max-height: 480px) {
@@ -596,7 +568,6 @@ body.touch-on .hud-emotes { bottom: auto; top: 30%; flex-direction: column; }
   .side-panel .shop-detail { gap: 2px 10px; }
 }
 
-/* Loading bar on the pre-race lobby. */
 .load-bar {
   position: relative;
   height: 26px;
@@ -625,7 +596,6 @@ body.touch-on .hud-emotes { bottom: auto; top: 30%; flex-direction: column; }
   text-shadow: 0 1px 0 #3a1f10;
 }
 
-/* Terms & Privacy dialog. */
 .legal-scroll {
   max-height: min(38vh, 420px);
   overflow-y: auto;

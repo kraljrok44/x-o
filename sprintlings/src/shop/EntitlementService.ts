@@ -1,6 +1,5 @@
 import type { PlayerProfile } from '../economy/Profile';
 
-/** Permanent rights attached to the account (never stored only on the client when online). */
 export function hasEntitlement(profile: PlayerProfile, id: string): boolean {
   return profile.entitlements.includes(id);
 }
@@ -18,7 +17,6 @@ export function revokeEntitlement(profile: PlayerProfile, id: string): boolean {
   return true;
 }
 
-/** Interstitials are suppressed with the No Interruptions purchase. Rewarded ads are never removed by it. */
 export function interstitialsDisabled(profile: PlayerProfile): boolean {
   return hasEntitlement(profile, 'ad_free');
 }

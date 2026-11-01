@@ -1,6 +1,5 @@
 import { CHARACTERS, type CharacterId } from './CharacterDefinition';
 
-/** Numeric modifiers a passive applies inside the simulation. 1 = no change. */
 export interface PassiveModifiers {
   obstacleStunScale: number;
   fallGravityScaleWhileHolding: number;

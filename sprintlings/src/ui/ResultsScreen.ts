@@ -10,10 +10,6 @@ import { coinChip, h, progressBar } from './dom';
 import { ordinal, t } from './i18n';
 import type { Screen } from './UIRoot';
 
-/**
- * Race results: classification immediately (from the live simulation), then
- * the authority-verified rewards as separate animated lines.
- */
 export function resultsScreen(
   ctx: AppContext,
   summary: RaceResultSummary,
@@ -74,7 +70,6 @@ export function resultsScreen(
       return null;
     });
 
-  /** Animal Rank (trophies + league) and the animal's own level. */
   const rankPanel = (s: RaceSettlement) => {
     const r = s.rank;
     const d = r.trophiesAfter - r.trophiesBefore;

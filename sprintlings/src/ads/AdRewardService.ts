@@ -1,6 +1,5 @@
 import { AdConfig, type RewardedPlacement } from '../config/AdConfig';
 
-/** Human readable description of what a rewarded placement pays (shown before the ad). */
 export function describeAdReward(placement: RewardedPlacement): string {
   const r = AdConfig.rewarded[placement].reward as { coins?: number; seasonPoints?: number };
   const parts: string[] = [];

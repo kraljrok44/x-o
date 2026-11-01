@@ -4,12 +4,6 @@ export interface AnalyticsEvent {
   props: Record<string, string | number | boolean>;
 }
 
-/**
- * Minimal, privacy-first analytics: anonymous gameplay events (race finished,
- * shop opened...) batched to our own server only when consent was granted.
- * No third-party trackers, no personal data. Without an endpoint the last
- * events stay in memory for debugging.
- */
 export class AnalyticsService {
   private readonly buffer: AnalyticsEvent[] = [];
   private queue: AnalyticsEvent[] = [];
@@ -45,7 +39,6 @@ export class AnalyticsService {
       const body = JSON.stringify({ events: batch });
       if (!navigator.sendBeacon?.(this.endpoint, body)) void fetch(this.endpoint, { method: 'POST', body, keepalive: true, headers: { 'content-type': 'application/json' } }).catch(() => {});
     } catch {
-      /* analytics must never break the game */
     }
   }
 }

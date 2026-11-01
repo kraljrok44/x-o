@@ -10,17 +10,10 @@ import { enterFall, enterRespawn, finishRespawn } from './PlayerStateMachine';
 
 const cfg = GameplayConfig;
 const hb = cfg.hitbox;
-/** How far below a ledge top an airborne racer can still be lifted onto it. */
 const LEDGE = 0.55;
 
-/** Scratch object reused by every step (the simulation is single threaded). */
 const contact: ContactResult = makeContactResult();
 
-/**
- * Advances one racer by one fixed tick. This is the single source of truth
- * for movement; the race, the AI planner and the server re-simulation all
- * call it.
- */
 export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifiers, world: MovementWorld, racer: number, dt: number): void {
   tickStatuses(body, dt);
   const track = world.track;
@@ -62,7 +55,6 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
       break;
   }
 
-  // --- input -------------------------------------------------------------------
   if (input.jumpPressed && body.jumpGuard <= 0) body.jumpBuffer = cfg.jump.bufferTime;
   if (body.jumping) body.jumpAge += dt;
   if (input.jumpReleased && body.jumping && body.vy > 0) body.cutPending = true;
@@ -74,7 +66,6 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
   body.jumpHeld = input.jumpHeld;
   body.downHeld = input.downHeld;
 
-  // Drop through the one-way platform underfoot.
   if (input.downPressed && body.grounded && body.pieceId >= 0 && track.isOneWay(body.pieceId)) {
     body.dropId = body.pieceId;
     body.dropTimer = cfg.jump.dropThroughTime;
@@ -85,10 +76,8 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
     world.emit('drop', racer, body.dropId, body);
   }
 
-  // A stumble knocks a climber off the wall.
   if (body.climbing && body.stun > 0) body.climbing = false;
 
-  // --- forward speed -----------------------------------------------------------
   let target: number;
   if (body.climbing) target = 0;
   else if (body.stun > 0) target = 0.8;
@@ -106,12 +95,8 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
   const prevY = body.y;
   let ledgeTop = Number.NaN;
   const nx = body.x + body.speed * dt;
-  // Terrain faces (steps, island sides) block forward motion until you jump
-  // up. In the air a face whose top is within LEDGE of the feet is not a
-  // wall: the racer is lifted onto the ledge below instead of bonking.
   const front = nx + hb.halfWidth;
   if (body.climbing) {
-    // Hug the wall until the top is reached (handled below).
     if (!track.solidAt(body.x + hb.halfWidth + 0.08, body.y)) body.climbing = false;
   } else if (track.solidAt(front, body.y)) {
     const top = track.solidTop(front);
@@ -119,7 +104,6 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
       body.x = nx;
       ledgeTop = top;
     } else if (body.stun <= 0 && body.dropTimer <= 0) {
-      // Too high to step onto: grab the wall and climb.
       body.climbing = true;
       body.speed = 0;
       body.jumping = false;
@@ -130,7 +114,6 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
     }
   } else body.x = nx;
 
-  // --- vertical ----------------------------------------------------------------
   if (body.climbing) {
     body.grounded = false;
     body.coyote = 0;
@@ -140,7 +123,6 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
     const fx = body.x + hb.halfWidth + 0.08;
     const top = track.solidTop(fx);
     if (Number.isNaN(top) || body.y >= top - cfg.jump.stepUp) {
-      // Pull up over the edge and keep running.
       body.climbing = false;
       if (!Number.isNaN(top)) {
         body.y = top;
@@ -189,15 +171,11 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
     const vyBefore = body.vy;
     body.vy = Math.max(cfg.jump.terminalVelocity, body.vy - cfg.jump.gravity * gravityScale * dt);
     body.y += body.vy * dt;
-    // Ledge assist: pop up onto a solid edge caught just below its top.
     if (!Number.isNaN(ledgeTop) && body.y < ledgeTop) {
       body.y = ledgeTop;
       body.vy = Math.min(body.vy, 0);
     }
     if (body.vy <= 0) {
-      // Land on the highest surface crossed between last tick and now. Solid
-      // ground just above the feet (a step corner) also counts, so a racer
-      // can never end up inside terrain and drop through it.
       const ignore = body.dropTimer > 0 ? body.dropId : -1;
       let g = track.groundBelow(body.x, prevY + 0.02, ignore, true);
       const gSolid = track.groundBelow(body.x, Math.max(prevY, body.y) + LEDGE, -1, false);
@@ -217,10 +195,8 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
     }
   }
 
-  // Slide: hold down on solid ground (on a platform, down drops through instead).
   body.sliding = body.grounded && input.downHeld && body.stun <= 0 && !(body.pieceId >= 0 && track.isOneWay(body.pieceId));
 
-  // --- hazards -------------------------------------------------------------------
   resolveHazardContacts(track, body, world.time, contact);
   let terrain = contact.terrain;
   if (body.grounded && world.inSap(racer, body.x, body.y)) terrain = 2;
@@ -249,7 +225,6 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
   if (snare >= 0) {
     const outcome = applyHit(body, mods, snare, cfg.stun.snare, false);
     if (outcome === 'stunned' && snare >= NOOSE_HIT) {
-      // Rope trap: yanked up off the trail, then dropped.
       body.vy = 7.5;
       body.grounded = false;
       body.pieceId = -1;
@@ -258,7 +233,6 @@ export function stepBody(body: RacerBody, input: BodyInput, mods: PassiveModifie
     if (outcome !== 'ignored') world.emit(outcome === 'blocked' ? 'shieldBlock' : 'hit', racer, snare, body);
   }
 
-  // --- stats: obstacles cleared in the air ---------------------------------------
   if (!body.grounded) {
     const hz = track.data.hazards;
     for (let i = track.firstHazardIndex(prevX); i < hz.length && hz[i].x <= body.x; i++) {

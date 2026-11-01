@@ -4,11 +4,8 @@ export type HazardResponse = 'jump' | 'slide' | 'timing' | 'route' | 'none';
 
 export interface ObstacleInfo {
   kind: HazardKind;
-  /** How a racer is expected to beat it; used by the validator and tutorial hints. */
   response: HazardResponse;
-  /** Consequence when it hits. */
   effect: 'stumble' | 'slow' | 'boost' | 'launch';
-  /** Visual warning the renderer shows before the racer reaches it. */
   telegraph: string;
   names: { forest: string; canyon: string; crystal: string };
 }

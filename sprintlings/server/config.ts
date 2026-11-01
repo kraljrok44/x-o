@@ -1,20 +1,14 @@
-/** Server configuration from environment variables (see README). */
 export interface ServerConfig {
   port: number;
-  /** memory (tests), file (single-instance dev), postgres (production). */
   storage: 'memory' | 'file' | 'postgres';
   dataDir: string;
   databaseUrl: string | null;
   paymentProvider: 'sandbox' | 'stripe' | 'none';
-  /** HMAC secret used to sign sandbox webhooks. */
   sandboxSecret: string;
   stripeSecretKey: string | null;
   stripeWebhookSecret: string | null;
-  /** Public base URL of this server (for checkout return URLs). */
   publicUrl: string;
-  /** Allowed browser origins for CORS ("*" in dev). */
   corsOrigins: string[];
-  /** Verify races in worker threads (true in production). */
   verifyInWorkers: boolean;
 }
 

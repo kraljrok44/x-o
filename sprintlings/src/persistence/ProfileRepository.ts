@@ -12,12 +12,6 @@ interface Envelope {
   data: string;
 }
 
-/**
- * Stores the local (offline / portal) profile with a checksum and a backup
- * slot, so a corrupted or half-written save falls back to the previous one.
- * The checksum detects corruption; it is not a security measure: local
- * saves are not equivalent to a server account and the UI says so.
- */
 export class ProfileRepository {
   private pending: PlayerProfile | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -56,21 +50,18 @@ export class ProfileRepository {
         this.lastLoadInfo = { source, migratedFrom, corrupted: source === 'backup' && !!primaryRaw };
         return profile;
       } catch {
-        /* try next */
       }
     }
     this.lastLoadInfo = { source: 'none', migratedFrom: null, corrupted: !!primaryRaw };
     return null;
   }
 
-  /** Writes immediately (also rotates the backup slot). */
   async saveNow(p: PlayerProfile): Promise<void> {
     const current = await this.store.get(KEY);
     if (current) await this.store.set(BACKUP_KEY, current);
     await this.store.set(KEY, ProfileRepository.wrap(p));
   }
 
-  /** Debounced save for frequent changes. */
   save(p: PlayerProfile): void {
     this.pending = p;
     if (this.timer) return;

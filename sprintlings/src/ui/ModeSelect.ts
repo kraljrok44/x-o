@@ -33,7 +33,6 @@ export function modeSelect(ctx: AppContext): Screen {
     );
   }
   const remixLocked = level < 3;
-  // Online first: it is the headline mode whenever our server is reachable.
   grid.prepend(
     h(
       'button',

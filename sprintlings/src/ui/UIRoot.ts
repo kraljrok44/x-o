@@ -5,20 +5,16 @@ export interface Screen {
   el: HTMLElement;
   onShow?(): void;
   onHide?(): void;
-  /** Called every frame while visible. */
   update?(dt: number): void;
-  /** Back / Escape handling. Return true if handled. */
   onBack?(): boolean;
 }
 
 export interface ModalAction {
   label: string;
   kind?: 'primary' | 'good' | 'bad' | 'ghost';
-  /** Return false to keep the modal open. */
   run?: () => unknown;
 }
 
-/** Owns the DOM overlay: one active screen, a modal stack and toasts. */
 export class UIRoot {
   private current: Screen | null = null;
   private readonly modals: HTMLElement[] = [];
@@ -30,7 +26,6 @@ export class UIRoot {
     private readonly toasts: HTMLElement,
   ) {}
 
-  /** Plays the UI click sound for every button. */
   setClickSound(cb: () => void): void {
     this.onClick = cb;
     document.addEventListener('click', (e) => {

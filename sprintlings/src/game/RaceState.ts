@@ -5,13 +5,10 @@ import type { PassiveModifiers } from '../player/CharacterAbilities';
 
 export type RacerPhase = 'grid' | 'run' | 'fall' | 'respawn' | 'finished';
 
-/** Input for a single simulation tick. Presses are edges, `jumpHeld`/`down` are levels. */
 export interface TickInput {
   jumpHeld: boolean;
-  /** Held: drop through one-way platforms / fall faster. */
   down: boolean;
   use: boolean;
-  /** Press: fire the animal's own special ability. */
   special?: boolean;
 }
 
@@ -33,10 +30,6 @@ export function emptyStats(): RacerStats {
   return { jumps: 0, hurdlesCleared: 0, abilitiesUsed: 0, hitsTaken: 0, hitsLanded: 0, falls: 0, glimmers: 0, itemBoxes: 0, shieldBlocks: 0 };
 }
 
-/**
- * Complete physical state of one racer. Kept as a flat object of numbers and
- * booleans so the AI planner can clone it cheaply for look-ahead rollouts.
- */
 export interface RacerBody {
   phase: RacerPhase;
   x: number;
@@ -44,18 +37,15 @@ export interface RacerBody {
   vy: number;
   speed: number;
   grounded: boolean;
-  /** Ground piece the racer stands on (-1 in the air). */
   pieceId: number;
   coyote: number;
   jumpBuffer: number;
   jumpGuard: number;
   jumpHeld: boolean;
   downHeld: boolean;
-  /** True while the current airtime started with a jump (release-cut allowed). */
   jumping: boolean;
   jumpAge: number;
   cutPending: boolean;
-  /** One-way platform being dropped through, and for how long. */
   dropId: number;
   dropTimer: number;
   stun: number;
@@ -64,32 +54,22 @@ export interface RacerBody {
   dash: number;
   padBoost: number;
   shield: number;
-  /** Terrain under the racer this tick: 0 none, 1 mud, 2 sap. */
   terrain: number;
   lastHitId: number;
   lastHitTimer: number;
   fallFromX: number;
   onPad: boolean;
-  /** Pressing against a wall this tick (for animation). */
   blocked: boolean;
-  /** Holding down on solid ground: a low slide that ducks flying projectiles. */
   sliding: boolean;
-  /** Slowed by a rival's howl (seconds left). */
   slow: number;
-  /** Bull stampede: dash that knocks over rivals it touches (seconds left). */
   stampede: number;
-  /** Rabbit double hop is still available in this airtime. */
   airHop: boolean;
-  /** Scaling a tall wall (pressing against a face too high to jump). */
   climbing: boolean;
-  /** This racer's own rolling barrel: hazard id (-1 none) and when it started. */
   rollId: number;
   rollStart: number;
-  /** x of the last barrel hazard this racer has triggered. */
   rollPassX: number;
 }
 
-/** Current hitbox height (lower while sliding). */
 export function bodyHeight(b: RacerBody): number {
   return b.sliding ? GameplayConfig.hitbox.slideHeight : GameplayConfig.hitbox.height;
 }
@@ -143,37 +123,28 @@ export function copyBody(from: RacerBody, to: RacerBody): RacerBody {
 
 export interface Racer {
   index: number;
-  /** Team id: racers on the same team never hurt each other (Duos). */
   team: number;
   id: string;
   name: string;
   characterId: CharacterId;
   isPlayer: boolean;
-  /** Cosmetic loadout id list, only used by the renderer. */
   cosmetics: Record<string, string>;
   variantId: string | null;
   mods: PassiveModifiers;
   body: RacerBody;
   item: AbilityId | null;
-  /** Seconds left before the held powerup fizzles out unused. */
   itemTime: number;
   abilityCooldown: number;
-  /** Seconds until the animal special can be used again. */
   specialCooldown: number;
   finishTime: number | null;
   stats: RacerStats;
-  /** Per-racer glimmer pickup flags (index = glimmer index in track data). */
   glimmerTaken: Uint8Array;
-  /** Previous jumpHeld to detect press/release edges. */
   prevJumpHeld: boolean;
   prevDownHeld: boolean;
-  /** Start boost earned by pressing jump right at "GO". */
   startBoostArmed: boolean;
-  /** Hurdles cleared since the last stumble or fall; every few earn a burst. */
   streak: number;
 }
 
-/** Clean hurdles in a row that earn a hot-streak burst, and how long it lasts. */
 export const STREAK_EVERY = 3;
 export const STREAK_BOOST = 0.75;
 
@@ -199,7 +170,6 @@ export interface SnareEntity {
   alive: boolean;
 }
 
-/** Rope trap laid by a lasso: a bent sapling with a noose that yanks a rival up. */
 export interface NooseEntity {
   kind: 'noose';
   id: number;
@@ -208,15 +178,12 @@ export interface NooseEntity {
   y: number;
   ttl: number;
   alive: boolean;
-  /** Seconds since it caught someone (-1 while still set). */
   sprung: number;
 }
 
-/** Hit codes a ground trap reports (dynamite 200000+id, rope trap 400000+id). */
 export const SNARE_HIT = 200000;
 export const NOOSE_HIT = 400000;
 
-/** The armed ground trap (dynamite or rope) a racer touches, as a hit code, or -1. */
 export function trapTouched(entities: readonly Entity[], racer: number, body: RacerBody, sameTeam: (a: number, b: number) => boolean): number {
   if (body.invuln > 0) return -1;
   for (const e of entities) {
@@ -243,7 +210,6 @@ export interface SapEntity {
   alive: boolean;
 }
 
-/** Storm cloud hovering over a target, striking when the timer runs out. */
 export interface ThunderEntity {
   kind: 'thunder';
   id: number;
@@ -255,7 +221,6 @@ export interface ThunderEntity {
   alive: boolean;
 }
 
-/** Lobbed bomb: flies on a gravity arc, blasts on landing or when the fuse ends. */
 export interface BombEntity {
   kind: 'bomb';
   id: number;
@@ -277,7 +242,6 @@ export type RaceEventType =
   | 'jump'
   | 'land'
   | 'hurdleCleared'
-  /** Several hurdles cleared in a row (value = streak length): a short speed burst. */
   | 'streak'
   | 'hit'
   | 'bonk'
@@ -287,13 +251,9 @@ export type RaceEventType =
   | 'itemPickup'
   | 'abilityUse'
   | 'seekerHit'
-  /** A racer was hit by a rival's powerup (value = attacker, ability = which). */
   | 'abilityHit'
-  /** A held powerup ran out of time unused. */
   | 'itemExpire'
-  /** An explosion or lightning strike at (x, y): value 0 = bomb, 1 = thunder. */
   | 'blast'
-  /** An animal special was used (value = character special index, see CharacterDefinition). */
   | 'special'
   | 'seekerExpire'
   | 'glimmer'
@@ -305,13 +265,9 @@ export type RaceEventType =
 export interface RaceEvent {
   type: RaceEventType;
   racer: number;
-  /** Extra numeric payload (hazard id, glimmer index, countdown number...). */
   value: number;
-  /** Optional ability involved. */
   ability: AbilityId | null;
-  /** Optional animal special involved (stampede / pickpocket hits). */
   special?: SpecialId | null;
-  /** Position of the event in track space. */
   x: number;
   y: number;
 }

@@ -4,10 +4,6 @@ import { PostgresRepository } from '../../server/persistence/PostgresRepository'
 import { testServer, type Api } from '../helpersServer';
 import { createProfile } from '../../src/economy/Profile';
 
-/**
- * Runs only when TEST_DATABASE_URL points at a disposable PostgreSQL
- * database (e.g. postgres://sprint:sprint@localhost/sprintlings_test).
- */
 const url = process.env.TEST_DATABASE_URL;
 
 describe.skipIf(!url)('PostgreSQL repository', () => {
@@ -25,7 +21,7 @@ describe.skipIf(!url)('PostgreSQL repository', () => {
 
   it('migrates, creates accounts and enforces optimistic versions', async () => {
     const repo = new PostgresRepository(url!);
-    expect(await repo.migrate()).toEqual([]); // already applied by the server
+    expect(await repo.migrate()).toEqual([]);
     await repo.createAccount({ id: 'acc_pg', tokenHash: 'h_pg', createdAt: 1 }, createProfile('acc_pg', 1));
     const loaded = await repo.loadProfile('acc_pg');
     expect(loaded?.version).toBe(1);

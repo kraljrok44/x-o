@@ -3,20 +3,13 @@ import { hazardExtent, type Hazard } from '../obstacles/ObstacleBase';
 
 export type Biome = 'forest' | 'canyon' | 'crystal' | 'sunset' | 'snow';
 
-/**
- * A piece of walkable surface seen from the side. Solid pieces are terrain
- * columns (you can't run into them from the side); one-way pieces are
- * floating platforms you can jump onto from below and drop through.
- */
 export interface GroundPiece {
   id: number;
   x0: number;
   x1: number;
-  /** Surface height at x0 and x1 (ramps interpolate linearly). */
   y0: number;
   y1: number;
   oneWay: boolean;
-  /** How a one-way piece is drawn (planks by default, or a cloud). */
   style?: 'cloud';
 }
 
@@ -59,17 +52,11 @@ export function surfaceAt(p: GroundPiece, x: number): number {
   return p.y0 + ((p.y1 - p.y0) * (x - p.x0)) / (p.x1 - p.x0);
 }
 
-/**
- * Immutable, query-optimised view of a course used by the simulation, the AI
- * planner, the validator and the renderer. All queries are allocation free.
- */
 export class Track {
   readonly data: TrackData;
   readonly length: number;
-  /** Largest distance any hazard reaches from its centre x. */
   readonly maxHazardReach: number;
   private readonly buckets: Int32Array[];
-  /** Piece found by the last groundBelow() call (or -1). */
   lastPiece = -1;
   private readonly oneWayIds = new Set<number>();
 
@@ -86,7 +73,6 @@ export class Track {
     });
     this.buckets = lists.map((l) => Int32Array.from(l));
     for (const p of data.pieces) if (p.oneWay) this.oneWayIds.add(p.id);
-    // Hazards sit on whatever ground is below them.
     for (const h of data.hazards) {
       const g = this.groundBelow(h.x, h.onTop ? h.onTop : 50, -1, !!h.onTop);
       h.y = Number.isNaN(g) ? 0 : g;
@@ -113,11 +99,6 @@ export class Track {
     return this.buckets[b < 0 ? 0 : b >= this.buckets.length ? this.buckets.length - 1 : b];
   }
 
-  /**
-   * Highest surface at x that is not above `maxY`. One-way platforms count
-   * only when `oneWayOk` (the racer came from above) and are skipped if their
-   * id equals `ignoreId` (dropping through). Returns NaN over a gap.
-   */
   groundBelow(x: number, maxY: number, ignoreId: number, oneWayOk = true): number {
     const list = this.bucket(x);
     let best = Number.NaN;
@@ -136,7 +117,6 @@ export class Track {
     return best;
   }
 
-  /** Whether solid terrain occupies the vertical span [y0, y1] at x (walls, ledge faces). */
   solidAt(x: number, y0: number): boolean {
     const list = this.bucket(x);
     for (let i = 0; i < list.length; i++) {
@@ -147,12 +127,10 @@ export class Track {
     return false;
   }
 
-  /** Top of the highest solid (non one-way) ground at x, NaN if none. Used for respawns and visuals. */
   solidTop(x: number): number {
     return this.groundBelow(x, 1e9, -1, false);
   }
 
-  /** Index of the first hazard that may overlap x >= x0 (hazards sorted by x). */
   firstHazardIndex(x0: number): number {
     const hz = this.data.hazards;
     const target = x0 - this.maxHazardReach;
@@ -166,7 +144,6 @@ export class Track {
     return lo;
   }
 
-  /** Convenience iterator for non-hot paths. */
   forHazardsNear(x0: number, x1: number, visit: (h: Hazard) => void): void {
     const hz = this.data.hazards;
     const end = x1 + this.maxHazardReach;
@@ -176,7 +153,6 @@ export class Track {
     }
   }
 
-  /** Where a racer reappears after falling: the next solid ground with a clear stretch. */
   findRespawn(fromX: number): { x: number; y: number } {
     for (let x = Math.max(0, fromX); x < this.length + 20; x += 0.5) {
       const y = this.solidTop(x);

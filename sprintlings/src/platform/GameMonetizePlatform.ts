@@ -9,12 +9,6 @@ interface GMWindow {
   sdk?: { showBanner?: () => void };
 }
 
-/**
- * GameMonetize SDK. Its documented API offers interstitial video ads via
- * sdk.showBanner() plus SDK_GAME_PAUSE / SDK_GAME_START events. Rewarded ads
- * are not part of the documented API, so rewarded placements are hidden on
- * this platform.
- */
 class GameMonetizeAdProvider implements AdProvider {
   readonly name = 'GameMonetize';
   readonly supportsRewarded = false;
@@ -60,7 +54,6 @@ class GameMonetizeAdProvider implements AdProvider {
         resolve({ status: 'failed', reason: 'Ad failed.' });
         return;
       }
-      // The SDK gives up on slow requests by itself; never wait forever.
       setTimeout(() => {
         if (this.pending === resolve) {
           this.pending = null;
@@ -77,11 +70,6 @@ export class GameMonetizePlatform implements Platform {
   readonly id = 'gamemonetize' as const;
   readonly displayName = 'GameMonetize';
   readonly ads: GameMonetizeAdProvider = new GameMonetizeAdProvider();
-  /**
-   * Our own server (accounts, online races, verified rewards) is used when
-   * the build sets VITE_SERVER_URL; real-money purchases additionally need
-   * VITE_ENABLE_PURCHASES=true and run through the server's Stripe checkout.
-   */
   readonly usesOwnServer = !!import.meta.env.VITE_SERVER_URL;
   readonly ownPurchasesAllowed = this.usesOwnServer && import.meta.env.VITE_ENABLE_PURCHASES === 'true';
   readonly externalLinksAllowed = false;
@@ -99,7 +87,6 @@ export class GameMonetizePlatform implements Platform {
       gameId,
       onEvent: (e) => {
         this.ads.handleEvent(e.name);
-        // Unrequested pauses (portal holding the screen) also pause the game.
         if (e.name === 'SDK_GAME_PAUSE') this.onPauseRequest?.(true);
         if (e.name === 'SDK_GAME_START') this.onPauseRequest?.(false);
       },

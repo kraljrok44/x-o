@@ -1,4 +1,3 @@
-/** Minimal async key/value storage used for settings and the local profile. */
 export interface KeyValueStore {
   readonly name: string;
   get(key: string): Promise<string | null>;
@@ -34,19 +33,16 @@ export class LocalStorageStore implements KeyValueStore {
     try {
       localStorage.setItem(this.prefix + key, value);
     } catch {
-      /* storage full or blocked: ignore, game keeps running */
     }
   }
   async remove(key: string): Promise<void> {
     try {
       localStorage.removeItem(this.prefix + key);
     } catch {
-      /* ignore */
     }
   }
 }
 
-/** IndexedDB-backed store (preferred in browsers). Falls back to null values on errors. */
 export class IndexedDbStore implements KeyValueStore {
   readonly name = 'indexedDB';
   private dbPromise: Promise<IDBDatabase> | null = null;
@@ -93,7 +89,6 @@ export class IndexedDbStore implements KeyValueStore {
     try {
       await this.tx('readwrite', (s) => s.put(value, key));
     } catch {
-      /* ignore */
     }
   }
 
@@ -101,12 +96,10 @@ export class IndexedDbStore implements KeyValueStore {
     try {
       await this.tx('readwrite', (s) => s.delete(key));
     } catch {
-      /* ignore */
     }
   }
 }
 
-/** Picks the best available browser store. */
 export async function createBrowserStore(): Promise<KeyValueStore> {
   if (IndexedDbStore.available()) {
     const store = new IndexedDbStore();
@@ -114,7 +107,6 @@ export async function createBrowserStore(): Promise<KeyValueStore> {
       await store.set('__probe', '1');
       if ((await store.get('__probe')) === '1') return store;
     } catch {
-      /* fall through */
     }
   }
   try {

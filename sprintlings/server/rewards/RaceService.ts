@@ -14,11 +14,6 @@ import { checkTiming } from '../antiCheat/RacePlausibility';
 const MODES: RaceMode[] = ['race', 'practice', 'remix', 'duos'];
 const DIFFS: DifficultyChoice[] = ['auto', 'easy', 'normal', 'hard'];
 
-/**
- * Issues race tickets and settles finished races. Rewards are computed from
- * the server's own re-simulation of the submitted inputs, never from a
- * client-reported result.
- */
 export class RaceService {
   constructor(
     private readonly repo: Repository,

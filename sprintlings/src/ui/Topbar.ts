@@ -3,7 +3,6 @@ import { levelProgress } from '../progression/LevelProgression';
 import { h } from './dom';
 import { t } from './i18n';
 
-/** Wallet + level header shared by menu screens. Re-renders on profile changes. */
 export function topbar(ctx: AppContext, opts: { back?: () => void; title?: string } = {}): { el: HTMLElement; dispose: () => void } {
   const coins = h('span');
   const gems = h('span');

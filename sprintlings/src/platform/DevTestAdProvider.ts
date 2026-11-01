@@ -1,11 +1,6 @@
 import type { AdProvider, AdResult } from '../ads/AdProvider';
 import { newId } from '../shared/ids';
 
-/**
- * Development-only ad simulator. It is clearly labelled as a TEST ad, is
- * never included in portal builds and exists only to exercise the reward
- * flow (complete / close early / fail) during development.
- */
 export class DevTestAdProvider implements AdProvider {
   readonly name = 'Test ads (development only)';
   readonly supportsRewarded = true;

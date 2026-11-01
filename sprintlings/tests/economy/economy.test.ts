@@ -109,7 +109,6 @@ describe('quests', () => {
     const before = p.wallet.coins;
     const g = claimQuest(p, q.id, NOW, rng());
     expect(g.coins).toBe(q.reward.coins);
-    // Quest XP may also trigger a level-up reward on top.
     const levelCoins = g.levelUps.reduce((n, l) => n + l.coins, 0);
     expect(p.wallet.coins).toBe(before + q.reward.coins + levelCoins);
     expect(code(() => claimQuest(p, q.id, NOW, rng()))).not.toBe('ok');
@@ -239,9 +238,7 @@ describe('rewarded ads', () => {
     expect(code(() => grantAdReward(p, 'free_coins', NOW + 1000, 'ad2'))).toBe('limit_reached');
     grantAdReward(p, 'free_coins', NOW + 60_000, 'ad3');
     grantAdReward(p, 'daily_bonus', NOW + 120_000, 'ad4');
-    // Daily cap of 3 reached.
     expect(rewardedEligibility(p, 'free_coins', NOW + 200_000).allowed).toBe(false);
-    // Next day resets.
     expect(rewardedEligibility(p, 'free_coins', NOW + DAY_MS).allowed).toBe(true);
   });
 

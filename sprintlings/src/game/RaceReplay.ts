@@ -1,13 +1,5 @@
 import type { TickInput } from './RaceState';
 
-/**
- * Compact log of one human racer's inputs, sufficient (together with the
- * race setup and seed) to re-simulate the race exactly. Each entry is
- * [tick, bits] and is written only when a held state changes or the ability
- * key is pressed.
- *
- * bit 0: jump held, bit 1: down held, bit 2: special pressed, bit 3: use pressed
- */
 export type InputLog = [number, number][];
 
 const JUMP = 1;
@@ -32,7 +24,6 @@ export class InputRecorder {
   }
 }
 
-/** Replays an InputLog tick by tick. */
 export class InputPlayer {
   private cursor = 0;
   private held = 0;
@@ -58,7 +49,6 @@ export class InputPlayer {
   }
 }
 
-/** Rejects logs that are malformed or physically impossible to input. */
 export function validateInputLog(log: unknown, maxTick: number): log is InputLog {
   if (!Array.isArray(log) || log.length > 20000) return false;
   let prev = -1;

@@ -21,7 +21,6 @@ export function specialOf(racer: Racer): SpecialId {
   return CHARACTERS[racer.characterId].special;
 }
 
-/** Whether the special would do anything right now (AI and HUD use this too). */
 export function specialReady(sim: RaceSimulation, racer: Racer): boolean {
   const b = racer.body;
   if (racer.specialCooldown > 0 || b.phase !== 'run') return false;
@@ -55,7 +54,6 @@ function pickpocketTarget(sim: RaceSimulation, racer: Racer): number {
   return best;
 }
 
-/** Fires the animal special. Uses that would do nothing never start the cooldown. */
 export function trySpecial(sim: RaceSimulation, racer: Racer): boolean {
   if (!specialReady(sim, racer)) return false;
   const b = racer.body;
@@ -101,7 +99,6 @@ export function trySpecial(sim: RaceSimulation, racer: Racer): boolean {
   return true;
 }
 
-/** Bulls on a stampede knock over every rival they run into. */
 export function stepStampedes(sim: RaceSimulation): void {
   for (const racer of sim.racers) {
     const b = racer.body;

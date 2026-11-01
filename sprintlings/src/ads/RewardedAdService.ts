@@ -7,12 +7,6 @@ export type RewardedOutcome =
   | { status: 'rewardGranted'; grant: GrantResult }
   | { status: Exclude<AdStatus, 'rewardGranted'>; message: string };
 
-/**
- * Runs the rewarded-ad flow for one placement:
- *   eligibility -> (player already confirmed in UI) -> showing -> completed
- *   -> rewardPending -> authority grants -> rewardGranted.
- * A closed, skipped or failed ad never grants anything.
- */
 export class RewardedAdService {
   status: AdStatus = 'unavailable';
   private busy = false;

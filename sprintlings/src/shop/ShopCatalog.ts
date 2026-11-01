@@ -18,7 +18,6 @@ export interface ShopOffer {
   characterId?: CharacterId;
 }
 
-/** Bundles sold for Gems: discounted sets of existing cosmetics. */
 export const BUNDLES = [
   { id: 'bundle_explorer', name: 'Prospector Set', description: 'Prospector Helmet, Saddlebag, Tumbleweed Swirl and an exclusive Lucky Pickaxe.', items: ['hat_acorn', 'back_pack', 'trail_leaves', 'hand_pickaxe'], price: { currency: 'gems' as const, amount: 120 } },
   { id: 'bundle_royal', name: 'Royal Set', description: 'Sunburst Crown, Gilded Monocle, Prism Ribbon plus an exclusive Royal Scepter and red-and-gold Royal Mantle.', items: ['hat_crown', 'eyes_monocle', 'trail_rainbow', 'hand_scepter', 'outfit_royal'], price: { currency: 'gems' as const, amount: 520 } },
@@ -33,7 +32,6 @@ export function categoryOf(c: CosmeticDefinition): ShopCategory {
   return SLOT_CATEGORY[c.slot];
 }
 
-/** All offers currently on sale. */
 export function shopOffers(now: number): ShopOffer[] {
   const offers: ShopOffer[] = [];
   for (const id of CHARACTER_IDS) {

@@ -3,28 +3,16 @@ import { GameplayConfig } from '../config/GameplayConfig';
 import type { Hazard } from '../obstacles/ObstacleBase';
 import type { Biome, GlimmerDef, GroundPiece, ItemBoxDef } from './Track';
 
-/** Tags used to restrict which segments may follow each other. */
 export type SegmentTag = 'start' | 'rest' | 'easy' | 'medium' | 'hard' | 'finale' | 'finish';
 
-/**
- * A hand-authored, reusable piece of course. The builder walks forward with
- * a cursor: run / ramp / gap / step lay the ground; hazards and pickups are
- * placed at segment-relative x (dx) and sit on the ground there.
- */
 export interface SegmentTemplate {
   id: string;
-  /** Length is the sum of the ground commands; declared for the assembler. */
   length: number;
-  /** 0 (rest) .. 5 (finale). */
   difficulty: number;
   tags: SegmentTag[];
-  /** Previous segment must carry at least one of these tags (empty = anything). */
   allowedAfter: SegmentTag[];
-  /** Next segment must carry at least one of these tags (empty = anything). */
   allowedBefore: SegmentTag[];
-  /** Hazard-free distance guaranteed at the start of the segment. */
   minSafeLeadIn: number;
-  /** Rules for pickups placed by this segment, documented for designers. */
   pickupRule: string;
   build(ctx: SegmentContext): void;
 }
@@ -35,7 +23,6 @@ export interface TrackDraft {
   itemBoxes: ItemBoxDef[];
   glimmers: GlimmerDef[];
   nextId: number;
-  /** Current ground height where the next segment starts. */
   level: number;
 }
 
@@ -43,9 +30,7 @@ export function emptyDraft(): TrackDraft {
   return { pieces: [], hazards: [], itemBoxes: [], glimmers: [], nextId: 1, level: 0 };
 }
 
-/** Helper API handed to SegmentTemplate.build. */
 export class SegmentContext {
-  /** Cursor (segment relative) where the next ground command starts. */
   cursor = 0;
 
   constructor(
@@ -67,16 +52,12 @@ export class SegmentContext {
     this.draft.pieces.push({ id: this.id(), x0: this.x0 + dx0, x1: this.x0 + dx1, y0, y1, oneWay });
   }
 
-  // --- ground ------------------------------------------------------------------
-
-  /** Flat ground at the current level. */
   run(len: number): this {
     this.piece(this.cursor, this.cursor + len, this.level, this.level, false);
     this.cursor += len;
     return this;
   }
 
-  /** Slope to a new level (keep |rise / len| <= 0.5). */
   ramp(len: number, rise: number): this {
     if (Math.abs(rise / len) > 0.55) throw new Error('ramp too steep');
     this.piece(this.cursor, this.cursor + len, this.level, this.level + rise, false);
@@ -85,44 +66,36 @@ export class SegmentContext {
     return this;
   }
 
-  /** No ground (a pit). The next ground starts at the current level + `rise`. */
   gap(len: number, rise = 0): this {
     this.cursor += len;
     this.draft.level += rise;
     return this;
   }
 
-  /** Sudden change of level (a ledge face you must jump up, or a drop). */
   step(rise: number): this {
     this.draft.level += rise;
     return this;
   }
 
-  /** One-way floating platform `lift` above the current level, from dx for len. */
   platform(dx: number, len: number, lift: number): this {
     this.piece(dx, dx + len, this.level + lift, this.level + lift, true);
     return this;
   }
 
-  /** A fluffy cloud you can stand on (one-way, like a platform). */
   cloud(dx: number, len: number, lift: number): this {
     this.draft.pieces.push({ id: this.id(), x0: this.x0 + dx, x1: this.x0 + dx + len, y0: this.level + lift, y1: this.level + lift, oneWay: true, style: 'cloud' });
     return this;
   }
 
-  /** Low hanging sign: slide under it. */
   beam(dx: number): this {
     this.draft.hazards.push({ id: this.id(), kind: 'beam', x: this.x0 + dx, y: 0, halfWidth: 0.45, clearance: 0.8, top: 3.2 });
     return this;
   }
 
-  /** Solid floating island (blocks from the side, e.g. pillars between pits). */
   island(dx: number, len: number, lift: number): this {
     this.piece(dx, dx + len, this.level + lift, this.level + lift, false);
     return this;
   }
-
-  // --- hazards -------------------------------------------------------------------
 
   log(dx: number, height = 0.7, halfWidth = 0.35): this {
     this.draft.hazards.push({ id: this.id(), kind: 'log', x: this.x0 + dx, y: 0, halfWidth, height });
@@ -175,15 +148,11 @@ export class SegmentContext {
     return this;
   }
 
-  /** Boost pad or spring; `onLift` puts it on a platform/cloud that high above the current level. */
   pad(kind: 'boostPad' | 'spring', dx: number, onLift?: number): this {
     this.draft.hazards.push({ id: this.id(), kind, x: this.x0 + dx, y: 0, halfWidth: kind === 'spring' ? 0.45 : 0.8, onTop: onLift === undefined ? undefined : this.level + onLift + 0.01 });
     return this;
   }
 
-  // --- pickups -------------------------------------------------------------------
-
-  /** Rune Box `lift` above the ground level at the segment's current level. */
   box(dx: number, lift = 0.9, atLevel = this.level): this {
     this.draft.itemBoxes.push({ id: this.id(), x: this.x0 + dx, y: atLevel + lift });
     return this;
@@ -194,7 +163,6 @@ export class SegmentContext {
     return this;
   }
 
-  /** Glimmers along the arc of a jump taken at `takeoff`. */
   glimmerArc(takeoff: number, count = 5, velocity: number = GameplayConfig.jump.velocity, atLevel = this.level): this {
     const g = GameplayConfig.jump.gravity;
     const speed = GameplayConfig.movement.baseSpeed;

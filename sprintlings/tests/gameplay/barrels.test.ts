@@ -7,7 +7,6 @@ describe('rolling barrels', () => {
     const track = testTrack(200, (c) => c.run(40).boulder(26));
     const sim = new RaceSimulation({ track, seed: 1, racers: [human('a'), human('b')] });
     skipCountdown(sim);
-    // b runs well behind a.
     sim.racers[1].body.x -= 12;
     const hits = [0, 0];
     const rolls = new Set<string>();
@@ -15,7 +14,6 @@ describe('rolling barrels', () => {
       for (const e of sim.step([input({}), input({})])) if (e.type === 'hit') hits[e.racer]++;
       for (const r of sim.racers) if (r.body.rollId >= 0) rolls.add(`${r.index}:${r.body.rollStart}`);
     }
-    // One barrel per racer, started at different times.
     expect(rolls.size).toBe(2);
     expect(hits[0]).toBe(1);
     expect(hits[1]).toBe(1);

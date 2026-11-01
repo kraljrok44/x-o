@@ -1,15 +1,6 @@
 import type { BodyPlan, CharacterPalette } from '../player/CharacterDefinition';
 import { ellipse, mix, roundRect, shade, star, tint, type Ctx } from './draw';
 
-/**
- * Vector western critters drawn with Canvas2D paths: an animal head, a
- * frontier outfit (shirt, vest, bandana, belt, jeans, boots), jointed legs
- * and arms, and a tail. Local units: 1 = one world unit (the hitbox is
- * 1.1 u tall), origin at the feet, +x forward (racers face right), +y up.
- * The rig is a pure function of the pose, so the race, the menu stage and
- * the UI thumbnails all share it.
- */
-
 export type MouthKind = 'smile' | 'grin' | 'open' | 'ouch' | 'o' | 'flat' | 'happy';
 export type EyeKind = 'normal' | 'dizzy' | 'happy' | 'closed' | 'wide' | 'squint';
 
@@ -18,23 +9,18 @@ export interface Vec {
   y: number;
 }
 
-/** Everything the rig needs to draw one frame. Produced by MonsterAnimator. */
 export interface MonsterPose {
   time: number;
   bob: number;
   squash: number;
   lean: number;
   rot: number;
-  /** Horizontal facing scale: 1 faces right, -1 left (spins animate through 0). */
   flip: number;
-  /** Feet relative to their hip, in normalised run-cycle units. */
   footNear: Vec;
   footFar: Vec;
-  /** Arm angles in radians: 0 hangs down, +PI/2 points forward, PI straight up. */
   armNear: number;
   armFar: number;
   armReach: number;
-  /** Secondary-motion angles (ears, tail, bandana). */
   wobbleA: number;
   wobbleB: number;
   blink: number;
@@ -45,11 +31,8 @@ export interface MonsterPose {
   dizzy: number;
   blush: number;
   hop: number;
-  /** 0 = side view (running right), 1 = facing the camera. */
   facing: number;
-  /** Set by drawMonster while turning: 1 = front view still turned 3/4 toward the right, 0 = straight on. */
   yaw?: number;
-  /** Run-cycle phase and amount (0..1), for mounts that gallop along. */
   gait?: number;
   runAmt?: number;
   climbing?: boolean;
@@ -83,8 +66,6 @@ export function neutralPose(): MonsterPose {
   };
 }
 
-/** Anchors cosmetics attach to. Head fields are in head space, back fields in torso space. */
-/** One eye in head space; `sx` squashes it horizontally when the head is turned. */
 export interface EyeAnchor {
   x: number;
   y: number;
@@ -97,11 +78,8 @@ export interface RigAnchors {
   headW: number;
   eyeCenter: Vec;
   eyeSpan: number;
-  /** [near eye (the right eye, the one facing the camera while racing), far eye]. */
   eyes: [EyeAnchor, EyeAnchor];
-  /** Head seen from the side (eyewear gets a temple arm). */
   side: boolean;
-  /** Torso outline (body space): bottom/top half widths and bottom/top heights. */
   torso: { wBot: number; wTop: number; y0: number; y1: number };
   back: Vec;
   bodyRx: number;
@@ -116,25 +94,19 @@ export interface MonsterStyle {
 
 export type CosmeticLayer = (ctx: Ctx, anchors: RigAnchors, pose: MonsterPose, pal: CharacterPalette) => void;
 
-/** Something ridden: drawn under (and partly over) the rider, who sits on `saddle`. */
 export interface MountLayer {
   kind: 'ride' | 'hover' | 'stick';
-  /** Height of the seat above the ground (ignored for 'stick', ridden on foot). */
   saddle: number;
   riderScale: number;
-  /** Highest point of the mount (for name tags). */
   top: number;
   behind?: (ctx: Ctx, pose: MonsterPose) => void;
   front?: (ctx: Ctx, pose: MonsterPose) => void;
 }
 
-/** Every cosmetic layer the rig knows how to place. */
 export interface RigLayers {
   back?: CosmeticLayer;
   front?: CosmeticLayer;
-  /** Full outfit: palette overrides plus drawings behind the body, on the torso (clipped) and over it. */
   outfit?: { palette?: Partial<CharacterPalette>; under?: CosmeticLayer; overClip?: CosmeticLayer; over?: CosmeticLayer };
-  /** Prop held in the right hand; drawn in hand space with +y running up the prop. */
   hand?: (ctx: Ctx, pose: MonsterPose) => void;
   mount?: MountLayer;
 }
@@ -157,8 +129,6 @@ export function makeAnchors(): RigAnchors {
   };
 }
 
-// --- proportions --------------------------------------------------------------------
-
 const OW = 0.038;
 const HIP_Y = 0.42;
 const SHOULDER_Y = 0.8;
@@ -168,13 +138,11 @@ const SHIN = 0.22;
 const LEG_W = 0.13;
 const ARM_W = 0.095;
 const ARM_LEN = 0.17;
-/** Animator foot offsets are tuned for stubby legs; these legs reach further. */
 const STRIDE_SCALE = 1.45;
 
 interface Species {
   headRx: number;
   headRy: number;
-  /** Extra height for the name tag (tall ears). */
   earTop: number;
   build: number;
 }
@@ -188,7 +156,6 @@ const SPECIES: Record<BodyPlan, Species> = {
   wolf: { headRx: 0.27, headRy: 0.26, earTop: 0.22, build: 1.05 },
 };
 
-/** Visual height from feet to the top of the head/ears (for name tags). */
 export function monsterHeight(plan: BodyPlan): number {
   const s = SPECIES[plan];
   return HEAD_Y + s.headRy + s.earTop;
@@ -196,7 +163,6 @@ export function monsterHeight(plan: BodyPlan): number {
 
 const OL = '#2a1a1e';
 
-/** Two-pass stroke so a polyline limb gets one clean outline. */
 function tube(ctx: Ctx, pts: number[], width: number, fill: string, cap?: () => void): void {
   for (let pass = 0; pass < 2; pass++) {
     ctx.beginPath();
@@ -227,9 +193,6 @@ function fillOutlined(ctx: Ctx, fill: string | CanvasGradient, lw = OW): void {
   ctx.stroke();
 }
 
-// --- limbs --------------------------------------------------------------------------
-
-/** Two-bone leg from hip to foot (knee bends forward) with a cowboy boot. */
 function drawLeg(ctx: Ctx, hx: number, hy: number, fx: number, fy: number, pal: CharacterPalette, far: boolean, front: boolean): void {
   let dx = fx - hx;
   let dy = fy + 0.1 - hy;
@@ -238,7 +201,6 @@ function drawLeg(ctx: Ctx, hx: number, hy: number, fx: number, fy: number, pal: 
   dx = Math.cos(ang) * d;
   dy = Math.sin(ang) * d;
   const a = Math.acos(Math.max(-1, Math.min(1, (THIGH * THIGH + d * d - SHIN * SHIN) / (2 * THIGH * d))));
-  // Knee forward (+x): rotate the hip->foot direction toward +x.
   const kAng = ang + (front ? 0 : a);
   const kx = hx + Math.cos(kAng) * THIGH;
   const ky = hy + Math.sin(kAng) * THIGH;
@@ -246,7 +208,6 @@ function drawLeg(ctx: Ctx, hx: number, hy: number, fx: number, fy: number, pal: 
   const ay = hy + dy;
   const pants = far ? shade(pal.pants, 0.25) : pal.pants;
   tube(ctx, [hx, hy, kx, ky, ax, ay], LEG_W, pants);
-  // Boot.
   const boot = far ? shade(pal.boots, 0.25) : pal.boots;
   ctx.beginPath();
   if (front) {
@@ -262,7 +223,6 @@ function drawLeg(ctx: Ctx, hx: number, hy: number, fx: number, fy: number, pal: 
     ctx.closePath();
   }
   fillOutlined(ctx, boot);
-  // Heel and top stitching.
   ctx.fillStyle = shade(boot, 0.35);
   if (!front) ctx.fillRect(ax - 0.1, fy, 0.06, 0.03);
   ctx.beginPath();
@@ -275,7 +235,6 @@ function drawLeg(ctx: Ctx, hx: number, hy: number, fx: number, fy: number, pal: 
 
 function drawArm(ctx: Ctx, sx: number, sy: number, angle: number, reach: number, pal: CharacterPalette, far: boolean, held?: () => void): void {
   const len = ARM_LEN * reach;
-  // Elbow bends against the swing for a natural arc.
   const elbowAng = angle - 0.35;
   const ex = sx + Math.sin(elbowAng) * len;
   const ey = sy - Math.cos(elbowAng) * len;
@@ -284,7 +243,6 @@ function drawArm(ctx: Ctx, sx: number, sy: number, angle: number, reach: number,
   const sleeve = far ? shade(pal.shirt, 0.25) : pal.shirt;
   tube(ctx, [sx, sy, ex, ey, hx, hy], ARM_W, sleeve);
   if (held) {
-    // Prop gripped in the fist, tilted up and forward from the forearm.
     ctx.save();
     ctx.translate(hx, hy);
     ctx.rotate(angle + 0.25 - 0.5);
@@ -295,8 +253,6 @@ function drawArm(ctx: Ctx, sx: number, sy: number, angle: number, reach: number,
   ellipse(ctx, hx, hy, 0.065, 0.06, angle);
   fillOutlined(ctx, far ? shade(pal.body, 0.2) : pal.body);
 }
-
-// --- torso --------------------------------------------------------------------------
 
 function torsoDims(plan: BodyPlan, front: boolean): { wBot: number; wTop: number; y0: number; y1: number } {
   const b = SPECIES[plan].build;
@@ -332,7 +288,6 @@ function drawTorso(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Monste
   fillOutlined(ctx, shirt);
   ctx.save();
   ctx.clip();
-  // Vest panels (front view: both sides; side view: the front half).
   const vest = ctx.createLinearGradient(0, y1 + 0.08, 0, y0 - 0.02);
   vest.addColorStop(0, tint(pal.vest, 0.12));
   vest.addColorStop(0.52, pal.vest);
@@ -359,7 +314,6 @@ function drawTorso(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Monste
     ctx.lineTo(-wBot - 0.1, y0 - 0.05);
     ctx.fill();
   }
-  // Pockets / stitching.
   ctx.strokeStyle = tint(pal.vest, 0.25);
   ctx.lineWidth = 0.018;
   ctx.setLineDash([0.03, 0.025]);
@@ -375,21 +329,17 @@ function drawTorso(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Monste
   }
   ctx.stroke();
   ctx.setLineDash([]);
-  // Belt.
   ctx.fillStyle = shade(pal.boots, 0.15);
   ctx.fillRect(-0.5, y0 - 0.02, 1, 0.07);
   ctx.restore();
-  // Buckle.
   ctx.beginPath();
   roundRect(ctx, (front ? 0 : wBot * 0.55) - 0.045, y0 - 0.025, 0.09, 0.075, 0.015);
   fillOutlined(ctx, '#f2c14e', 0.02);
-  // Sheriff badge for the wolf.
   if (plan === 'wolf') {
     ctx.beginPath();
     star(ctx, front ? -0.12 : -0.02, y1 - 0.13, 0.055, 0.5, 5);
     fillOutlined(ctx, '#ffd23f', 0.015);
   }
-  // Bandana knotted at the neck, its tip fluttering.
   const flap = pose.wobbleB * 0.03;
   ctx.beginPath();
   if (front) {
@@ -421,8 +371,6 @@ function drawTorso(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Monste
   }
 }
 
-// --- tails --------------------------------------------------------------------------
-
 function drawTail(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: MonsterPose, x: number, y: number): void {
   const sway = pose.wobbleB * 0.5 + Math.sin(pose.time * 6) * 0.05;
   ctx.save();
@@ -438,7 +386,6 @@ function drawTail(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Monster
       ctx.bezierCurveTo(-len * 0.9, 0.0, -0.25, -0.12, 0.02, -0.05);
       ctx.closePath();
       fillOutlined(ctx, pal.body);
-      // Light tip.
       ctx.save();
       ctx.clip();
       ctx.beginPath();
@@ -487,8 +434,6 @@ function drawTail(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Monster
   }
   ctx.restore();
 }
-
-// --- heads --------------------------------------------------------------------------
 
 function drawEye(ctx: Ctx, x: number, y: number, r: number, pose: MonsterPose, pal: CharacterPalette, lashes: boolean): void {
   ctx.save();
@@ -619,7 +564,6 @@ function drawMouth(ctx: Ctx, x: number, y: number, w: number, pose: MonsterPose,
   ctx.restore();
 }
 
-/** One ear in head space, rooted at (x, y), pointing up, tilted by `tilt`. */
 function drawEar(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, x: number, y: number, tilt: number, far: boolean): void {
   const fur = far ? shade(pal.body, 0.18) : pal.body;
   const inner = plan === 'rabbit' || plan === 'raccoon' || plan === 'bear' ? pal.belly : plan === 'bull' ? tint(pal.body, 0.3) : pal.belly;
@@ -645,7 +589,6 @@ function drawEar(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, x: number, y: 
       ctx.fill();
       break;
     case 'bull':
-      // Ears stick out sideways; horns are drawn separately.
       ellipse(ctx, 0, 0, 0.1, 0.045, 0.4);
       fillOutlined(ctx, fur);
       break;
@@ -678,19 +621,16 @@ function drawHorn(ctx: Ctx, pal: CharacterPalette, x: number, y: number, dir: nu
   fillOutlined(ctx, far ? shade(pal.accent, 0.2) : pal.accent);
 }
 
-/** Side-view head, in head space (centre 0,0). */
 function drawHeadSide(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: MonsterPose, flat: boolean): void {
   const sp = SPECIES[plan];
   const rx = sp.headRx;
   const ry = sp.headRy;
   const wa = pose.wobbleA;
-  // Far ear / horn behind the head.
   if (plan === 'bull') {
     drawHorn(ctx, pal, -0.08, ry * 0.7, -1, true);
     drawEar(ctx, plan, pal, -0.2, ry * 0.25, 0.5 + wa * 0.2, true);
   } else drawEar(ctx, plan, pal, plan === 'rabbit' ? -0.1 : -0.12, ry * 0.75, (plan === 'rabbit' ? 0.35 : 0.2) + wa * (plan === 'rabbit' ? 0.5 : 0.25), true);
 
-  // Head.
   ctx.beginPath();
   ellipse(ctx, 0, 0, rx, ry);
   if (flat) ctx.fillStyle = pal.body;
@@ -706,7 +646,6 @@ function drawHeadSide(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mon
   ctx.strokeStyle = OL;
   ctx.stroke();
 
-  // Cheek fluff / light lower face.
   ctx.save();
   ctx.beginPath();
   ellipse(ctx, 0, 0, rx, ry);
@@ -717,7 +656,6 @@ function drawHeadSide(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mon
   ctx.fillStyle = pal.belly;
   ctx.fill();
   if (plan === 'raccoon') {
-    // Bandit mask across the eyes.
     ctx.beginPath();
     ctx.moveTo(-rx, 0.06);
     ctx.quadraticCurveTo(0, 0.14, rx, 0.08);
@@ -729,7 +667,6 @@ function drawHeadSide(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mon
   }
   ctx.restore();
 
-  // Snout / muzzle.
   let noseX = 0;
   let noseY = 0;
   let mouthX = 0;
@@ -787,7 +724,6 @@ function drawHeadSide(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mon
         ellipse(ctx, rx * 0.8 + dx, -0.07, 0.022, 0.03);
         ctx.fill();
       }
-      // Nose ring.
       ctx.beginPath();
       ctx.arc(rx * 0.8 + 0.14, -0.13, 0.04, Math.PI * 0.6, Math.PI * 2.2);
       ctx.lineWidth = 0.022;
@@ -819,10 +755,8 @@ function drawHeadSide(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mon
     ctx.fill();
   }
 
-  // Eyes (3/4 view: far eye smaller and closer to the snout).
   drawEye(ctx, rx * 0.15, 0.04, 0.075, pose, pal, plan === 'rabbit');
   drawEye(ctx, rx * 0.62, 0.05, 0.062, pose, pal, false);
-  // Brows give attitude.
   if (plan === 'wolf' || plan === 'bull' || plan === 'bear') {
     ctx.beginPath();
     ctx.moveTo(rx * 0.0, 0.15);
@@ -834,7 +768,6 @@ function drawHeadSide(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mon
     ctx.strokeStyle = shade(pal.body, 0.5);
     ctx.stroke();
   }
-  // Blush.
   if (pose.blush > 0.05) {
     ctx.beginPath();
     ellipse(ctx, rx * 0.4, -0.07, 0.05, 0.028);
@@ -843,19 +776,16 @@ function drawHeadSide(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mon
   }
   drawMouth(ctx, mouthX, mouthY, mouthW, pose, pal, plan === 'rabbit');
 
-  // Near ear / horn in front.
   if (plan === 'bull') {
     drawHorn(ctx, pal, 0.06, ry * 0.75, 1, false);
   } else drawEar(ctx, plan, pal, plan === 'rabbit' ? 0.02 : 0.0, ry * 0.8, (plan === 'rabbit' ? 0.15 : 0.05) + wa * (plan === 'rabbit' ? 0.6 : 0.3), false);
 }
 
-/** Camera-facing head, in head space. */
 function drawHeadFront(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: MonsterPose, flat: boolean): void {
   const sp = SPECIES[plan];
   const rx = sp.headRx * 1.05;
   const ry = sp.headRy;
   const wa = pose.wobbleA;
-  // While turning, the face slides toward the side it came from (a 3/4 view).
   const yaw = pose.yaw ?? 0;
   const s = frontShift(plan, yaw);
   if (plan === 'bull') {
@@ -889,7 +819,6 @@ function drawHeadFront(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mo
   ellipse(ctx, 0, 0, rx, ry);
   ctx.clip();
   if (plan === 'fox' || plan === 'wolf' || plan === 'raccoon' || plan === 'rabbit') {
-    // Light cheeks.
     for (const d of [-1, 1]) {
       ctx.beginPath();
       ellipse(ctx, d * rx * 0.45 + s * 0.8, -ry * 0.5, rx * 0.5, ry * 0.45);
@@ -908,7 +837,6 @@ function drawHeadFront(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mo
     ctx.fill();
   }
   ctx.restore();
-  // Muzzle.
   const mw = plan === 'bull' ? 0.17 : plan === 'bear' ? 0.13 : 0.1;
   const my = plan === 'bull' ? -0.12 : -0.08;
   const mx = s * 1.35;
@@ -951,12 +879,10 @@ function drawHeadFront(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mo
   drawMouth(ctx, mx, my - mw * 0.35, mw * 0.9, pose, pal, plan === 'rabbit');
 }
 
-/** Sideways slide of the face in a turned (3/4) front view. */
 function frontShift(plan: BodyPlan, yaw: number): number {
   return yaw * SPECIES[plan].headRx * 1.05 * 0.4;
 }
 
-/** Eye positions of the front head: [near (character's right, viewer's left), far]. */
 function frontEyes(plan: BodyPlan, yaw: number): [EyeAnchor, EyeAnchor] {
   const s = frontShift(plan, yaw);
   return [
@@ -965,7 +891,6 @@ function frontEyes(plan: BodyPlan, yaw: number): [EyeAnchor, EyeAnchor] {
   ];
 }
 
-/** Eye positions of the side head: [near, far (peeking past the snout)]. */
 function sideEyes(plan: BodyPlan): [EyeAnchor, EyeAnchor] {
   const rx = SPECIES[plan].headRx;
   return [
@@ -991,11 +916,6 @@ function drawDizzy(ctx: Ctx, y: number, pose: MonsterPose): void {
   }
 }
 
-/**
- * Draws a character. The context must be in world units with +y up at the
- * feet. Cosmetic layers draw the back item (torso space) and hat/eyewear
- * (head space).
- */
 export function drawMonster(
   ctx: Ctx,
   plan: BodyPlan,
@@ -1020,9 +940,6 @@ export function drawMonster(
   }
   const f = Math.max(0, Math.min(1, pose.facing));
   const anchors = anchorsOut ?? makeAnchors();
-  // The turn is continuous: the side view narrows as the head starts to turn,
-  // a brief blend hands over to a 3/4 front view, and the face then slides
-  // round to look straight at the camera. Every frame is a new in-between.
   const SIDE_END = 0.3;
   const BLEND_END = 0.42;
   if (f <= SIDE_END || f >= 0.97 || !turnLayers(ctx)) {
@@ -1039,7 +956,6 @@ export function drawMonster(
     drawView(ctx, plan, pal, { ...pose, yaw }, style, layers, anchors, true, 1 - 0.14 * yaw);
     return;
   }
-  // Short hand-over between the side and the 3/4 view on separate layers.
   const blend = (f - SIDE_END) / (BLEND_END - SIDE_END);
   const m = ctx.getTransform();
   let x0 = Infinity;
@@ -1092,7 +1008,6 @@ export function drawMonster(
   ctx.restore();
 }
 
-/** Mount under the rider; the rider sits (or, on a hobby horse, runs) on top. */
 function drawMounted(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: MonsterPose, style: MonsterStyle, layers: RigLayers, m: MountLayer, anchors?: RigAnchors): void {
   if (style.shadow) {
     const drop = Math.max(-3, style.shadowDrop);
@@ -1104,7 +1019,6 @@ function drawMounted(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mons
   }
   ctx.save();
   if (pose.climbing) {
-    // Scale the wall nose-first, mount and all.
     ctx.translate(0.35, 0);
     ctx.rotate(1.15);
     ctx.translate(-0.35, 0);
@@ -1126,7 +1040,6 @@ function drawMounted(ctx: Ctx, plan: BodyPlan, pal: CharacterPalette, pose: Mons
 
 let layerPair: [HTMLCanvasElement, HTMLCanvasElement] | null | undefined;
 
-/** Two scratch canvases for blending the side and front views during a turn. */
 function turnLayers(ctx: Ctx): [HTMLCanvasElement, HTMLCanvasElement] | null {
   if (layerPair !== undefined) return layerPair;
   if (typeof document === 'undefined' || typeof (ctx as CanvasRenderingContext2D).getTransform !== 'function') return (layerPair = null);
@@ -1164,7 +1077,6 @@ function drawView(
   const footN = { x: pose.footNear.x * STRIDE_SCALE, y: pose.footNear.y * 1.3 };
   const footF = { x: pose.footFar.x * STRIDE_SCALE, y: pose.footFar.y * 1.3 };
 
-  // Upper body (torso + head + arms) leans around the hips.
   const upper = (fn: () => void) => {
     ctx.save();
     ctx.translate(0, hipY);
@@ -1209,7 +1121,6 @@ function drawView(
     layers.back?.(ctx, anchors, pose, pal);
     ctx.restore();
   };
-  // Outfit drawn on the torso: clipped details (stripes, panels), then free ones (tie, clasp).
   const drawTorsoOutfit = () => {
     const o = layers.outfit;
     if (!o || (!o.overClip && !o.over)) return;
@@ -1227,7 +1138,6 @@ function drawView(
   const held = layers.hand ? () => layers.hand!(ctx, pose) : undefined;
 
   if (front) {
-    // Only bushy tails peek out from behind when facing the camera.
     if (plan === 'fox' || plan === 'wolf' || plan === 'raccoon') {
       ctx.save();
       ctx.scale(-1, 1);
@@ -1243,7 +1153,6 @@ function drawView(
       drawTorsoOutfit();
       ctx.save();
       ctx.scale(-1, 1);
-      // Facing the camera, the character's right hand is on the viewer's left.
       drawArm(ctx, shoulderX, shoulderY, pose.armFar, pose.armReach, pal, false, held);
       ctx.restore();
       drawArm(ctx, shoulderX, shoulderY, pose.armNear, pose.armReach, pal, false);

@@ -40,7 +40,6 @@ describe('server purchases', () => {
     const token = await api.guest();
     const { purchaseId, ref } = await checkout(token, 'gems_500');
     expect((await profile(token)).wallet.gems).toBe(0);
-    // The client claiming success means nothing: status stays pending.
     const s = await api.call<{ purchase: { status: string } }>('GET', `/api/purchases/${purchaseId}`, undefined, token);
     expect(s.json.purchase.status).toBe('pending');
     expect((await webhook('paid', ref, 'tx_ok_1')).status).toBe(200);
@@ -51,7 +50,6 @@ describe('server purchases', () => {
     const token = await api.guest();
     const { ref } = await checkout(token, 'gems_1200');
     const first = await webhook('paid', ref, 'tx_dup');
-    // Re-deliver the exact same signed event, then a new event for the same transaction.
     await fetch(`${api.srv.url}/api/purchases/webhook/sandbox`, { method: 'POST', headers: { 'x-sandbox-signature': first.signature }, body: first.body });
     await webhook('paid', ref, 'tx_dup');
     expect((await profile(token)).wallet.gems).toBe(1200);
@@ -96,11 +94,8 @@ describe('server purchases', () => {
   it('a payment completing after the client disconnected is still granted', async () => {
     const token = await api.guest();
     const { ref } = await checkout(token, 'gems_3000');
-    // Client goes away (never polls). Provider confirms later:
     await webhook('paid', ref, 'tx_late');
-    // Client comes back and simply loads its profile.
     expect((await profile(token)).wallet.gems).toBe(3000);
-    // Even a late success after a recorded cancellation is honoured (money was taken).
     const b = await checkout(token, 'gems_500');
     await webhook('cancelled', b.ref, null);
     await webhook('paid', b.ref, 'tx_late_2');

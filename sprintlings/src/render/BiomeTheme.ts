@@ -1,29 +1,22 @@
 import type { Biome } from '../game/Track';
 
-/** Side-view colour scripts per biome. All colours and motifs are original. */
 export interface BiomeTheme {
   id: Biome;
   sky: [string, string, string];
   sun: string;
-  /** Far, mid and near parallax silhouettes (back to front). */
   far: string;
   mid: string;
   near: string;
-  /** Accent colours for decorations on the near layer (flowers, crystals...). */
   decor: string[];
   cloud: string;
-  /** Terrain: grass cap, its highlight, soil, deep soil, outline. */
   grass: string;
   grassLight: string;
   soil: string;
   soilDeep: string;
   outline: string;
-  /** Pebbles/roots/gems sprinkled in the soil. */
   speck: string[];
-  /** One-way platform planks. */
   plank: string;
   plankEdge: string;
-  /** Pit glow at the bottom of the screen. */
   pit: string;
   hazard: { metal: string; wood: string; stone: string; warn: string; danger: string };
   particle: string;
@@ -32,7 +25,6 @@ export interface BiomeTheme {
 }
 
 export const BIOME_THEMES: Record<Biome, BiomeTheme> = {
-  // Golden prairie under a big blue sky.
   forest: {
     id: 'forest',
     sky: ['#4fa9f0', '#9fd6f5', '#fbe7b8'],
@@ -56,7 +48,6 @@ export const BIOME_THEMES: Record<Biome, BiomeTheme> = {
     night: false,
     music: { root: 60, scale: [0, 2, 4, 7, 9], tempo: 132, mood: 'bright' },
   },
-  // Red rock canyon at high noon.
   canyon: {
     id: 'canyon',
     sky: ['#ff9a5a', '#ffc98a', '#ffeccc'],
@@ -80,7 +71,6 @@ export const BIOME_THEMES: Record<Biome, BiomeTheme> = {
     night: false,
     music: { root: 57, scale: [0, 3, 5, 7, 10], tempo: 138, mood: 'warm' },
   },
-  // Moonlit desert with an old gold mine.
   crystal: {
     id: 'crystal',
     sky: ['#141a3a', '#2f3768', '#6a5a8a'],
@@ -104,7 +94,6 @@ export const BIOME_THEMES: Record<Biome, BiomeTheme> = {
     night: true,
     music: { root: 62, scale: [0, 2, 3, 7, 9], tempo: 126, mood: 'dreamy' },
   },
-  // Pink-and-violet dusk over the mesas and an old ghost town.
   sunset: {
     id: 'sunset',
     sky: ['#5a3a8a', '#e86a7a', '#ffc07a'],
@@ -128,7 +117,6 @@ export const BIOME_THEMES: Record<Biome, BiomeTheme> = {
     night: false,
     music: { root: 55, scale: [0, 3, 5, 7, 10], tempo: 134, mood: 'warm' },
   },
-  // Snowy mountain pass with pine woods and a frozen trail.
   snow: {
     id: 'snow',
     sky: ['#6aa8e8', '#b8dcf8', '#eef6ff'],

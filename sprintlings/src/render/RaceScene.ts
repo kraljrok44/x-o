@@ -15,7 +15,6 @@ import { drawMonster, makeAnchors, monsterHeight, type RigAnchors } from './Char
 import { Particles } from './Particles';
 import { WorldPainter } from './WorldPainter';
 
-/** Per-racer visual state: interpolation snapshots, animator, trail. */
 class RacerVisual {
   readonly anim: MonsterAnimator;
   readonly palette;
@@ -33,12 +32,10 @@ class RacerVisual {
   trailT = 0;
   celebrating = false;
   readonly ribbon: number[] = [];
-  /** Quick-chat speech bubble and how long it stays. */
   bubble = '';
   bubbleT = 0;
   readonly mount: ReturnType<typeof mountKind>;
   readonly holding: boolean;
-  /** Current knock-out animation (what hit this racer) and its clock. */
   ko: KoKind | null = null;
   koT = 0;
   koDur = 0;
@@ -69,7 +66,6 @@ class RacerVisual {
     this.prevY = this.currY;
     this.currX = b.x;
     this.currY = b.y;
-    // Teleports (respawn) must not be smeared across the screen.
     if (Math.abs(this.currX - this.prevX) > 3 || Math.abs(this.currY - this.prevY) > 3) {
       this.prevX = this.currX;
       this.prevY = this.currY;
@@ -84,11 +80,6 @@ class RacerVisual {
 
 const SHADOW_SKIP = 1e9;
 
-/**
- * How a racer goes down, chosen from what hit them: blown up and sooty,
- * electrocuted, strung up by a rope, flattened, singed, cut, bonked, or
- * tumbling into a pit. Purely visual; the simulation decides the stun.
- */
 type KoKind = 'blast' | 'shock' | 'rope' | 'squash' | 'burn' | 'cut' | 'bonk' | 'fall';
 
 const KO_FOR_HAZARD: Record<string, KoKind> = {
@@ -102,12 +93,6 @@ const KO_FOR_HAZARD: Record<string, KoKind> = {
   flame: 'burn',
 };
 
-/**
- * Everything visual for one race, drawn with Canvas2D from the side: the
- * parallax backdrop, the course, hazards, pickups, the monsters and all
- * effects. Reads the simulation, never writes it.
- */
-/** Course length pre-rendered during the loading screen (the rest streams in ahead of the camera). */
 const PRELOAD_AHEAD = 90;
 
 export class RaceScene {
@@ -118,7 +103,6 @@ export class RaceScene {
   private readonly particles: Particles;
   private time = 0;
   private groundRef = 0;
-  /** Short-lived lasso ropes (racer indices) and lightning bolts. */
   private readonly ropes: { from: number; to: number; life: number }[] = [];
   private readonly bolts: { x: number; y: number; life: number }[] = [];
   private readonly hazardKind = new Map<number, string>();
@@ -152,14 +136,9 @@ export class RaceScene {
     }
   }
 
-  /**
-   * Applies the knock-out pose (transform and tint) around the racer's feet.
-   * Returns the canvas filter to draw the monster with, or '' for none.
-   */
   private koPose(ctx: Ctx, v: RacerVisual, dt: number): string {
     const b = v.racer.body;
     if (b.phase === 'fall') {
-      // Tumbling into the pit: spin and shrink away.
       const k = 1 - Math.max(0, b.phaseTimer) / GameplayConfig.fall.fallDuration;
       ctx.translate(0, 0.55);
       ctx.rotate(k * Math.PI * 2.5);
@@ -179,7 +158,6 @@ export class RaceScene {
     const soot = (a: number) => `brightness(${(1 - 0.65 * a * fade).toFixed(2)}) saturate(${(1 - 0.6 * a * fade).toFixed(2)})`;
     switch (v.ko) {
       case 'blast': {
-        // Blown up: a sooty somersault with a little hop.
         const s = Math.min(1, t / 0.45);
         ctx.translate(0, Math.sin(s * Math.PI) * 0.7 + 0.55);
         ctx.rotate(-s * Math.PI * 2);
@@ -188,13 +166,11 @@ export class RaceScene {
         return soot(1);
       }
       case 'shock': {
-        // Zapped: jitter and flicker between a bright flash and charred.
         ctx.translate((Math.floor(t * 40) % 2 ? 1 : -1) * 0.04, 0);
         if (t < 0.45) return Math.floor(t * 16) % 2 ? 'brightness(2.4) contrast(1.3)' : soot(1);
         return soot(1);
       }
       case 'rope': {
-        // Strung up by a rope: upside down, swinging.
         const up = Math.min(1, t / 0.15);
         ctx.translate(0, 0.55 + up * 0.5);
         ctx.rotate(Math.PI * up + Math.sin(t * 9) * 0.25 * up);
@@ -202,20 +178,17 @@ export class RaceScene {
         return '';
       }
       case 'squash': {
-        // Flattened like a pancake, then popping back.
         const sq = k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4;
         const wob = k >= 0.6 ? Math.sin((k - 0.6) * 30) * 0.12 * (1 - k) : 0;
         ctx.scale(1 + 0.5 * sq + wob, 1 - 0.68 * sq - wob);
         return '';
       }
       case 'burn': {
-        // Singed: hot-foot hopping, smoking and sooty.
         ctx.translate(0, Math.abs(Math.sin(t * 16)) * 0.18 * fade);
         if (Math.floor(t * 10) % 2 === 0) this.particles.emit({ kind: 'puff', x: b.x, y: b.y + 1.2, color: 'rgba(80,72,70,0.55)', count: 1, speed: 0.7, dir: Math.PI / 2, spread: 0.4, size: 0.12, life: 0.7 });
         return soot(0.8);
       }
       case 'cut': {
-        // Yelp: jolted backwards.
         const j = Math.sin(Math.min(1, t / 0.3) * Math.PI);
         ctx.translate(-j * 0.15, j * 0.25 + 0.55);
         ctx.rotate(j * 0.5);
@@ -223,7 +196,6 @@ export class RaceScene {
         return '';
       }
       case 'bonk': {
-        // Bonked: a quick squash on impact.
         const s = Math.max(0, 1 - t / 0.25);
         ctx.scale(1 + 0.25 * s, 1 - 0.25 * s);
         return '';
@@ -232,9 +204,7 @@ export class RaceScene {
         return '';
     }
   }
-  /** Racer the camera follows (the local one, or whoever is spectated after finishing). */
   follow: number;
-  /** Camera shake on hits (Settings: camera shake / reduced motion). */
   shakeEnabled = true;
   private readonly lowQ: boolean;
 
@@ -256,13 +226,8 @@ export class RaceScene {
     this.camera.snap(me.x + 1.5, me.y + 1.2);
   }
 
-  /** Kept for API compatibility with the previous renderer; nothing heavy to load. */
   async loadExtras(): Promise<void> {}
 
-  /**
-   * Loading-screen work, a slice per call: pre-renders the course ahead of the
-   * start so the race opens without hitches. Returns progress 0..1.
-   */
   preload(budgetMs: number): number {
     this.resize();
     return this.world.prepareChunks(this.camera.left, PRELOAD_AHEAD, this.camera.scale * this.gr.pixelRatio, budgetMs);
@@ -272,7 +237,6 @@ export class RaceScene {
     this.camera.resize(this.gr.width, this.gr.height);
   }
 
-  /** Call after every simulation tick. */
   onTick(events: readonly RaceEvent[]): void {
     for (const v of this.visuals) v.snapshot();
     for (const e of events) this.handle(e);
@@ -433,7 +397,6 @@ export class RaceScene {
     const fv = this.visuals[this.follow] ?? me;
     const mb = fv.racer.body;
 
-    // --- camera ----------------------------------------------------------------
     if (mb.grounded && mb.phase === 'run') this.groundRef = fv.y;
     const above = Math.max(0, fv.y - this.groundRef - 1.2);
     const targetY = this.groundRef + 1.0 + above * 0.7;
@@ -441,11 +404,9 @@ export class RaceScene {
     cam.follow(dt, fv.x + lead, targetY);
     cam.updateShake(dt, this.shakeEnabled);
 
-    // --- backdrop (screen space) -------------------------------------------------
     ctx.setTransform(pr, 0, 0, pr, 0, 0);
     this.bg.draw(ctx, w, h, pr, cam.x, cam.y, cam.scale, this.time);
 
-    // --- world -------------------------------------------------------------------
     cam.applyWorld(ctx, pr);
     const L = cam.left;
     const R = cam.right;
@@ -461,7 +422,6 @@ export class RaceScene {
     this.world.drawGlimmers(ctx, L, R, this.time, me.racer.glimmerTaken);
     this.world.drawEntities(ctx, sim.entities, this.time);
 
-    // Trails behind racers, then racers (local one on top).
     for (const v of this.visuals) this.updateTrail(v, dt);
     this.particles.update(dt);
     this.particles.draw(ctx, L, R);
@@ -469,7 +429,6 @@ export class RaceScene {
     this.drawRacer(ctx, me, dt, true);
     this.drawStrikes(ctx, dt);
 
-    // --- overlays (screen space) ---------------------------------------------------
     cam.applyScreen(ctx, pr);
     this.bg.drawOverlay(ctx, w, h, cam.x, cam.scale, this.time);
     for (const v of this.visuals) this.drawTag(ctx, v, v === me);
@@ -538,7 +497,6 @@ export class RaceScene {
     }
     if (v.trail.kind === 'ribbon') {
       v.ribbon.push(v.x - 0.3, v.y + 0.45);
-      // Keep a short tail (by distance, so frame drops never stretch it).
       while (v.ribbon.length > 4 && (v.ribbon.length > 40 || v.ribbon[0] < v.x - 3.2)) v.ribbon.splice(0, 2);
       return;
     }
@@ -582,7 +540,6 @@ export class RaceScene {
       v.anim.update(dt, this.time, this.animInput(v));
       return;
     }
-    // Rainbow ribbon trail.
     if (v.ribbon.length > 4) {
       const colors = ['#ff5a8a', '#ffb020', '#ffe14d', '#5bd16b', '#4fd6ff', '#b46bff'];
       for (let c = 0; c < colors.length; c++) {
@@ -610,7 +567,6 @@ export class RaceScene {
 
     ctx.save();
     ctx.translate(v.x, v.y);
-    // Respawn: pop in. Invulnerable: blink.
     if (b.phase === 'respawn') {
       const k = Math.max(0.05, 1 - b.phaseTimer / GameplayConfig.fall.respawnDelay);
       ctx.translate(0, 0.6);
@@ -627,7 +583,6 @@ export class RaceScene {
     ctx.filter = 'none';
     ctx.restore();
 
-    // Shield bubble.
     if (b.shield > 0) {
       const r = 0.85 + Math.sin(this.time * 6) * 0.03;
       ctx.save();
@@ -645,7 +600,6 @@ export class RaceScene {
       ctx.stroke();
       ctx.restore();
     }
-    // Speed lines while dashing/boosting.
     if ((b.dash > 0 || b.padBoost > 0) && b.phase === 'run') {
       ctx.save();
       ctx.strokeStyle = b.dash > 0 ? 'rgba(79,214,255,0.8)' : 'rgba(255,255,255,0.7)';
@@ -706,7 +660,6 @@ export class RaceScene {
       ctx.fillText(label, x, y - 26);
     }
     if (local) {
-      // Bouncing marker over the player.
       const bob = Math.sin(this.time * 5) * 3;
       ctx.beginPath();
       ctx.moveTo(x - 8, y - 14 + bob);
@@ -719,7 +672,6 @@ export class RaceScene {
       ctx.strokeStyle = '#2a1d2e';
       ctx.stroke();
     } else {
-      // Teammates get blue tags and a green marker, rivals red ones (team races).
       const mate = this.sim.isTeamRace && this.sim.sameTeam(r.index, this.localIndex);
       const label = r.name;
       const tw = ctx.measureText(label).width + 12;
@@ -737,7 +689,6 @@ export class RaceScene {
       ctx.fillStyle = mate ? '#7cdc4a' : '#ff4a3a';
       ctx.fill();
     }
-    // Held ability bubble (so you can see what rivals carry).
     if (r.item && r.body.phase === 'run') {
       const ab = ABILITIES[r.item];
       const bx = x + (local ? 0 : 0);
@@ -756,7 +707,6 @@ export class RaceScene {
     }
   }
 
-  /** Shows a quick-chat line over a racer for a moment. */
   say(index: number, text: string): void {
     const v = this.visuals[index];
     if (!v) return;
@@ -794,7 +744,6 @@ export class RaceScene {
     ctx.restore();
   }
 
-  /** Arrows at the screen edges for racers out of view, with the gap in metres. */
   private drawOffscreen(ctx: Ctx, me: RacerVisual): void {
     const cam = this.camera;
     for (const v of this.visuals) {

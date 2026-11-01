@@ -26,7 +26,6 @@ describe('duos', () => {
     sim.racers[1].body.x = 6;
     sim.racers[2].body.x = 14;
     expect(findSeekerTarget(sim, 0)).toBe(2);
-    // A dynamite bundle from the teammate is harmless to us.
     sim.entities.push({ kind: 'snare', id: 77, owner: 1, x: sim.racers[0].body.x + 3, y: 0, ttl: 9, alive: true });
     let hit = false;
     for (let i = 0; i < 90; i++) for (const e of sim.step([input({}), input({}), input({})])) if (e.type === 'hit' && e.racer === 0) hit = true;

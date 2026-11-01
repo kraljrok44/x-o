@@ -4,11 +4,6 @@ import type { PassiveModifiers } from '../player/CharacterAbilities';
 
 export type HitOutcome = 'ignored' | 'blocked' | 'stunned';
 
-/**
- * Applies a stun-causing hit. Order of precedence:
- *   respawn invulnerability -> same-hazard re-hit guard -> shield -> stun.
- * `fromObstacle` hits are scaled by the Tough Quills passive.
- */
 export function applyHit(
   body: RacerBody,
   mods: PassiveModifiers,
@@ -38,7 +33,6 @@ export function applyHit(
   return 'stunned';
 }
 
-/** Speed multiplier from terrain / sap, after the Steady Feet passive and shields. */
 export function terrainSpeedFactor(terrain: number, body: RacerBody, mods: PassiveModifiers): number {
   if (terrain === 0) return 1;
   if (body.shield > 0) return 1;
@@ -46,7 +40,6 @@ export function terrainSpeedFactor(terrain: number, body: RacerBody, mods: Passi
   return 1 - (1 - base) * mods.terrainEffectScale;
 }
 
-/** Ticks down every timed status on a body. */
 export function tickStatuses(body: RacerBody, dt: number): void {
   if (body.stun > 0) body.stun = Math.max(0, body.stun - dt);
   if (body.invuln > 0) body.invuln = Math.max(0, body.invuln - dt);

@@ -11,7 +11,6 @@ import { t } from '../ui/i18n';
 
 const TOKEN_KEY = 'sprintlings:token';
 
-/** HTTP client for the Sprintlings server (server/). */
 export class NetworkClient {
   constructor(
     readonly baseUrl: string,
@@ -48,10 +47,6 @@ export class NetworkClient {
   }
 }
 
-/**
- * Authority backed by our server: every economic change is validated and
- * stored server side; the client only mirrors the returned profile.
- */
 export class ServerAuthority implements GameAuthority {
   readonly kind = 'server' as const;
   readonly storageLabel = t('Saved to your account on our server.');
@@ -158,7 +153,6 @@ export class ServerAuthority implements GameAuthority {
   async flush(): Promise<void> {}
 }
 
-/** Real-money purchases through the server and its payment provider. */
 export class ServerPurchaseService implements PurchaseService {
   readonly available = true;
   readonly unavailableReason = '';
@@ -179,11 +173,9 @@ export class ServerPurchaseService implements PurchaseService {
     } catch (e) {
       return { status: 'failed', message: e instanceof Error ? e.message : String(e) };
     }
-    // Note: 'noopener' would make window.open return null, so detach the opener manually.
     const win = window.open(checkout.url, '_blank');
     if (win) win.opener = null;
     else return { status: 'pending', message: 'Please allow pop-ups to open the secure checkout, then try again.' };
-    // The grant happens server side on the provider's webhook; we only poll for the result.
     const deadline = Date.now() + 5 * 60_000;
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 1500));
@@ -196,7 +188,6 @@ export class ServerPurchaseService implements PurchaseService {
         if (r.purchase.status === 'cancelled') return { status: 'cancelled' };
         if (r.purchase.status === 'failed') return { status: 'failed', message: t('Payment failed. You were not charged.') };
       } catch {
-        /* keep polling through brief connection drops */
       }
     }
     return { status: 'pending', message: 'Your payment is still being processed. Items appear automatically once it completes.' };
@@ -215,7 +206,6 @@ function serverUrl(): string {
   return import.meta.env.DEV ? `${location.protocol}//${location.hostname}:8787` : location.origin;
 }
 
-/** Connects to the server if it is reachable; null means "fall back to local". */
 export async function connectServerAuthority(): Promise<AuthoritySetup | null> {
   const base = serverUrl();
   try {
@@ -231,7 +221,6 @@ export async function connectServerAuthority(): Promise<AuthoritySetup | null> {
   try {
     token = localStorage.getItem(TOKEN_KEY);
   } catch {
-    /* ignore */
   }
   const net = new NetworkClient(base, token);
   if (!token) {
@@ -240,20 +229,17 @@ export async function connectServerAuthority(): Promise<AuthoritySetup | null> {
     try {
       localStorage.setItem(TOKEN_KEY, g.token);
     } catch {
-      /* ignore */
     }
   }
   const authority = new ServerAuthority(net);
   try {
     await authority.init();
   } catch {
-    // Stale token (e.g. server data reset): start a fresh guest account.
     const g = await net.call<{ token: string }>('POST', '/api/auth/guest');
     net.setToken(g.token);
     try {
       localStorage.setItem(TOKEN_KEY, g.token);
     } catch {
-      /* ignore */
     }
   }
   return { authority, purchases: new ServerPurchaseService(net, authority), serverUrl: base };

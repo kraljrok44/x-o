@@ -1,7 +1,6 @@
 type Child = Node | string | number | null | undefined | false;
 type Attrs = Record<string, unknown> & { class?: string; style?: string; onClick?: (e: MouseEvent) => void };
 
-/** Tiny DOM builder: h('div', { class: 'x', onClick }, child, ...). */
 export function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Attrs | null = null, ...children: Child[]): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
   if (attrs) {

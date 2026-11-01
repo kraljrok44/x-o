@@ -2,7 +2,6 @@ import { isCanvasAvailable } from '../render/GameRenderer';
 import { h } from '../ui/dom';
 import { t } from '../ui/i18n';
 
-/** Friendly full-screen error instead of a blank page. */
 export function showFatal(title: string, message: string, detail?: string): void {
   document.querySelector('.fatal')?.remove();
   const box = h(

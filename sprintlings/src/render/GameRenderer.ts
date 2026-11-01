@@ -1,11 +1,8 @@
 export type GraphicsQuality = 'low' | 'medium' | 'high';
 
-/** Picks a sensible default quality from the device. */
 export function detectQuality(): GraphicsQuality {
   const mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && window.innerWidth < 1100);
   const cores = navigator.hardwareConcurrency ?? 4;
-  // Keep small devices light, but let current phones use the same rich pass
-  // as desktop. The backing-store cap still protects very high-DPR displays.
   if (mobile) return cores >= 8 ? 'high' : cores >= 6 ? 'medium' : 'low';
   return cores >= 6 ? 'high' : 'medium';
 }
@@ -18,11 +15,6 @@ export function isCanvasAvailable(): boolean {
   }
 }
 
-/**
- * Owns the main 2D canvas. Quality sets the backing-store resolution and
- * how much decoration/particles the painters draw. All drawing happens in
- * CSS pixels; the device-pixel scale is applied by begin().
- */
 export class GameRenderer {
   readonly canvas: HTMLCanvasElement;
   readonly ctx: CanvasRenderingContext2D;
@@ -31,7 +23,6 @@ export class GameRenderer {
   height = 1;
   private readonly container: HTMLElement;
   onContextLost: (() => void) | null = null;
-  /** Bumped on every resize so painters can rebuild cached layers. */
   generation = 0;
 
   constructor(container: HTMLElement, quality: GraphicsQuality) {
@@ -74,7 +65,6 @@ export class GameRenderer {
     return this.width / this.height;
   }
 
-  /** Resets the transform to CSS pixels and returns the context. */
   begin(): CanvasRenderingContext2D {
     const c = this.ctx;
     c.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);

@@ -15,7 +15,6 @@ export interface ShowcaseLoadout {
   cosmetics: Record<string, string>;
 }
 
-/** Menu backdrop: the parallax biome scrolling gently and the player's monster on a floating island. */
 export class MenuScene {
   private bg: Background;
   private biome: Biome;
@@ -25,22 +24,14 @@ export class MenuScene {
   private readonly anchors = makeAnchors();
   private time = 0;
   private emoteTime = 0;
-  /** Turn side-on to show off a back item ('cycle' alternates front and side). */
   private sideView: boolean | 'cycle' = false;
-  /** Shop preview of a trail: particles stream from the monster on the stage. */
   private trail: ReturnType<typeof trailStyle> | null = null;
   private trailT = 0;
   private readonly particles = new Particles(160);
   private key = '';
   private nudge = 0;
-  /** Horizontal offset of the monster (roughly in monster heights), so UI panels can sit beside it. */
   offsetX = 0;
   private shownX = 0;
-  /**
-   * Page element marking the free area the monster must fit in (shop, locker,
-   * character select). While it is on the page the monster is scaled and
-   * centred inside it, so panels never cover it.
-   */
   stageEl: HTMLElement | null = null;
   private placed: { cx: number; gy: number; scale: number } | null = null;
 
@@ -76,7 +67,6 @@ export class MenuScene {
     }
   }
 
-  /** Dragging the stage gives the monster a playful wobble. */
   drag(dx: number): void {
     this.nudge = Math.max(-1, Math.min(1, this.nudge + dx * 0.01));
     if (Math.abs(dx) > 4) this.anim.onLand(Math.min(8, Math.abs(dx) * 0.3));
@@ -105,12 +95,10 @@ export class MenuScene {
     let gy = h * (portrait ? 0.56 : 0.66);
     const area = this.stageEl?.isConnected ? this.stageEl.getBoundingClientRect() : null;
     if (area && area.width > 40 && area.height > 40) {
-      // Fit hat-to-island (about 3.2 units tall, 2.8 wide) inside the free area, centred.
       scale = Math.min(area.height / 3.2, area.width / 2.8);
       cx = area.left + area.width / 2;
       gy = area.top + (area.height - 3.2 * scale) / 2 + 2.05 * scale;
     } else this.stageEl = null;
-    // Glide between placements when screens change.
     const k = this.placed ? 1 - Math.exp(-dt * 8) : 1;
     const pl = (this.placed ??= { cx, gy, scale });
     pl.cx += (cx - pl.cx) * k;
@@ -133,7 +121,6 @@ export class MenuScene {
       boosting: false,
       blocked: false,
       ready: false,
-      // A rider stays side-on so the mount can be seen.
       faceSide: this.emoteTime <= 0 && (!!this.loadout.cosmetics.mount || (this.sideView === 'cycle' ? Math.floor(this.time / 2.6) % 2 === 1 : this.sideView)),
       mount: mountKind(this.loadout.cosmetics.mount),
       holding: !!this.loadout.cosmetics.hand,
@@ -147,7 +134,6 @@ export class MenuScene {
     ctx.restore();
   }
 
-  /** Trail preview drifting away behind the monster, as it looks while racing. */
   private drawTrail(ctx: Ctx, dt: number): void {
     const tr = this.trail;
     this.particles.update(dt);
@@ -206,7 +192,6 @@ export class MenuScene {
     const rw = s * 1.25;
     ctx.save();
     ctx.lineJoin = 'round';
-    // Rocky underside.
     ctx.beginPath();
     ctx.moveTo(cx - rw, gy);
     ctx.quadraticCurveTo(cx - rw * 0.7, gy + s * 0.55, cx - rw * 0.2, gy + s * 0.7);
@@ -219,7 +204,6 @@ export class MenuScene {
     sg.addColorStop(1, th.soilDeep);
     ctx.fillStyle = sg;
     ctx.fill();
-    // Painted strata and a shadow under the grass.
     ctx.save();
     ctx.clip();
     for (let k = 0; k < 3; k++) {
@@ -238,7 +222,6 @@ export class MenuScene {
     ctx.lineWidth = Math.max(2, s * 0.04);
     ctx.strokeStyle = th.outline;
     ctx.stroke();
-    // Grass top: lit from above, darker toward the front rim.
     ctx.beginPath();
     ellipse(ctx, cx, gy, rw, s * 0.18);
     const gg = ctx.createLinearGradient(0, gy - s * 0.18, 0, gy + s * 0.18);
@@ -251,7 +234,6 @@ export class MenuScene {
     ellipse(ctx, cx - rw * 0.2, gy - s * 0.05, rw * 0.55, s * 0.06);
     ctx.fillStyle = rgba(tint(th.grassLight, 0.4), 0.6);
     ctx.fill();
-    // Grass tufts spilling over the front rim.
     if (this.biome !== 'snow') {
       for (let pass = 0; pass < 2; pass++) {
         ctx.beginPath();
@@ -269,7 +251,6 @@ export class MenuScene {
         ctx.fill();
       }
     }
-    // Flowers / crystals on the rim.
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2 + 0.4;
       const x = cx + Math.cos(a) * rw * 0.85;

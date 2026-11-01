@@ -8,10 +8,6 @@ export interface RaceRewardBreakdown {
   seasonPoints: number;
 }
 
-/**
- * Pure race reward formula. Participation always pays something, results
- * pay more. Inputs come from a verified (re-simulated) race only.
- */
 export function calculateRaceReward(o: RaceOutcome): RaceRewardBreakdown {
   const cfg = EconomyConfig.race;
   const lines: RaceRewardBreakdown['lines'] = [];

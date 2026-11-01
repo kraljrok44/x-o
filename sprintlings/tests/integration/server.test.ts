@@ -18,7 +18,6 @@ afterAll(async () => {
   await api.srv.close();
 });
 
-/** Plays the ticket's race locally with an autopilot and returns the input log. */
 function play(ticket: RaceTicket) {
   const sim = new RaceSimulation({ track: getTrack(ticket.trackId), seed: ticket.seed, racers: ticket.racers });
   const pilot = new AIController(0, 'racer', 99);
@@ -43,7 +42,6 @@ describe('server races', () => {
     expect(r.status).toBe(200);
     expect(r.json.result.outcome.place).toBe(local.place);
     expect(r.json.profile.wallet.coins).toBeGreaterThanOrEqual(150 + r.json.result.breakdown.coins);
-    // Same race again: rejected.
     const again = await api.call('POST', '/api/race/finish', { raceId: ticket.raceId, log: local.log }, token);
     expect(again.status).toBe(404);
   });
@@ -104,7 +102,6 @@ describe('online matchmaking', () => {
             ws.on('message', (d) => {
               const m = JSON.parse(String(d)) as ServerMessage;
               got[i].push(m);
-              // Loaded instantly; player 0 taps jump a few times and fires a powerup.
               if (m.t === 'match') {
                 ws.send(JSON.stringify({ t: 'ready' }));
                 for (const [tick, bits] of [[200, 1], [205, 0], [260, 1], [262, 0], [300, 8], [301, 0]]) if (i === 0) ws.send(JSON.stringify({ t: 'input', tick, bits }));
@@ -128,7 +125,6 @@ describe('online matchmaking', () => {
     const room1 = matches[1]!.t === 'match' ? matches[1]!.room : null;
     expect(room0!.roomId).toBe(room1!.roomId);
     expect(new Set([room0!.yourIndex, room1!.yourIndex]).size).toBe(2);
-    // Replay what one client received, exactly as OnlineLink does, and compare fingerprints.
     for (const list of got) {
       const room = (list.find((m) => m.t === 'match') as Extract<ServerMessage, { t: 'match' }>).room;
       const inputs = new Map<number, number[]>();
@@ -151,7 +147,6 @@ describe('online matchmaking', () => {
         }
       }
       expect(compared).toBeGreaterThan(4);
-      // Player 0's taps reached the server and were relayed at their ticks.
       expect(inputs.get(200)?.[room0!.yourIndex]).toBe(1);
       expect(inputs.get(205)?.[room0!.yourIndex]).toBe(0);
       expect(inputs.get(300)?.[room0!.yourIndex]).toBe(8);

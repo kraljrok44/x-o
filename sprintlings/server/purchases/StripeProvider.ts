@@ -2,15 +2,6 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { ProductDefinition } from '../../src/config/ProductCatalog';
 import type { CheckoutSession, PaymentEvent, PaymentProvider } from './PaymentProvider';
 
-/**
- * Stripe Checkout integration (web build only).
- * Configure one Stripe Price per product via env: STRIPE_PRICE_<PRODUCT_ID>
- * (e.g. STRIPE_PRICE_GEMS_500=price_123). Localized prices come from Stripe.
- *
- * NOTE: written against Stripe's documented REST API and webhook signing
- * scheme but NOT yet exercised against a live Stripe account. Treat as
- * unverified until tested in Stripe test mode (see README).
- */
 export class StripeProvider implements PaymentProvider {
   readonly id = 'stripe';
   readonly test: boolean;
@@ -88,7 +79,6 @@ export class StripeProvider implements PaymentProvider {
       case 'checkout.session.expired':
         return [{ eventId: event.id, type: 'cancelled', ref: String(obj.id), txId: null }];
       case 'charge.refunded':
-        // Refunds reference the payment intent; the purchase service maps it to the checkout.
         return [{ eventId: event.id, type: 'refunded', ref: '', txId: String(obj.payment_intent) }];
       default:
         return [];

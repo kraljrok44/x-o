@@ -11,10 +11,6 @@ import { dhypot } from '../shared/DetMath';
 
 const NOOP: Plan = { jumpTick: -1, hold: 0, drop: false };
 
-/**
- * Drives one computer racer. Produces the same TickInput a human would, so
- * bots obey exactly the same rules as players.
- */
 export class AIController {
   readonly profile: DifficultyProfile;
   private readonly planner = new HazardPlanner();
@@ -44,11 +40,9 @@ export class AIController {
   ) {
     this.profile = DIFFICULTIES[difficulty];
     this.rng = new Rng(seed);
-    // Start-boost attempt: better bots hit the window more often.
     const hitChance = { rookie: 0.2, racer: 0.45, ace: 0.7, perfect: 1 }[difficulty];
     const cd = GameplayConfig.race.countdownSeconds * GameplayConfig.tickRate;
     this.countdownPressTick = this.rng.chance(hitChance) ? cd - this.rng.int(2, GameplayConfig.movement.startBoostWindowTicks - 1) : -1;
-    // Stagger the first plan so bots don't all think on the same tick.
     this.planStart = cd - this.profile.replanInterval + 1 + ((index * 3) % this.profile.replanInterval);
   }
 
@@ -73,7 +67,6 @@ export class AIController {
       return o;
     }
 
-    // Holding jump on the ground does nothing: let go once landed.
     if (body.grounded && tick > this.pressTick + 1 && this.holdUntil > tick) this.holdUntil = tick;
     if (tick - this.planStart >= this.profile.replanInterval) this.replan(sim, tick);
 
@@ -84,7 +77,6 @@ export class AIController {
       this.pressAt = tick;
       this.pressHold = p.hold;
     }
-    // Safety net: never stand pressed against a wall.
     if (body.blocked && body.grounded && this.pressAt < tick && tick >= this.holdUntil) {
       this.blockedTicks++;
       if (this.blockedTicks > 8) {
@@ -95,7 +87,6 @@ export class AIController {
     } else if (!body.blocked) this.blockedTicks = 0;
     if (this.pressAt === tick) {
       if (racer.prevJumpHeld) {
-        // Let go for one tick so the press registers as a new edge.
         this.pressAt = tick + 1;
         this.holdUntil = tick;
       } else {
@@ -109,7 +100,6 @@ export class AIController {
     return o;
   }
 
-  /** Animal specials, used with the same reaction delay as powerups. */
   private decideSpecial(sim: RaceSimulation): boolean {
     const racer = sim.racers[this.index];
     if (!specialReady(sim, racer)) {
@@ -130,8 +120,6 @@ export class AIController {
         use = !needsPlanning(sim, this.index, 10) && rivals.some((r) => r.body.x - b.x > 0.3 && r.body.x - b.x < 5 && Math.abs(r.body.y - b.y) < 1);
         break;
       case 'doubleHop': {
-        // Save a fall: falling with no ground close below a little ahead.
-        // Only when clearly dropping into a pit (well below take-off, nothing underneath).
         if (b.vy < -2 && b.y < this.groundY - 2) {
           const g0 = sim.track.groundBelow(b.x, b.y, -1, true);
           const g1 = sim.track.groundBelow(b.x + 1.5, b.y, -1, true);
@@ -231,7 +219,6 @@ export class AIController {
         break;
       }
       case 'lasso': {
-        // Rope a rival ahead, or lay a trap for one close behind.
         const behind = sim.racers.some((r) => !sim.sameTeam(r.index, this.index) && r.body.phase === 'run' && b.x - r.body.x > 2.5 && b.x - r.body.x < 14 && Math.abs(r.body.y - b.y) < 1);
         use = b.stun <= 0 && (nearestRivalAhead(sim, this.index, AbilityTuning.lasso.range) >= 0 || behind || heldFor > 6);
         break;
@@ -242,7 +229,6 @@ export class AIController {
         break;
       }
       case 'bomb': {
-        // Lob it at a rival a few units ahead on the same level.
         use =
           b.stun <= 0 &&
           (sim.racers.some((r) => !sim.sameTeam(r.index, this.index) && r.body.phase === 'run' && r.body.x - b.x > 1.5 && r.body.x - b.x < 7 && Math.abs(r.body.y - b.y) < 1.5) ||
@@ -254,7 +240,6 @@ export class AIController {
         const behind = sim.racers.some((r) => {
           if (sim.sameTeam(r.index, this.index) || r.body.phase !== 'run') return false;
           const gap = b.x - r.body.x;
-          // Only worth it when the chaser runs on the same level as us.
           return gap > 2.5 && gap < 13 && Math.abs(r.body.y - b.y) < 1;
         });
         use = behind || heldFor > 10;

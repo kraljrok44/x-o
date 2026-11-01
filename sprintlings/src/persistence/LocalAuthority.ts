@@ -24,12 +24,6 @@ import { Rng, hashString } from '../shared/Rng';
 import { visibleLoadout } from '../economy/InventoryService';
 import type { ProfileRepository } from './ProfileRepository';
 
-/**
- * Offline / portal authority. Applies exactly the same EconomyService rules
- * and re-simulates every race from its ticket before paying out, but it runs
- * on the player's device, so it is not tamper-proof; purchases are therefore
- * never offered through it.
- */
 export class LocalAuthority implements GameAuthority {
   readonly kind = 'local' as const;
   readonly purchasesAvailable = false;
@@ -56,7 +50,6 @@ export class LocalAuthority implements GameAuthority {
     return this.p;
   }
 
-  /** Device clock, never allowed to run backwards within a session. */
   now(): number {
     this.lastNow = Math.max(this.lastNow, Date.now());
     return this.lastNow;
@@ -71,7 +64,6 @@ export class LocalAuthority implements GameAuthority {
     return new Rng(hashString(`${salt}:${Math.random()}:${Date.now()}`));
   }
 
-  /** Applies an operation to a copy and commits only if it succeeds. */
   private mutate<T>(fn: (draft: PlayerProfile, now: number) => T): T {
     const draft = cloneProfile(this.p);
     const now = this.now();
@@ -113,7 +105,6 @@ export class LocalAuthority implements GameAuthority {
     const issued = this.tickets.get(ticket.raceId);
     if (!issued) throw new EconomyError('not_found', 'Unknown race.');
     this.tickets.delete(ticket.raceId);
-    // Same verification as the server: re-simulate from the issued ticket.
     const verified = verifyRace(issued, log);
     if (!verified.ok) throw new EconomyError('invalid', `Race could not be verified (${verified.reason}).`);
     return this.mutate((d, now) => settleRace(d, issued, verified.outcome, now));

@@ -19,7 +19,6 @@ export function showcaseLoadout(ctx: AppContext) {
   return { characterId: p.loadout.characterId, variantId: p.loadout.variants[p.loadout.characterId] ?? null, cosmetics: visibleLoadout(p) };
 }
 
-/** Next hand-made track the player has unlocked, rotating through them. */
 export function quickRaceTrack(ctx: AppContext): string {
   const level = ctx.authority.profile.level;
   const unlocked = TRACK_IDS.filter((id) => trackInfo(id).unlockLevel <= level);

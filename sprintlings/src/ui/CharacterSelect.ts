@@ -7,12 +7,6 @@ import { t } from './i18n';
 import { topbar } from './Topbar';
 import type { Screen } from './UIRoot';
 
-/** Wide screens show the monster stage on the left and panels on the right. */
-/**
- * Stage + panel layout used by the shop, locker and character select: the
- * monster gets its own area (left on wide screens, top on tall ones) that the
- * panel never covers, and the panel scrolls on its own.
- */
 export function sidePanelLayout(ctx: AppContext, content: HTMLElement): HTMLElement {
   const wide = ctx.renderer.aspect > 1.15;
   ctx.menu.offsetX = 0;

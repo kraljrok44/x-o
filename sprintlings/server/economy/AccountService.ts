@@ -9,11 +9,6 @@ export function serverRng(): Rng {
   return new Rng(randomInt(1, 2 ** 31));
 }
 
-/**
- * Runs economy operations on an account's profile: one at a time per account
- * (in-process lock) plus optimistic versioning in storage (safe across
- * several server instances). New ledger entries go to the permanent audit log.
- */
 export class AccountService {
   private readonly locks = new Map<string, Promise<unknown>>();
 

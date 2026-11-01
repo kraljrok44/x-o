@@ -45,17 +45,9 @@ export interface MusicTheme {
 
 const midi = (n: number) => 440 * Math.pow(2, (n - 69) / 12);
 
-/** Recorded clips (loaded lazily after the first user gesture, so they never delay boot). */
 const SAMPLE_URLS = { jump: jumpUrl, hit: hitUrl, menu: menuMusicUrl, unlock: unlockUrl } as const;
 type SampleId = keyof typeof SAMPLE_URLS;
 
-/**
- * Sound effects are synthesised with the Web Audio API, except the jump and
- * hit sounds and the menu music, which are recorded clips. Synth versions
- * stand in until (or if) a clip fails to load. The unlock fanfare (chests,
- * achievements, level-ups) is a recorded clip too. The context starts
- * suspended until the first user gesture.
- */
 export class AudioManager {
   private ctx: AudioContext | null = null;
   private master!: GainNode;
@@ -78,7 +70,6 @@ export class AudioManager {
   private menuGain: GainNode | null = null;
   private wantMenuMusic = false;
 
-  /** Must be called from a user gesture handler at least once. */
   unlock(): void {
     if (!this.ctx) {
       const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -116,7 +107,6 @@ export class AudioManager {
           if (id === 'menu' && this.wantMenuMusic) this.startMenuMusic();
         })
         .catch(() => {
-          /* keep the synthesised fallback */
         });
     }
   }
@@ -140,7 +130,6 @@ export class AudioManager {
     return true;
   }
 
-  /** Loops the recorded menu track (replaces the procedural music). */
   playMenuMusic(): void {
     this.wantMenuMusic = true;
     this.stopMusic();
@@ -187,7 +176,6 @@ export class AudioManager {
     this.sfxBus.gain.setTargetAtTime(s.sfx, t, 0.03);
   }
 
-  /** Suspends all audio for a reason (ad, pause, hidden tab); resumes when no reason remains. */
   suspend(reason: string): void {
     this.suspendedReasons.add(reason);
     if (this.ctx && this.ctx.state === 'running') void this.ctx.suspend();
@@ -197,8 +185,6 @@ export class AudioManager {
     this.suspendedReasons.delete(reason);
     if (this.ctx && this.suspendedReasons.size === 0 && this.ctx.state === 'suspended') void this.ctx.resume();
   }
-
-  // --- SFX --------------------------------------------------------------------
 
   private tone(type: OscillatorType, f0: number, f1: number, dur: number, vol: number, when = 0, pan = 0): void {
     const ctx = this.ctx;
@@ -244,7 +230,6 @@ export class AudioManager {
     src.stop(t + dur + 0.02);
   }
 
-  /** Plays a sound effect. `local` = 1 for the player's own actions, lower for opponents. */
   play(id: SfxId, local = 1, pan = 0): void {
     if (!this.ctx || this.ctx.state !== 'running') return;
     const v = local;
@@ -369,15 +354,11 @@ export class AudioManager {
     }
   }
 
-  // --- Music ------------------------------------------------------------------
-
-  /** Starts a procedural loop for the given theme. `seed` varies the melody per track. */
   playMusic(theme: MusicTheme, seed: number, intensity = 1): void {
     this.stopMenuMusic();
     this.musicTheme = theme;
     this.musicIntensity = intensity;
     const rng = new Rng(seed);
-    // A 16-step melody made of scale degrees with rests (-1).
     this.melody = Array.from({ length: 32 }, (_, i) => (i % 4 === 3 && rng.chance(0.5) ? -1 : rng.int(0, theme.scale.length * 2 - 1)));
     if (!this.ctx) return;
     this.step = 0;
@@ -434,7 +415,6 @@ export class AudioManager {
     const chordRoot = progression[bar];
     const intense = this.musicIntensity;
     const s = step % 16;
-    // Kick + hat.
     if (s % 4 === 0) {
       const o = this.ctx!.createOscillator();
       const g = this.ctx!.createGain();
@@ -448,18 +428,14 @@ export class AudioManager {
     }
     if (intense > 0.5 && s % 2 === 1) this.noiseMusic(t, 0.04, s % 4 === 3 ? 0.07 : 0.035);
     if (intense > 0.5 && (s === 4 || s === 12)) this.noiseMusic(t, 0.12, 0.09, 1800);
-    // Bass.
     if (s % 4 === 0 || s === 10) this.note('triangle', midi(deg(chordRoot) - 24), t, 0.22, 0.32);
-    // Pad chord on bar start.
     if (s === 0) {
       for (const k of [0, 2, 4]) this.note(th.mood === 'dreamy' ? 'sine' : 'triangle', midi(deg(chordRoot + k) - 12), t, 1.6, 0.05, 1600);
     }
-    // Lead melody (every other step).
     if (s % 2 === 0) {
       const m = this.melody[(step / 2) % this.melody.length];
       if (m >= 0) this.note(th.mood === 'bright' ? 'square' : th.mood === 'warm' ? 'sawtooth' : 'sine', midi(deg(m + chordRoot) + 12), t, 0.16, 0.045 * (0.6 + intense * 0.4), th.mood === 'dreamy' ? 2600 : 2200);
     }
-    // Sparkle arpeggio.
     if (th.mood === 'dreamy' && s % 3 === 0) this.note('sine', midi(deg(chordRoot + (s % 5)) + 24), t, 0.3, 0.025);
   }
 

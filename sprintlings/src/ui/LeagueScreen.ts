@@ -3,7 +3,6 @@ import { LEAGUES, leagueFor, nextLeague } from '../progression/LeagueService';
 import { h } from './dom';
 import { t } from './i18n';
 
-/** Leagues overview: your trophies, every league and how to climb. */
 export function showLeagues(ctx: AppContext): void {
   const p = ctx.authority.profile;
   const cur = leagueFor(p.trophies);

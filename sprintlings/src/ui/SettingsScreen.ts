@@ -61,7 +61,6 @@ export function settingsScreen(ctx: AppContext, params: { from?: 'race' } = {}):
             btn.textContent = t('Press a key…');
             ctx.input.captureNext((newCode) => {
               const next = { ...ctx.input.getBindings() };
-              // Remove the key from any other action to avoid conflicts.
               for (const a of Object.keys(next) as InputAction[]) next[a] = next[a].filter((c) => c !== newCode || a === action);
               const list = [...next[action]];
               list[i] = newCode;
@@ -159,12 +158,10 @@ export function settingsScreen(ctx: AppContext, params: { from?: 'race' } = {}):
                   try {
                     indexedDB.deleteDatabase('sprintlings');
                   } catch {
-                    /* ignore */
                   }
                   try {
                     for (const k of Object.keys(localStorage)) if (k.startsWith('sprintlings')) localStorage.removeItem(k);
                   } catch {
-                    /* ignore */
                   }
                   location.reload();
                 },

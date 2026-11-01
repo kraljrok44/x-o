@@ -39,11 +39,6 @@ import { ensureTerms, showTerms, termsAccepted } from '../ui/TermsDialog';
 import { SceneManager } from './SceneManager';
 import { APP_TRANSITIONS, StateMachine, type AppState } from './StateMachine';
 
-/**
- * Wires every system together and owns the main loop.
- * Boot order: platform SDK -> settings -> renderer -> storage/authority ->
- * scenes and UI -> main menu.
- */
 export class Application implements AppContext {
   authority!: AppContext['authority'];
   settings!: LocalSettings;
@@ -262,7 +257,6 @@ export class Application implements AppContext {
     await this.startRace(trackIdOrRemix, mode);
   }
 
-  /** Natural break: maybe show an interstitial (never during a race), then continue. */
   private async afterResults(next: () => void | Promise<void>): Promise<void> {
     const ads = this.platform.ads;
     const now = this.authority.now();
@@ -271,7 +265,6 @@ export class Application implements AppContext {
       try {
         await ads.showInterstitial();
       } catch {
-        /* never block progress on ad errors */
       }
     }
     await next();
@@ -291,7 +284,6 @@ export class Application implements AppContext {
     if (this.state.state !== 'menu') this.state.go('menu');
     this.audio.playMenuMusic();
     this.go('menu');
-    // Right after the tutorial race (and once per session until accepted): terms for online play and purchases.
     if (this.authority.profile.tutorialDone && !termsAccepted(this) && !this.termsAsked) {
       this.termsAsked = true;
       void showTerms(this, 'accept');

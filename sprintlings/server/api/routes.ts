@@ -34,7 +34,6 @@ export interface Services {
   purchases: PurchaseService;
 }
 
-/** All JSON endpoints. Every response that changes the profile returns it. */
 export function registerRoutes(r: Router, s: Services): void {
   const perAccount = new RateLimiter(120, 60_000);
   const perIp = new RateLimiter(20, 60_000);
@@ -45,7 +44,6 @@ export function registerRoutes(r: Router, s: Services): void {
     return fn(acc.id, req);
   };
 
-  /** Runs an EconomyService operation and returns { result, profile }. */
   const op = <T>(fn: (p: Parameters<Parameters<AccountService['mutate']>[1]>[0], now: number, body: Record<string, unknown>) => T) =>
     authed(async (id, req) => {
       try {
@@ -106,7 +104,6 @@ export function registerRoutes(r: Router, s: Services): void {
     'POST',
     '/api/profile/terms',
     op((p, now, b) => {
-      // Only the version this server ships can be accepted; the time is the server's.
       if (str(b.version, 'version', 40) !== TERMS_VERSION) throw new EconomyError('invalid', 'Please reload the game to see the latest terms.');
       p.terms = { version: TERMS_VERSION, at: now };
     }),
@@ -119,8 +116,6 @@ export function registerRoutes(r: Router, s: Services): void {
       p.ads.racesSinceInterstitial = 0;
     }),
   );
-  // Portal ad SDKs offer no server-to-server confirmation, so this relies on the
-  // client callback; limits, cool-downs and one-time tokens are enforced here.
   r.add(
     'POST',
     '/api/ads/reward',
@@ -140,7 +135,6 @@ export function registerRoutes(r: Router, s: Services): void {
 
   r.add('POST', '/api/analytics', async (req) => {
     if (!perIp.allow(`a:${req.ip}`)) return { ok: false };
-    // Anonymous, consented gameplay events. Stored nowhere sensitive; extend as needed.
     const events = ((req.body as { events?: unknown[] })?.events ?? []).length;
     return { ok: true, received: events };
   });

@@ -35,7 +35,6 @@ describe('jumping', () => {
     const sim = solo();
     run(sim, 10);
     const events = run(sim, 240, (t) => input({ jumpHeld: t % 6 < 3 }));
-    // Mashing jump only ever produces one jump per landing.
     const seq = events.filter((e) => e === 'jump' || e === 'land');
     expect(seq.length).toBeGreaterThan(2);
     for (let i = 1; i < seq.length; i++) expect(seq[i]).not.toBe(seq[i - 1]);
@@ -62,7 +61,6 @@ describe('jumping', () => {
     const body = sim.racers[0].body;
     run(sim, 2, input({ jumpHeld: true }));
     run(sim, 1, input({ jumpHeld: false }));
-    // Wait until just before landing, then tap.
     let guard = 0;
     while (!(body.vy < 0 && body.y < 0.35) && guard++ < 200) run(sim, 1);
     const events = run(sim, 30, (t) => input({ jumpHeld: t < 2 }));
@@ -71,7 +69,6 @@ describe('jumping', () => {
   });
 
   it('allows a coyote-time jump just after running off a ledge', () => {
-    // Pit starts at x = 20; press jump 3 ticks after the racer leaves the ground.
     const sim = solo((c) => c.run(20).gap(4));
     const body = sim.racers[0].body;
     let guard = 0;
@@ -112,7 +109,6 @@ describe('collisions', () => {
     expect(cb.y).toBeCloseTo(3.5, 5);
     expect(cb.x).toBeGreaterThan(22);
 
-    // Jumping up a 1.2 step keeps momentum; climbing it stops first.
     const jumper = solo((c) => c.run(20).step(1.2).run(30));
     const jb = jumper.racers[0].body;
     let pressed = -1;
@@ -128,7 +124,6 @@ describe('collisions', () => {
   });
 
   it('a jump that catches a step just below its top climbs onto it instead of falling through', () => {
-    // Jump timings that clip the corner of a 1.2 u step must never drop the racer through the ground.
     for (let start = 1; start < 8; start += 0.25) {
       const sim = solo((c) => c.run(20).step(1.2));
       const body = sim.racers[0].body;
@@ -138,7 +133,6 @@ describe('collisions', () => {
         return input({ jumpHeld: pressed >= 0 && t - pressed < 40 });
       });
       expect(events).not.toContain('fall');
-      // Either on top of the step, or stopped at its foot: never inside it.
       expect(body.y > 1.19 || (body.y > -1e-6 && body.x < 20)).toBe(true);
     }
   });

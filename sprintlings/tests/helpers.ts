@@ -4,11 +4,6 @@ import { Rng } from '../src/shared/Rng';
 import { RaceSimulation, type RacerSetup } from '../src/game/RaceManager';
 import { NO_INPUT, type TickInput } from '../src/game/RaceState';
 
-/**
- * Builds a test track of `length`. `build` lays ground with the segment
- * cursor (run/gap/step...) and places hazards; whatever it leaves is filled
- * with flat ground (plus a run-out past the finish).
- */
 export function testTrack(length: number, build: (c: SegmentContext) => void = () => {}): Track {
   const draft = emptyDraft();
   draft.pieces.push({ id: draft.nextId++, x0: -20, x1: 0, y0: 0, y1: 0, oneWay: false });
@@ -37,7 +32,6 @@ export function bot(id: string, difficulty: RacerSetup['difficulty'] = 'perfect'
   return { id, name: id, characterId, isPlayer: false, difficulty };
 }
 
-/** Steps through the countdown so racers are running. */
 export function skipCountdown(sim: RaceSimulation): void {
   while (sim.phase === 'countdown') sim.step([]);
 }
@@ -46,7 +40,6 @@ export function input(partial: Partial<TickInput>): TickInput {
   return { ...NO_INPUT, ...partial };
 }
 
-/** Steps `ticks` times with a fixed input for racer 0; collects event types. */
 export function run(sim: RaceSimulation, ticks: number, inp: TickInput | ((t: number) => TickInput) = NO_INPUT): string[] {
   const types: string[] = [];
   for (let t = 0; t < ticks && sim.phase !== 'done'; t++) {

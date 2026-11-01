@@ -25,10 +25,6 @@ const MAX_STEPS_PER_FRAME = 5;
 
 export type RacePhaseUI = 'lobby' | 'racing' | 'paused' | 'finishing' | 'results';
 
-/**
- * Runs one race on the client: fixed-step simulation, input recording for
- * verification, rendering, HUD, audio and the pause menu.
- */
 export class RaceController {
   readonly sim: RaceSimulation;
   readonly scene: RaceScene;
@@ -46,13 +42,11 @@ export class RaceController {
   onQuit: (() => void) | null = null;
   onRestart: (() => void) | null = null;
 
-  /** This player's racer index (0 offline; the server's slot online). */
   readonly me: number;
 
   constructor(
     private readonly ctx: AppContext,
     readonly ticket: RaceTicket,
-    /** Set for online races: inputs come from the server, tick by tick. */
     readonly online: OnlineLink | null = null,
   ) {
     this.me = online?.me ?? 0;
@@ -72,7 +66,6 @@ export class RaceController {
 
   private lastEmote = -10;
 
-  /** Quick chat bubble (purely cosmetic, never touches the simulation). */
   private emote(index: number, slot: number): void {
     if (this.phase === 'results' || this.phase === 'lobby') return;
     if (index === this.me) {
@@ -84,7 +77,6 @@ export class RaceController {
     if (index === this.me) this.ctx.audio.play('click');
   }
 
-  /** Bots chat a little: brag after a hit, grumble when hit, GG at the finish. */
   private botChat(e: RaceEvent): void {
     const bot = (i: number) => i !== this.me && !!this.sim.racers[i] && !this.sim.racers[i].isPlayer;
     const roll = (p: number) => Math.random() < p;
@@ -99,16 +91,13 @@ export class RaceController {
     try {
       if (this.ctx.settings.value.touchControls !== 'off') navigator.vibrate?.(ms);
     } catch {
-      /* not supported */
     }
   }
 
-  /** Screen wrapper so the HUD participates in UIRoot navigation. */
   hudScreen(): Screen {
     return { el: this.hud.el, onBack: () => (this.togglePause(), true) };
   }
 
-  /** Loading screen step: pre-renders the course a slice at a time. Returns progress 0..1. */
   preload(): number {
     return this.scene.preload(8);
   }
@@ -208,11 +197,6 @@ export class RaceController {
     if (this.phase !== 'lobby') this.hud.update(dt);
   }
 
-  /**
-   * Online: send this frame's input, then step the simulation through the
-   * ticks the server has relayed (a little faster when behind). The race
-   * keeps running while the pause menu is open.
-   */
   private onlineFrame(dt: number): void {
     const link = this.online!;
     const running = this.phase === 'racing' || this.phase === 'finishing' || this.phase === 'paused';
@@ -229,7 +213,6 @@ export class RaceController {
         this.scene.onTick(events);
         this.handleEvents(events);
       }
-      // Starved (waiting for the server): do not bank time and then rush.
       this.acc = Math.min(Math.max(0, this.acc - steps * TICK_DT), TICK_DT * 2);
       if (this.phase === 'finishing') {
         this.updateSpectate(dt);
@@ -241,7 +224,6 @@ export class RaceController {
     if (this.phase !== 'lobby') this.hud.update(dt);
   }
 
-  /** Kill feed: who hit whom with which powerup, and who finished. */
   private feed(e: RaceEvent): void {
     const sim = this.sim;
     const victim = sim.racers[e.racer];
@@ -287,7 +269,6 @@ export class RaceController {
       const near = Math.abs(e.x - me.x) < 22;
       const vol = local ? 1 : near ? 0.3 : 0;
       if (vol === 0) continue;
-      // Rivals ahead sound to the right, behind to the left.
       const pan = local ? 0 : Math.max(-0.7, Math.min(0.7, (e.x - me.x) / 12));
       switch (e.type) {
         case 'jump':
@@ -386,14 +367,12 @@ export class RaceController {
     this.ctx.platform.gameplayStop();
     this.finishTimer = 2.6;
     this.hud.setHint(null);
-    // Watch the rest of the field run in (up to 20 s), or skip straight to results.
     if (this.sim.racers.some((r) => r.finishTime === null)) this.finishTimer = 20;
     this.spectateDelay = 2.2;
   }
 
   private spectateDelay = 0;
 
-  /** Follows the best-placed racer still running. */
   private updateSpectate(dt: number): void {
     if (this.spectateDelay > 0) {
       this.spectateDelay -= dt;
@@ -411,7 +390,6 @@ export class RaceController {
     }
   }
 
-  /** Fast-forwards the remaining racers, then hands the race to the authority for verification. */
   private settle(): void {
     if (this.settled) return;
     if (this.online) return this.settleOnline();
@@ -436,7 +414,6 @@ export class RaceController {
     this.onFinished?.(summary, settlement);
   }
 
-  /** Online results come from the server's own simulation and settlement. */
   private settleOnline(): void {
     const link = this.online!;
     if (!link.end) return;
@@ -450,7 +427,6 @@ export class RaceController {
     this.pauseModal = null;
     this.ctx.audio.setMusicIntensity(0.5);
     const summary = summarizeRace(this.sim);
-    // The server's standings are authoritative (they match unless this client drifted).
     for (const s of link.end.standings) {
       const r = summary.racers.find((x) => x.index === s.index);
       if (r) {
@@ -498,7 +474,6 @@ export class RaceController {
           hint = `${t('Jump!')} · ${t('Hold jump to jump higher')}`;
           break;
         }
-        // A real ledge face (a sudden rise), not a hill you simply run up.
         const before = sim.track.solidTop(x - 0.1);
         if (g - b.y > 0.35 && !Number.isNaN(before) && g - before > 0.3) {
           hint = `${t('Jump up the step!')} · ${t('Hold jump to jump higher')}`;
@@ -511,12 +486,6 @@ export class RaceController {
     this.hud.setHint(hint);
   }
 
-  /**
-   * Test helper (used by the end-to-end tests, where software rendering is
-   * slow): simulates `ticks` ticks without rendering, driving the player with
-   * an autopilot that produces ordinary inputs. Inputs are recorded, so the
-   * authority's verification still applies.
-   */
   fastForward(ticks: number, skill: 'rookie' | 'perfect' = 'perfect'): void {
     if (this.online) return;
     this.autopilot ??= new AIController(0, skill, 12345);

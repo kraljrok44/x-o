@@ -8,7 +8,6 @@ import { bodyHeight, type SeekerEntity } from '../game/RaceState';
 const hb = GameplayConfig.hitbox;
 const tune = AbilityTuning.seeker;
 
-/** Nearest racer ahead of `owner` that is still racing and in range, or -1. */
 export function findSeekerTarget(sim: RaceSimulation, owner: number): number {
   const me = sim.racers[owner].body;
   let best = -1;
@@ -26,7 +25,6 @@ export function findSeekerTarget(sim: RaceSimulation, owner: number): number {
   return best;
 }
 
-/** Moves seekers, homes them toward their target's height and resolves hits. */
 export function stepSeekers(sim: RaceSimulation, dt: number): void {
   for (const e of sim.entities) {
     if (e.kind !== 'seeker' || !e.alive) continue;
@@ -51,7 +49,6 @@ function stepSeeker(sim: RaceSimulation, e: SeekerEntity, dt: number): void {
     }
   }
   e.x += ABILITIES.seeker.speed * dt;
-  // Terrain stops seekers: steps and islands are cover.
   if (sim.track.solidAt(e.x + tune.radius, e.y - 0.3)) {
     e.alive = false;
     sim.emitAt('seekerExpire', e.owner, e.id, e.x, e.y);
@@ -74,14 +71,12 @@ function stepSeeker(sim: RaceSimulation, e: SeekerEntity, dt: number): void {
   }
 }
 
-/** Seekers currently homing in on `racer` (for HUD warnings and AI). */
 export function incomingSeekers(sim: RaceSimulation, racer: number, out: SeekerEntity[]): SeekerEntity[] {
   out.length = 0;
   for (const e of sim.entities) if (e.kind === 'seeker' && e.alive && e.target === racer) out.push(e);
   return out;
 }
 
-/** Storm clouds follow their target and strike when the warning runs out. */
 export function stepThunder(sim: RaceSimulation, dt: number): void {
   for (const e of sim.entities) {
     if (e.kind !== 'thunder' || !e.alive) continue;
@@ -104,7 +99,6 @@ export function stepThunder(sim: RaceSimulation, dt: number): void {
   }
 }
 
-/** Lobbed bombs fly on a gravity arc and blast on landing or when the fuse burns out. */
 export function stepBombs(sim: RaceSimulation, dt: number): void {
   const tune = AbilityTuning.bomb;
   for (const e of sim.entities) {
@@ -133,7 +127,6 @@ export function stepBombs(sim: RaceSimulation, dt: number): void {
   }
 }
 
-/** Nearest rival ahead within `range` (roughly the same height band), or -1. */
 export function nearestRivalAhead(sim: RaceSimulation, owner: number, range: number): number {
   const me = sim.racers[owner].body;
   let best = -1;

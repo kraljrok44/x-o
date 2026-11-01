@@ -2,7 +2,6 @@ import { NoAdsProvider, type AdProvider } from '../ads/AdProvider';
 import type { KeyValueStore } from '../persistence/KeyValueStore';
 import type { Platform, PlatformId } from './Platform';
 
-/** Dev server, offline standalone build and our own website build. */
 export class StandalonePlatform implements Platform {
   readonly displayName: string;
   readonly ads: AdProvider;

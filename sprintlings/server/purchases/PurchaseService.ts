@@ -14,13 +14,6 @@ function owned(profile: PlayerProfile, productId: string): boolean {
   return (p.grants.entitlements ?? []).every((e) => hasEntitlement(profile, e));
 }
 
-/**
- * Server-side purchase flow:
- *   offer -> checkout (pending record) -> provider -> signed webhook ->
- *   grant (idempotent on provider transaction id) -> client refreshes.
- * Cancel / failure / refund / duplicate webhooks / late payments after the
- * client disconnected are all handled from the webhook side.
- */
 export class PurchaseService {
   constructor(
     private readonly repo: Repository,
@@ -61,7 +54,6 @@ export class PurchaseService {
     return p;
   }
 
-  /** Processes a provider webhook. Returns how many events changed something. */
   async webhook(providerId: string, rawBody: string, headers: Record<string, string | string[] | undefined>): Promise<number> {
     if (!this.provider || this.provider.id !== providerId) throw new HttpError(404, 'not_found', 'Unknown provider');
     let events;
@@ -72,22 +64,17 @@ export class PurchaseService {
     }
     let changed = 0;
     for (const e of events) {
-      // Every transition below is idempotent (status checks + grants keyed on the
-      // provider transaction id), so a duplicate or retried delivery is harmless.
-      // The event is recorded only after it was applied, so a crash mid-way is retried.
       const rec = e.ref ? await this.repo.purchaseByProviderRef(providerId, e.ref) : e.txId ? await this.repo.purchaseByTxId(providerId, e.txId) : null;
       if (!rec) continue;
       const now = this.accounts.now();
       if (e.type === 'paid') {
         if (rec.status === 'paid' || rec.status === 'refunded') continue;
         const txId = e.txId ?? rec.providerRef;
-        // A payment that succeeds after a cancel/failure (or after the client left) is still granted.
         await this.accounts.mutate(rec.accountId, (p, t) => {
           if (p.processedEvents.includes(`iap:${txId}`)) return;
           try {
             grantProduct(p, rec.productId, txId, t, serverRng());
           } catch (err) {
-            // e.g. a second concurrent checkout for an already owned permanent item.
             console.warn(`[purchases] ${rec.id} paid but not granted (${(err as Error).message}); needs a manual refund`);
           }
         });
@@ -110,7 +97,6 @@ export class PurchaseService {
     return changed;
   }
 
-  /** Permanent rights live on the account; "restore" re-reads them and lists past purchases. */
   async restore(accountId: string) {
     const profile = await this.accounts.read(accountId);
     const purchases = await this.repo.purchasesForAccount(accountId);

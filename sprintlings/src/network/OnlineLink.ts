@@ -11,18 +11,12 @@ export interface OnlineEnd {
   settlement: RaceSettlement | null;
 }
 
-/**
- * Client end of a lockstep online race. Buffers the per-tick inputs relayed
- * by the server, hands them out tick by tick, schedules this player's input
- * a few ticks ahead and checks the server's state hashes.
- */
 export class OnlineLink {
   readonly me: number;
   readonly delay: number;
   readonly ticket: RaceTicket;
   private readonly inputs = new Map<number, number[]>();
   private readonly hashes = new Map<number, number>();
-  /** Highest tick whose inputs have arrived. */
   private latest = -1;
   private lastSentTick = -1;
   private lastBits = -1;
@@ -57,7 +51,6 @@ export class OnlineLink {
     }
   }
 
-  /** The course is loaded here. */
   ready(): void {
     this.client.send({ t: 'ready' });
   }
@@ -66,30 +59,25 @@ export class OnlineLink {
     return this.inputs.has(tick);
   }
 
-  /** Ticks received but not yet simulated. */
   buffered(simTick: number): number {
     return this.latest - simTick + 1;
   }
 
-  /** Inputs for every racer at `tick` (only the human slots are used by the simulation). */
   take(tick: number): TickInput[] {
     const bits = this.inputs.get(tick)!;
     this.inputs.delete(tick);
     return bits.map((b) => ({ jumpHeld: (b & 1) !== 0, down: (b & 2) !== 0, special: (b & 4) !== 0, use: (b & 8) !== 0 }));
   }
 
-  /** Sends this frame's input, scheduled `delay` ticks ahead; unchanged held input is not resent. */
   sendInput(input: TickInput): void {
     const bits = (input.jumpHeld ? 1 : 0) | (input.down ? 2 : 0) | (input.special ? 4 : 0) | (input.use ? 8 : 0);
     if (bits === this.lastBits && (bits & 12) === 0) return;
-    // Every message gets its own tick so a quick tap is never merged away.
     const tick = Math.max(this.latest + 1 + this.delay, this.lastSentTick + 1);
     this.lastSentTick = tick;
     this.lastBits = bits;
     this.client.send({ t: 'input', tick, bits });
   }
 
-  /** Compares with the server's fingerprint for this tick, if one arrived. */
   check(sim: RaceSimulation): void {
     const h = this.hashes.get(sim.tick);
     if (h === undefined) return;

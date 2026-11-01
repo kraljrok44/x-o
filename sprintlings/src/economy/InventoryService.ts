@@ -11,7 +11,6 @@ export function ownsCharacter(profile: PlayerProfile, id: CharacterId): boolean 
   return profile.characters.includes(id);
 }
 
-/** Adds a cosmetic; returns false if it was already owned. */
 export function addCosmetic(profile: PlayerProfile, id: string): boolean {
   if (!COSMETIC_BY_ID[id]) throw new EconomyError('not_found', 'Unknown item.');
   if (ownsCosmetic(profile, id)) return false;
@@ -31,7 +30,6 @@ export function removeCosmetic(profile: PlayerProfile, id: string): boolean {
   return true;
 }
 
-/** Equips an owned cosmetic (or clears a slot with null). Purely visual. */
 export function equip(profile: PlayerProfile, slot: LoadoutSlot | 'variant' | 'character', id: string | null): void {
   if (slot === 'character') {
     if (!id || !isCharacterId(id) || !ownsCharacter(profile, id)) throw new EconomyError('locked', 'Character not unlocked.');
@@ -58,7 +56,6 @@ export function equip(profile: PlayerProfile, slot: LoadoutSlot | 'variant' | 'c
   profile.loadout[slot] = id;
 }
 
-/** Cosmetic ids the renderer should show for the current loadout. */
 export function visibleLoadout(profile: PlayerProfile): Record<string, string> {
   const l = profile.loadout;
   const out: Record<string, string> = {};

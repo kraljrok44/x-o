@@ -1,4 +1,3 @@
-/** Random identifier for events/transactions. Uses crypto when available. */
 export function newId(prefix: string): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
   if (c && typeof c.randomUUID === 'function') return `${prefix}_${c.randomUUID()}`;

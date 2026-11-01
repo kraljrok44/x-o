@@ -3,10 +3,6 @@ import { credit } from '../economy/Wallet';
 import type { PlayerProfile } from '../economy/Profile';
 import { levelForXp, rewardForLevel, type LevelReward } from './LevelProgression';
 
-/**
- * Adds XP and applies level-up rewards. XP is never sold: it only comes
- * from playing, quests and achievements.
- */
 export function addXp(profile: PlayerProfile, amount: number): LevelReward[] {
   if (amount <= 0) return [];
   const before = profile.level;
@@ -21,7 +17,6 @@ export function addXp(profile: PlayerProfile, amount: number): LevelReward[] {
     rewards.push(r);
   }
   profile.level = after;
-  // Characters whose unlock level was passed (e.g. after a config change) are granted too.
   for (const c of Object.values(CHARACTERS)) {
     if (c.unlock !== 'starter' && profile.level >= c.unlock.level && !profile.characters.includes(c.id)) profile.characters.push(c.id);
   }

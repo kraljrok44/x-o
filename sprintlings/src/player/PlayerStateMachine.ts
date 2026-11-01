@@ -2,16 +2,6 @@ import { GameplayConfig } from '../config/GameplayConfig';
 import type { Track } from '../game/Track';
 import type { RacerBody, RacerPhase } from '../game/RaceState';
 
-/**
- * Racer phase transitions:
- *
- *   grid --GO--> run --fell into a pit--> fall --timer--> respawn --timer--> run
- *    run --crossed line--> finished
- *
- * Stun, shield, dash etc. are timed statuses layered on top of `run`
- * (abilities/StatusEffectSystem.ts) rather than separate phases, so a racer
- * can e.g. be stunned in mid-air and still land correctly.
- */
 const ALLOWED: Record<RacerPhase, RacerPhase[]> = {
   grid: ['run'],
   run: ['fall', 'finished'],

@@ -1,4 +1,3 @@
-/** Small explicit state machine with allowed transitions and enter hooks. */
 export class StateMachine<S extends string> {
   private current: S;
   private readonly listeners: ((to: S, from: S) => void)[] = [];

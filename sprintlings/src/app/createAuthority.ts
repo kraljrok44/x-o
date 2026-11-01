@@ -12,17 +12,10 @@ export interface AuthoritySetup {
   serverUrl: string | null;
 }
 
-/**
- * Chooses where the profile lives:
- *  - our server (web build, or dev with `npm run server` running): full
- *    server-side validation and real purchases,
- *  - otherwise a local profile (IndexedDB, or CrazyGames' data module).
- */
 export async function createAuthority(platform: Platform, browserStore: KeyValueStore): Promise<AuthoritySetup> {
   if (platform.usesOwnServer) {
     const { connectServerAuthority } = await import('../network/ServerAuthority');
     const server = await connectServerAuthority();
-    // A portal build may use our server for accounts and online races without selling anything.
     if (server && !platform.ownPurchasesAllowed) return { ...server, purchases: new UnavailablePurchaseService(t('Purchases with real money are not available in this version of the game.')) };
     if (server) return server;
   }

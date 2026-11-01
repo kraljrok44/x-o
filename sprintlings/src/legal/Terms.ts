@@ -1,12 +1,3 @@
-/**
- * Terms of Service, Privacy Policy and purchase terms shown in the game.
- *
- * This is a starting template, not legal advice: have it reviewed for the
- * countries you publish in before going live. Operator details come from
- * build-time env (VITE_LEGAL_*); unset fields stay visible as [brackets].
- * Bump TERMS_VERSION whenever the text changes in substance: players are
- * then asked to accept again.
- */
 export const TERMS_VERSION = '2026-10-31';
 
 const env = (import.meta as { env?: Record<string, string | undefined> }).env ?? {};

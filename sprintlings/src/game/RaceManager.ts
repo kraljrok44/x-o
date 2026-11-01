@@ -36,9 +36,7 @@ export interface RacerSetup {
   isPlayer: boolean;
   cosmetics?: Record<string, string>;
   variantId?: string | null;
-  /** Present for computer-controlled racers. */
   difficulty?: DifficultyId;
-  /** Team id (Duos). Omitted = everyone for themselves. */
   team?: number;
 }
 
@@ -46,20 +44,13 @@ export interface RaceSetup {
   track: Track;
   seed: number;
   racers: RacerSetup[];
-  /** Ends the race this many seconds after the first human finishes (default from config). */
   finishGrace?: number;
 }
 
 export type RacePhase = 'countdown' | 'racing' | 'done';
 
-/** Start line offsets: racers share one running line, slightly staggered so all are visible. */
 const START_BACK = [0, 0.7, 1.4, 2.1];
 
-/**
- * Authoritative race simulation. Deterministic: given the same setup and the
- * same human input per tick it produces identical results, which is what the
- * server uses to verify submitted races (game/RaceReplay.ts).
- */
 export class RaceSimulation implements MovementWorld {
   readonly track: Track;
   readonly setup: RaceSetup;
@@ -72,17 +63,14 @@ export class RaceSimulation implements MovementWorld {
   tick = 0;
   phase: RacePhase = 'countdown';
   nextEntityId = 1;
-  /** Racer indices ordered by current race position. */
   readonly standings: number[];
   firstHumanFinishTime: number | null = null;
 
-  /** Events produced by the last step(). Reused between steps. */
   readonly events: RaceEvent[] = [];
   private readonly eventPool: RaceEvent[] = [];
   private readonly ai: (AIController | null)[];
   private readonly bodyInputs: BodyInput[];
   private readonly countdownPresses: { early: boolean; lastTick: number }[];
-  /** Glimmer indices sorted by x (glimmers are stored in construction order). */
   readonly glimmerOrder: number[];
 
   constructor(setup: RaceSetup) {
@@ -128,17 +116,14 @@ export class RaceSimulation implements MovementWorld {
     this.glimmerOrder = gl.map((_, i) => i).sort((a, b) => gl[a].x - gl[b].x);
   }
 
-  /** Race clock in seconds; negative during the countdown. */
   get time(): number {
     return (this.tick - this.countdownTicks) / GameplayConfig.tickRate;
   }
 
-  /** True when a and b are on the same team (a racer is its own teammate). */
   sameTeam(a: number, b: number): boolean {
     return this.racers[a].team === this.racers[b].team;
   }
 
-  /** Whether the race is a team race. */
   get isTeamRace(): boolean {
     return this.racers.some((r, i) => r.team !== i);
   }
@@ -150,8 +135,6 @@ export class RaceSimulation implements MovementWorld {
   placeOf(index: number): number {
     return this.standings.indexOf(index);
   }
-
-  // --- MovementWorld ----------------------------------------------------------
 
   emit(type: RaceEventType, racer: number, value: number, body: RacerBody): void {
     this.emitAt(type, racer, value, body.x, body.y);
@@ -203,7 +186,6 @@ export class RaceSimulation implements MovementWorld {
     }
   }
 
-  /** `victim` was hit by `attacker`'s powerup. */
   emitAbilityHit(victim: number, attacker: number, ability: AbilityId): void {
     this.emit('abilityHit', victim, attacker, this.racers[victim].body);
     this.events[this.events.length - 1].ability = ability;
@@ -228,19 +210,12 @@ export class RaceSimulation implements MovementWorld {
     const e = this.entities.find((x) => x.id === code % 100000);
     if (e?.kind === 'snare') e.alive = false;
     else if (e?.kind === 'noose') {
-      // Spring the trap; it stays a moment so the snap can be seen.
       e.sprung = 0;
       e.ttl = 0.8;
     }
     return code;
   }
 
-  // --- stepping ---------------------------------------------------------------
-
-  /**
-   * Advances the race by one tick. `inputs[i]` is used for human racers;
-   * computer racers decide for themselves. Returns this tick's events.
-   */
   step(inputs: readonly (TickInput | undefined)[]): RaceEvent[] {
     for (const e of this.events) this.eventPool.push(e);
     this.events.length = 0;
@@ -266,7 +241,6 @@ export class RaceSimulation implements MovementWorld {
       if (racer.abilityCooldown > 0) racer.abilityCooldown = Math.max(0, racer.abilityCooldown - dt);
       if (racer.specialCooldown > 0) racer.specialCooldown = Math.max(0, racer.specialCooldown - dt);
       if (racer.item && racer.body.phase === 'run') {
-        // A powerup handed over without a timer starts a fresh one.
         if (racer.itemTime <= 0) racer.itemTime = ITEM_LIFETIME;
         racer.itemTime -= dt;
         if (racer.itemTime <= 0) {
@@ -318,7 +292,6 @@ export class RaceSimulation implements MovementWorld {
       racer.prevJumpHeld = input.jumpHeld;
       if (!pressed) continue;
       const press = this.countdownPresses[racer.index];
-      // Mashing jump during the last second is a false start: no boost.
       if (this.tick >= this.countdownTicks - tps && this.tick < this.countdownTicks - window) press.early = true;
       press.lastTick = this.tick;
     }
@@ -360,7 +333,6 @@ export class RaceSimulation implements MovementWorld {
     }
   }
 
-  /** Index of the first entry in glimmerOrder whose glimmer has x >= xMin. */
   firstGlimmerOrderIndex(xMin: number): number {
     const gl = this.track.data.glimmers;
     const idx = this.glimmerOrder;
@@ -410,7 +382,6 @@ export class RaceSimulation implements MovementWorld {
     this.entities.length = w;
   }
 
-  /** Runs the race to completion with no human input (tests, validation, fast-forward). */
   runToEnd(inputFor?: (sim: RaceSimulation, racer: number) => TickInput | undefined): void {
     const inputs: (TickInput | undefined)[] = new Array(this.racers.length);
     while (this.phase !== 'done') {

@@ -9,13 +9,8 @@ import { formatRaceTime } from '../shared/time';
 import { h } from './dom';
 import { ordinal, t } from './i18n';
 
-/** Quick-chat lines (keys 1-4). */
 export const EMOTES = ['Howdy!', 'Yeehaw!', 'Oops!', 'GG!'] as const;
 
-/**
- * Minimal in-race HUD: position, progress, held ability, hazard warnings.
- * No ads or purchase prompts ever appear here.
- */
 export class RaceHUD {
   readonly el: HTMLElement;
   private readonly place = h('div', { class: 'hud-place' });
@@ -26,16 +21,13 @@ export class RaceHUD {
   private readonly ability = h('div', { class: 'hud-ability empty' });
   private readonly abilityIcon = h('span');
   private readonly abilityName = h('span', { class: 'name' });
-  /** Drains while a powerup is held; it fizzles out when empty. */
   private readonly abilityTimer = h('span', { class: 'timer' });
-  /** Animal special button with a cooldown ring. */
   private readonly special = h('div', { class: 'hud-special' });
   private readonly specialRing = h('div', { class: 'ring' });
   private readonly countdown = h('div', { class: 'hud-countdown hidden' });
   private readonly trackTitle = h('div', { class: 'hud-track-title hidden' });
   private readonly emotes = h('div', { class: 'hud-emotes interactive' });
   private readonly spectate = h('div', { class: 'hud-spectate interactive hidden' });
-  /** Called with the quick-chat slot (0-3) when an emote button is pressed. */
   onEmote: ((slot: number) => void) | null = null;
   private readonly warning = h('div', { class: 'hud-warning hidden' });
   private readonly hint = h('div', { class: 'hud-hint hidden' });
@@ -57,7 +49,6 @@ export class RaceHUD {
     private readonly showFps: boolean,
     portrait?: (r: Racer) => string,
   ) {
-    // Fun Run-style header: your side vs the rivals, finishers turn into flags.
     const mine = sim.racers.filter((r) => r.team === sim.racers[localIndex].team);
     const rivals = sim.racers.filter((r) => r.team !== sim.racers[localIndex].team);
     const slot = (r: Racer) => {
@@ -125,7 +116,6 @@ export class RaceHUD {
     );
   }
 
-  /** Kill feed line, newest on top: "attacker 🚀 victim" (or a finish notice). */
   feed(left: string, icon: string, right: string, leftMine: boolean, rightMine: boolean): void {
     const line = h(
       'div',
@@ -146,7 +136,6 @@ export class RaceHUD {
     setTimeout(() => c.remove(), 1200);
   }
 
-  /** After finishing: "Spectating <name>" with a skip button (null hides it). */
   showSpectate(name: string | null, onSkip: () => void): void {
     if (name === null) {
       this.spectate.classList.add('hidden');
@@ -223,7 +212,6 @@ export class RaceHUD {
       this.abilityTimer.style.transform = `scaleX(${left})`;
       this.ability.classList.toggle('expiring', !!me.item && me.itemTime < 3);
     }
-    // Special cooldown ring.
     const spDef = SPECIALS[CHARACTERS[me.characterId].special];
     const frac = me.specialCooldown > 0 ? me.specialCooldown / spDef.cooldown : 0;
     const ringKey = `${Math.round(frac * 60)}|${specialReady(sim, me) ? 1 : 0}`;
@@ -233,7 +221,6 @@ export class RaceHUD {
       this.special.classList.toggle('ready', frac === 0);
       this.special.classList.toggle('usable', specialReady(sim, me));
     }
-    // Countdown.
     let cd = '';
     if (sim.phase === 'countdown') cd = String(Math.ceil((sim.countdownTicks - sim.tick) / 60));
     else if (sim.time < 0.7) cd = t('GO');
@@ -246,7 +233,6 @@ export class RaceHUD {
       void this.countdown.offsetWidth;
       if (cd) this.countdown.classList.add('pop');
     }
-    // Incoming seeker warning.
     let warn = false;
     for (const e of sim.entities) if (e.kind === 'seeker' && e.alive && e.target === this.localIndex && e.x > me.body.x - 25) warn = true;
     if (warn !== this.last.warn) {

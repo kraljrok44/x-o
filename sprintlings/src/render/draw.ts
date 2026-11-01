@@ -1,5 +1,3 @@
-/** Small Canvas2D helpers shared by every painter. Colours are '#rrggbb'. */
-
 export type Ctx = CanvasRenderingContext2D;
 
 function parse(hex: string): [number, number, number] {
@@ -14,7 +12,6 @@ function toHex(r: number, g: number, b: number): string {
 
 const mixCache = new Map<string, string>();
 
-/** Linear blend of two colours (t = 0 -> a, 1 -> b). Cached: painters call this every frame. */
 export function mix(a: string, b: string, t: number): string {
   const key = `${a}${b}${Math.round(t * 100)}`;
   const hit = mixCache.get(key);
@@ -36,13 +33,11 @@ export function rgba(hex: string, a: number): string {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-/** Deterministic hash noise in [0, 1). */
 export function hash(n: number): number {
   const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
   return s - Math.floor(s);
 }
 
-/** Smooth 1D value noise in [0, 1). */
 export function noise1(x: number, seed = 0): number {
   const i = Math.floor(x);
   const f = x - i;
@@ -77,7 +72,6 @@ export function ellipse(ctx: Ctx, cx: number, cy: number, rx: number, ry: number
   ctx.ellipse(cx, cy, Math.abs(rx), Math.abs(ry), rot, 0, Math.PI * 2);
 }
 
-/** Closed smooth curve through points (Catmull-Rom converted to Béziers). */
 export function smoothClosed(ctx: Ctx, pts: readonly number[]): void {
   const n = pts.length / 2;
   const px = (i: number) => pts[((i + n) % n) * 2];
@@ -93,7 +87,6 @@ export function smoothClosed(ctx: Ctx, pts: readonly number[]): void {
   ctx.closePath();
 }
 
-/** Critically damped spring toward a target (stable for any dt). */
 export class Spring {
   value: number;
   velocity = 0;
@@ -119,7 +112,6 @@ export class Spring {
   }
 }
 
-/** Exponential smoothing factor for a time constant (frame-rate independent). */
 export function damp(rate: number, dt: number): number {
   return 1 - Math.exp(-rate * dt);
 }

@@ -1,34 +1,18 @@
-/**
- * The five race abilities. Racers obtain one charge at a time from loot crates
- * placed on the track and fire it with the ability key.
- *
- * Every field the design document asks for (activation, duration, range,
- * speed, targeting, counterplay, cooldown, feedback, network behaviour,
- * invalid-use rules) is spelled out per ability so balance discussions have
- * one source of truth.
- */
 export type AbilityId = 'dash' | 'shield' | 'seeker' | 'snare' | 'sap' | 'lasso' | 'thunder' | 'bomb';
 
 export interface AbilityDefinition {
   id: AbilityId;
   name: string;
   description: string;
-  /** Seconds between pressing the key and the effect starting. */
   activationTime: number;
-  /** Seconds the effect lasts (0 = instantaneous). */
   duration: number;
-  /** Max distance the effect can reach along the track (u). */
   range: number;
-  /** Speed of the effect, e.g. projectile speed (u/s). 0 when not applicable. */
   speed: number;
   targeting: 'self' | 'nearestAhead' | 'behind';
   counterplay: string;
-  /** Lockout after using any ability before another can be fired. */
   cooldown: number;
   feedback: { sound: string; visual: string };
-  /** How the ability is replicated online (see network/ServerMessages.ts). */
   network: 'input-event' | 'server-spawned-entity';
-  /** What happens when the ability can't be used right now. */
   invalidUse: string;
   color: string;
   icon: string;
@@ -175,10 +159,6 @@ export const ABILITIES: Record<AbilityId, AbilityDefinition> = {
 
 export const ABILITY_IDS: readonly AbilityId[] = ['dash', 'shield', 'seeker', 'snare', 'sap', 'lasso', 'thunder', 'bomb'];
 
-/**
- * Loot crate roll weights by race position (index 0 = leader). Trailing racers
- * get more offensive/catch-up tools, leaders more defensive ones.
- */
 export const ITEM_WEIGHTS_BY_POSITION: readonly Record<AbilityId, number>[] = [
   { dash: 10, shield: 28, seeker: 8, snare: 26, sap: 18, lasso: 4, thunder: 0, bomb: 6 },
   { dash: 16, shield: 18, seeker: 18, snare: 14, sap: 10, lasso: 10, thunder: 6, bomb: 8 },
@@ -186,17 +166,14 @@ export const ITEM_WEIGHTS_BY_POSITION: readonly Record<AbilityId, number>[] = [
   { dash: 28, shield: 8, seeker: 22, snare: 6, sap: 4, lasso: 12, thunder: 14, bomb: 6 },
 ];
 
-/** A held powerup expires after this many seconds, so it never sticks with you. */
 export const ITEM_LIFETIME = 10;
 
 export const AbilityTuning = {
   dash: { speedFactor: 1.55 },
   seeker: {
     spawnAhead: 1.2,
-    /** Vertical homing speed toward the target (u/s). */
     homing: 3.2,
     radius: 0.36,
-    /** Cruising height above the target's feet: head height, so a slide ducks under it. */
     height: 0.95,
     acquireRange: 70,
   },

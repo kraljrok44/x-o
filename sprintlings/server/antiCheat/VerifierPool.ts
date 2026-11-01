@@ -2,11 +2,6 @@ import { Worker } from 'node:worker_threads';
 import { availableParallelism } from 'node:os';
 import { verifyRace, type RaceTicket, type VerifyResult } from '../../src/game/RaceVerifier';
 
-/**
- * Re-simulates submitted races off the main thread (a race takes a few
- * hundred ms of CPU). Falls back to inline verification when workers are
- * disabled (tests) or cannot start.
- */
 export class VerifierPool {
   private readonly workers: Worker[] = [];
   private readonly pending = new Map<number, { resolve: (r: VerifyResult) => void; worker: Worker; ticket: RaceTicket; log: unknown }>();
@@ -17,7 +12,6 @@ export class VerifierPool {
     if (!useWorkers) return;
     try {
       for (let i = 0; i < size; i++) {
-        // The boot file registers tsx's loader inside the worker (the server runs on tsx).
         const w = new Worker(new URL('./verifyWorkerBoot.mjs', import.meta.url));
         w.on('message', (m: { id: number; result: VerifyResult }) => {
           const p = this.pending.get(m.id);

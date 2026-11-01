@@ -9,11 +9,9 @@ export interface TrackInfo {
   name: string;
   biome: Biome;
   description: string;
-  /** Account level needed before the track can be picked. */
   unlockLevel: number;
 }
 
-/** The hand-made tracks. */
 export const TRACK_RECIPES: Record<string, TrackRecipe & { description: string; unlockLevel: number }> = {
   mossy_hollow: {
     id: 'mossy_hollow',
@@ -226,7 +224,6 @@ export function getTrack(id: string): Track {
   return t;
 }
 
-/** Remix ids look like "remix_2026-10-25_0" (day + validation attempt). */
 export function parseRemixId(id: string): { day: string; attempt: number } {
   const m = /^remix_(\d{4}-\d{2}-\d{2})_(\d)$/.exec(id);
   if (!m) throw new Error(`Bad remix id ${id}`);
@@ -246,11 +243,6 @@ function fits(prev: SegmentTemplate | undefined, next: SegmentTemplate): boolean
   return true;
 }
 
-/**
- * Procedural "Daily Remix": a seeded sequence of hand-made segments chosen
- * under the adjacency rules and a difficulty budget. The validator (and the
- * unit tests over many seeds) prove every remix is passable.
- */
 export function remixRecipe(day: string, attempt = 0): TrackRecipe {
   const seed = hashString(`remix:${day}:${attempt}`);
   const rng = new Rng(seed);
@@ -259,7 +251,6 @@ export function remixRecipe(day: string, attempt = 0): TrackRecipe {
   let length = SEGMENT_BY_ID.start_meadow.length;
   let prev: SegmentTemplate = SEGMENT_BY_ID.start_meadow;
   let sinceRest = 0;
-  // ~600 u of course: a 60-90 s race at running speed.
   const target = 540;
   while (length < target) {
     const candidates = pool.filter((s) => {

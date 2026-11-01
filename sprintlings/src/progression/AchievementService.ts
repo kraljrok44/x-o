@@ -7,15 +7,10 @@ export interface AchievementDefinition {
   name: string;
   description: string;
   target: number;
-  /** Reads current progress from the profile. */
   progress: (p: PlayerProfile) => number;
   reward: { coins: number; gems: number; xp: number };
 }
 
-/**
- * Milestones with clear conditions. Each one points at a different part of
- * the game rather than asking for mindless repetition.
- */
 export const ACHIEVEMENTS: AchievementDefinition[] = [
   { id: 'ach_first_finish', name: 'First Steps', description: 'Finish your first race.', target: 1, progress: (p) => p.stats.finishes, reward: { coins: 50, gems: 0, xp: 5 } },
   { id: 'ach_first_win', name: 'Front Runner', description: 'Win a race.', target: 1, progress: (p) => p.stats.wins, reward: { coins: 100, gems: 10, xp: 10 } },
@@ -38,7 +33,6 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
 
 export const ACHIEVEMENT_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]));
 
-/** Re-evaluates all achievements; returns those that just became complete. */
 export function updateAchievements(profile: PlayerProfile, now: number): AchievementDefinition[] {
   const done: AchievementDefinition[] = [];
   for (const a of ACHIEVEMENTS) {

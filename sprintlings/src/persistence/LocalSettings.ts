@@ -3,7 +3,6 @@ import { DEFAULT_BINDINGS, sanitizeBindings, type KeyBindings } from '../input/I
 import type { DifficultyChoice } from '../game/RaceVerifier';
 import type { KeyValueStore } from './KeyValueStore';
 
-/** Non-sensitive, device-local preferences (design doc section 18). */
 export interface Settings {
   graphics: 'low' | 'medium' | 'high';
   audio: AudioSettings;
@@ -59,7 +58,6 @@ export class LocalSettings {
         };
       }
     } catch {
-      /* keep defaults */
     }
     return this.value;
   }
@@ -75,7 +73,6 @@ export class LocalSettings {
   }
 }
 
-/** Copies only known keys whose type matches the default. */
 function pick(s: Partial<Settings>, d: Settings): Partial<Settings> {
   const out: Record<string, unknown> = {};
   for (const k of Object.keys(d) as (keyof Settings)[]) {

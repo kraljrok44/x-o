@@ -3,7 +3,6 @@ import { neutralPose, type MonsterPose } from './CharacterRig';
 
 export type EmoteStyle = 'wave' | 'spin' | 'cheer' | 'dance' | 'backflip' | 'flex';
 
-/** Maps cosmetic emote ids (and recolours via `model`) to an animation. */
 export function emoteStyle(emoteId: string | undefined): EmoteStyle {
   switch (emoteId) {
     case 'emote_spin':
@@ -22,7 +21,6 @@ export function emoteStyle(emoteId: string | undefined): EmoteStyle {
   }
 }
 
-/** What the animator reads each frame (from the simulation or the menu). */
 export interface AnimInput {
   mode: 'race' | 'idle' | 'emote';
   speed: number;
@@ -32,29 +30,17 @@ export interface AnimInput {
   stun: number;
   boosting: boolean;
   blocked: boolean;
-  /** Crouch, ready to go (last second of the countdown). */
   ready: boolean;
-  /** Baseball slide under flying trouble. */
   sliding?: boolean;
-  /** Scaling a wall. */
   climbing?: boolean;
-  /** Menu/shop: stand side-on so items worn on the back can be seen. */
   faceSide?: boolean;
-  /** Riding a mount: seated ('ride'/'hover') or running astride a hobby horse ('stick'). */
   mount?: 'ride' | 'hover' | 'stick';
-  /** Holding a prop in the right hand. */
   holding?: boolean;
 }
 
 const STRIDE = 1.3;
 const TAU = Math.PI * 2;
 
-/**
- * Turns gameplay state into a smooth, lively pose: a speed-synced run
- * cycle, squash and stretch on jumps and landings (springs, so they bounce),
- * jiggling appendages driven by acceleration, blinking, looking where it's
- * going, expressions and victory emotes. Purely visual.
- */
 export class MonsterAnimator {
   readonly pose: MonsterPose = neutralPose();
   emote: EmoteStyle = 'wave';
@@ -137,12 +123,10 @@ export class MonsterAnimator {
     this.air += ((airborne || s.phase === 'fall' ? 1 : 0) - this.air) * damp(16, dt);
     if (s.mode === 'race') this.runPhase = (this.runPhase + (Math.max(s.speed, 0.4) * dt * TAU) / STRIDE) % TAU;
 
-    // --- legs and arms: run cycle blended with the air pose -------------------
     const ph = this.runPhase;
     const run = this.run;
     const stride = 0.2 * run;
     const lift = 0.17 * run;
-    // Feet trace smooth ovals: lift eases in and out instead of snapping at contact.
     const footLift = (q: number) => {
       const c = Math.max(0, Math.cos(q));
       return c * c * (3 - 2 * c);
@@ -151,7 +135,6 @@ export class MonsterAnimator {
     let nfy = footLift(ph) * lift;
     let ffx = Math.sin(ph + Math.PI) * stride;
     let ffy = footLift(ph + Math.PI) * lift;
-    // Arms swing opposite to the legs, biased backward so they never cover the face.
     let armN = 0.1 - 0.15 * run + Math.sin(ph + Math.PI) * 0.75 * run;
     let armF = 0.1 - 0.15 * run + Math.sin(ph) * 0.75 * run;
     let bob = run * (0.025 * (1 - Math.cos(2 * ph)) - 0.02);
@@ -177,7 +160,6 @@ export class MonsterAnimator {
       squashTarget += (1 + Math.max(-0.12, Math.min(0.16, s.vy * 0.018)) - squashTarget) * a;
     }
 
-    // --- idle / ready / emotes ------------------------------------------------
     let rot = 0;
     let flip = 1;
     let spinFacing = -1;
@@ -185,7 +167,6 @@ export class MonsterAnimator {
     let reach = 1 + a * 0.35;
     let leanTarget = run * 0.14 + (s.boosting ? 0.12 : 0) + (s.blocked ? 0.28 : 0) + (airborne ? (s.vy > 0 ? -0.04 : 0.08) : 0);
     if (!racing && s.mode !== 'emote') {
-      // Idle: breathing and gentle arm sway.
       squashTarget = 1 + Math.sin(time * 2.4) * 0.025;
       armN = 0.12 + Math.sin(time * 1.7) * 0.08;
       armF = 0.05 + Math.sin(time * 1.7 + 1) * 0.06;
@@ -217,7 +198,6 @@ export class MonsterAnimator {
           leanTarget = Math.sin(e * 3) * 0.08;
           break;
         case 'spin': {
-          // Turn all the way round: face -> right side -> back -> left side -> face.
           const cyc = e % 1.6;
           const yaw = cyc < 0.9 ? (cyc / 0.9) * TAU : 0;
           spinFacing = (1 + Math.cos(yaw)) / 2;
@@ -280,7 +260,6 @@ export class MonsterAnimator {
       }
     }
 
-    // Stun: wobble on the spot.
     let dizzy = 0;
     if (racing && s.stun > 0) {
       dizzy = Math.min(1, s.stun * 3);
@@ -290,7 +269,6 @@ export class MonsterAnimator {
       armF = -1.5 - Math.sin(time * 14) * 0.3;
     }
     if (racing && s.sliding) {
-      // Feet first, leaning back, one hand trailing on the ground.
       rot = -0.85;
       hop = -0.26;
       bob = -0.05;
@@ -304,7 +282,6 @@ export class MonsterAnimator {
       squashTarget = 0.9;
     }
     if (racing && s.climbing) {
-      // Hand over hand up the wall, knees stepping.
       const c = time * 11;
       rot = 0;
       hop = 0;
@@ -319,7 +296,6 @@ export class MonsterAnimator {
       leanTarget = -0.12;
       squashTarget = 1.04;
     }
-    // Riders sit with knees bent and hands on the reins; the mount does the running.
     if (s.mount === 'ride' || s.mount === 'hover') {
       nfx = 0.17;
       nfy = 0.2;
@@ -336,13 +312,11 @@ export class MonsterAnimator {
       hop = 0;
       squashTarget = 1;
     } else if (s.mount === 'stick' && s.mode !== 'emote' && !(racing && (s.sliding || s.climbing))) {
-      // Both hands on the hobby horse's stick.
       armN = 1.05;
       armF = 0.95;
       reach = 1.05;
     }
     if (s.holding && s.mount !== 'stick' && s.mode !== 'emote' && racing && !s.climbing && !s.sliding && s.stun <= 0) {
-      // Keep a held prop steady-ish: less swing on the right arm.
       armN = armN * 0.45 + 0.35;
     }
     if (s.phase === 'fall') {
@@ -351,7 +325,6 @@ export class MonsterAnimator {
       rot = Math.sin(time * 9) * 0.2;
     }
 
-    // --- springs ----------------------------------------------------------------
     p.squash = this.squash.update(squashTarget, dt);
     p.lean = this.lean.update(leanTarget, dt);
     const accel = (s.vy - this.prevVy) / Math.max(dt, 1e-3);
@@ -368,13 +341,11 @@ export class MonsterAnimator {
     p.armNear = armN;
     p.armFar = armF;
     p.armReach += (reach - p.armReach) * damp(12, dt);
-    // Turn to the camera for emotes and the menu stage, run side-on otherwise.
     const faceTarget = s.faceSide ? 0 : s.mode === 'emote' || (s.mode === 'idle' && !s.ready) ? 1 : 0;
     p.gait = ph;
     p.runAmt = run;
     p.climbing = racing && !!s.climbing;
     p.sliding = racing && !!s.sliding;
-    // A seated rider stays side-on so the mount reads; it can still look at the camera to celebrate.
     if (spinFacing >= 0) p.facing = spinFacing;
     else p.facing += (faceTarget - p.facing) * damp(7, dt);
     p.bob = bob;
@@ -383,7 +354,6 @@ export class MonsterAnimator {
     p.hop = hop;
     p.dizzy = dizzy;
 
-    // --- face ---------------------------------------------------------------------
     this.blinkIn -= dt;
     if (this.blinkIn <= 0 && this.blinkT < 0) {
       this.blinkT = 0;

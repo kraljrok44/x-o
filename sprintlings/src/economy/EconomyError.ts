@@ -10,7 +10,6 @@ export type EconomyErrorCode =
   | 'invalid'
   | 'clock_tampered';
 
-/** A rejected economy operation. Messages are safe to show to players. */
 export class EconomyError extends Error {
   constructor(
     readonly code: EconomyErrorCode,

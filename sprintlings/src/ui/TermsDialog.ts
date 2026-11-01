@@ -11,11 +11,6 @@ function sections(list: LegalSection[]): HTMLElement {
   return h('div', { class: 'legal' }, ...list.flatMap((s) => [h('h3', null, s.title), ...s.paragraphs.map((p) => h('p', null, p))]));
 }
 
-/**
- * Terms of Service and Privacy Policy. In 'accept' mode the player must tick
- * both boxes before Accept is enabled; resolves true once acceptance is
- * recorded by the authority. 'view' just shows the documents.
- */
 export function showTerms(ctx: AppContext, mode: 'accept' | 'view' = 'accept'): Promise<boolean> {
   return new Promise((resolve) => {
     let tab: 'terms' | 'privacy' = 'terms';
@@ -90,7 +85,6 @@ export function showTerms(ctx: AppContext, mode: 'accept' | 'view' = 'accept'): 
   });
 }
 
-/** Shows the terms if they are not yet accepted; true when accepted (now or before). */
 export async function ensureTerms(ctx: AppContext): Promise<boolean> {
   if (termsAccepted(ctx)) return true;
   return showTerms(ctx, 'accept');

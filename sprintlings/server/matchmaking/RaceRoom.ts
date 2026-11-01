@@ -14,31 +14,17 @@ export interface RoomPlayer {
   accountId: string;
   setup: RacerSetup;
   send(msg: ServerMessage): void;
-  /** Input state applied at the current tick; presses latch until a tick consumes them. */
   input: TickInput;
   connected: boolean;
-  /** Has loaded the course (or gave up waiting). */
   ready?: boolean;
-  /** Inputs scheduled for future ticks (tick -> bits). */
   pending?: Map<number, number>;
 }
 
-/** Input delay in ticks: covers the round trip so inputs arrive before their tick. */
 export const INPUT_DELAY = 6;
-/** Longest wait for every client to finish loading before the race starts anyway. */
 const READY_TIMEOUT_MS = 8000;
-/** Ticks per input batch sent to clients, and how often a state hash goes out. */
 const BATCH = 2;
 const HASH_EVERY = 60;
 
-/**
- * Authoritative online race (lockstep). Waits until every client has loaded
- * the course, then runs the deterministic simulation at 60 Hz, applying each
- * player's validated input at the tick it was scheduled for. The applied
- * inputs go out in small batches so every client steps the identical race;
- * a state hash every second lets clients detect drift. Rewards are settled
- * from the server's own result.
- */
 export class RaceRoom {
   readonly id = `room_${randomUUID()}`;
   readonly sim: RaceSimulation;
@@ -54,7 +40,6 @@ export class RaceRoom {
     private readonly accounts: AccountService,
   ) {
     const seed = randomInt(1, 2 ** 31);
-    // Bots fill the remaining slots; the ticket builder picks their lineup.
     const base = createTicket(this.id, trackId, 'race', players[0].setup, 'normal', 5, seed, Date.now());
     const racers: RacerSetup[] = players.map((p) => ({ ...p.setup, isPlayer: true, difficulty: undefined }));
     for (const bot of base.racers.slice(1)) if (racers.length < 4) racers.push(bot);
@@ -68,7 +53,6 @@ export class RaceRoom {
   private batchFrom = 0;
   private batch: number[][] = [];
 
-  /** Starts once every connected player is ready, or after a timeout. */
   start(): void {
     this.readyTimer = setTimeout(() => this.go(), READY_TIMEOUT_MS);
     this.checkReady();
@@ -92,19 +76,15 @@ export class RaceRoom {
     this.timer = setInterval(() => this.pump(), 1000 / 60);
   }
 
-  /** Schedules validated input bits for `tick` (late input lands on the next tick to run). */
   setInput(index: number, bits: number, tick = this.sim.tick): void {
     const p = this.players[index];
     if (!p || !Number.isInteger(bits) || bits < 0 || (bits & ~15) !== 0) return;
     if (!Number.isInteger(tick)) return;
-    // Far-future input is clamped (at most 10 s ahead) so a client cannot queue up a whole race.
     const at = Math.max(this.sim.tick, Math.min(tick, this.sim.tick + 600));
     const prev = p.pending!.get(at);
-    // Same tick twice: the newest held state wins, presses accumulate.
     p.pending!.set(at, prev === undefined ? bits : (bits & 3) | ((prev | bits) & 12));
   }
 
-  /** Steps as many ticks as wall time allows (bounded). */
   pump(): void {
     const now = performance.now();
     this.acc += Math.min(250, now - this.last);

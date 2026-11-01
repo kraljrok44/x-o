@@ -16,7 +16,6 @@ interface State {
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
-/** In-memory repository; with a file path it persists to JSON (single-instance dev only). */
 export class MemoryRepository implements Repository {
   readonly kind: string;
   private s: State = { accounts: {}, tokens: {}, profiles: {}, ledger: {}, tickets: {}, purchases: {}, webhookEvents: {} };

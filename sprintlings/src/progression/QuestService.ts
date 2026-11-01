@@ -5,14 +5,11 @@ import type { RacerStats } from '../game/RaceState';
 import { EconomyError } from '../economy/EconomyError';
 import type { PlayerProfile, QuestState } from '../economy/Profile';
 
-/** What a finished race contributes to quests, achievements and stats. */
 export interface RaceOutcome {
   raceId: string;
   trackId: string;
   mode: 'race' | 'practice' | 'remix' | 'duos';
-  /** 1-based place. */
   place: number;
-  /** Duos only: whether the player's team won. */
   teamWin?: boolean;
   racerCount: number;
   finished: boolean;
@@ -32,7 +29,6 @@ interface QuestTemplate {
   seasonPoints: number;
 }
 
-/** Varied quests that reward different play styles; none require spending. */
 export const QUEST_TEMPLATES: QuestTemplate[] = [
   { id: 'q_finish', metric: 'finishes', targets: [3, 5], text: (n) => `Finish ${n} races`, coins: 60, xp: 10, seasonPoints: 40 },
   { id: 'q_hurdles', metric: 'hurdles', targets: [10, 20], text: (n) => `Jump over ${n} obstacles`, coins: 50, xp: 8, seasonPoints: 40 },
@@ -88,15 +84,9 @@ function makeQuest(t: QuestTemplate, target: number, day: number, index: number)
 }
 
 export interface QuestRefreshResult {
-  /** Completed-but-unclaimed quests from the previous day, granted automatically. */
   autoClaimed: QuestState[];
 }
 
-/**
- * Makes sure today's quests exist. Uses the authority's clock (server time
- * online). Unclaimed completed quests from an expired day are paid out
- * automatically so nothing earned is lost.
- */
 export function refreshQuests(profile: PlayerProfile, now: number): QuestRefreshResult {
   const today = dayKey(now);
   const autoClaimed: QuestState[] = [];
@@ -114,7 +104,6 @@ export function refreshQuests(profile: PlayerProfile, now: number): QuestRefresh
   return { autoClaimed };
 }
 
-/** Adds a race's contribution; returns quests that just became completed. */
 export function applyRaceToQuests(profile: PlayerProfile, o: RaceOutcome, now: number): QuestState[] {
   const done: QuestState[] = [];
   for (const q of profile.quests.list) {
@@ -136,7 +125,6 @@ export function findQuest(profile: PlayerProfile, questId: string): QuestState {
   return q;
 }
 
-/** Swaps one active quest for a different one (free once per day). */
 export function rerollQuest(profile: PlayerProfile, questId: string, now: number): QuestState {
   const q = findQuest(profile, questId);
   if (q.status !== 'active') throw new EconomyError('not_eligible', 'Only active quests can be swapped.');

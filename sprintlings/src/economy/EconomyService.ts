@@ -23,13 +23,6 @@ import { calculateRaceReward, type RaceRewardBreakdown } from './RewardCalculato
 import { assertNew, entry, record } from './RewardLedger';
 import { credit, debit } from './Wallet';
 
-/**
- * The single place where currencies, items and progress change. Used
- * identically by the local (offline/portal) authority and by the server, so
- * rules can't drift between them. Every operation takes the authority's
- * clock and an event id; repeating an event id is rejected (idempotency).
- */
-
 export interface RaceSettlement {
   raceId: string;
   outcome: RaceOutcome;
@@ -48,7 +41,6 @@ export interface GrantResult {
   gems: number;
   xp: number;
   items: string[];
-  /** Duplicate items converted to coins. */
   duplicates: { id: string; coins: number }[];
   levelUps: LevelReward[];
 }
@@ -57,10 +49,8 @@ function emptyGrant(): GrantResult {
   return { coins: 0, gems: 0, xp: 0, items: [], duplicates: [], levelUps: [] };
 }
 
-/** Called whenever the profile is loaded or before any operation. */
 export function syncProfile(profile: PlayerProfile, now: number, rng: Rng): { questAutoClaims: QuestState[]; seasonAutoRewards: GrantResult | null } {
   if (now + 5 * 60_000 < profile.lastSeenTime) {
-    // Clock moved backwards by more than 5 minutes: keep going, but daily features stay locked (see DailyRewardService).
   } else profile.lastSeenTime = Math.max(profile.lastSeenTime, now);
   const { autoClaimed } = refreshQuests(profile, now);
   for (const q of autoClaimed) {
@@ -96,7 +86,6 @@ function mergeGrant(into: GrantResult, g: GrantResult): void {
   into.levelUps.push(...g.levelUps);
 }
 
-/** Applies a reward bundle (coins, gems, cosmetic, chest). Duplicate cosmetics become coins. */
 function applyGrant(profile: PlayerProfile, r: SeasonReward & { xp?: number; cosmetics?: string[] }, rng: Rng): GrantResult {
   const g = emptyGrant();
   if (r.coins) {
@@ -125,12 +114,6 @@ function applyGrant(profile: PlayerProfile, r: SeasonReward & { xp?: number; cos
   return g;
 }
 
-// --- races ------------------------------------------------------------------------
-
-/**
- * Settles a verified race. `outcome` must come from verifyRace() on the
- * authority, never from the client's own claim.
- */
 export function settleRace(profile: PlayerProfile, ticket: RaceTicket, outcome: RaceOutcome, now: number): RaceSettlement {
   const eventId = `race:${ticket.raceId}`;
   assertNew(profile, eventId);
@@ -192,8 +175,6 @@ export function settleRace(profile: PlayerProfile, ticket: RaceTicket, outcome: 
   };
 }
 
-// --- claims -----------------------------------------------------------------------
-
 export function claimQuest(profile: PlayerProfile, questId: string, now: number, rng: Rng): GrantResult {
   const eventId = `quest:${questId}`;
   assertNew(profile, eventId);
@@ -251,8 +232,6 @@ export function buySeasonPremium(profile: PlayerProfile, now: number, eventId: s
   record(profile, entry({ id: eventId, type: 'shop_purchase', at: now, gems: -EconomyConfig.season.premiumPriceGems, reason: `Premium track: ${season.name}`, ref: ent }));
 }
 
-// --- shop -------------------------------------------------------------------------
-
 export function bundlePrice(profile: PlayerProfile, bundleId: string): number {
   const b = BUNDLES.find((x) => x.id === bundleId);
   if (!b) throw new EconomyError('not_found', 'Bundle not found.');
@@ -267,7 +246,6 @@ export interface PurchaseResult extends GrantResult {
   chestRarity?: Rarity;
 }
 
-/** Buys a shop offer with Coins or Gems after explicit player confirmation. */
 export function buyOffer(profile: PlayerProfile, offerId: string, now: number, eventId: string, rng: Rng): PurchaseResult {
   assertNew(profile, eventId);
   const offer = findOffer(offerId, now);
@@ -316,7 +294,6 @@ export function buyOffer(profile: PlayerProfile, offerId: string, now: number, e
   return { ...result, offerId: offer.id, spent: { currency: offer.price.currency, amount: price } };
 }
 
-/** Rolls a chest with the published odds. Duplicates are converted to Coins. */
 export function rollChest(profile: PlayerProfile, chestId: ChestId, rng: Rng): GrantResult & { rarity?: Rarity } {
   const chest = EconomyConfig.chests[chestId];
   if (!chest) throw new EconomyError('not_found', 'Unknown chest.');
@@ -336,8 +313,6 @@ export function rollChest(profile: PlayerProfile, chestId: ChestId, rng: Rng): G
   }
   return { ...g, rarity: item.rarity };
 }
-
-// --- ads --------------------------------------------------------------------------
 
 export interface AdEligibility {
   allowed: boolean;
@@ -371,10 +346,6 @@ function resetAdDay(profile: PlayerProfile, now: number): void {
   }
 }
 
-/**
- * Grants a rewarded-ad payout. Call only after the ad provider confirmed the
- * ad was watched to completion (and, where possible, the server verified it).
- */
 export function grantAdReward(profile: PlayerProfile, placement: RewardedPlacement, now: number, eventId: string, raceId?: string): GrantResult {
   assertNew(profile, eventId);
   const el = rewardedEligibility(profile, placement, now, raceId);
@@ -397,12 +368,6 @@ export function grantAdReward(profile: PlayerProfile, placement: RewardedPlaceme
   return g;
 }
 
-// --- real-money products (server side in production) ------------------------------
-
-/**
- * Grants a verified purchase. `txId` is the payment provider's transaction
- * id, so a duplicated webhook or callback can never grant twice.
- */
 export function grantProduct(profile: PlayerProfile, productId: string, txId: string, now: number, rng: Rng): GrantResult {
   const eventId = `iap:${txId}`;
   assertNew(profile, eventId);
@@ -417,7 +382,6 @@ export function grantProduct(profile: PlayerProfile, productId: string, txId: st
   return g;
 }
 
-/** Reverses a refunded purchase as far as possible (currency can go to zero, never below). */
 export function revokeProduct(profile: PlayerProfile, productId: string, txId: string, now: number): void {
   const eventId = `iap_refund:${txId}`;
   assertNew(profile, eventId);

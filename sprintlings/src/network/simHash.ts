@@ -1,10 +1,5 @@
 import type { RaceSimulation } from '../game/RaceManager';
 
-/**
- * Compact fingerprint of the race state. The server and every client run
- * the same deterministic simulation; comparing fingerprints now and then
- * catches a client that has drifted (desync).
- */
 export function simHash(sim: RaceSimulation): number {
   let h = 0x811c9dc5;
   const mix = (v: number) => {

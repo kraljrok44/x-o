@@ -2,7 +2,7 @@
 
 Izvirna arkadna dirkalna igra z **divjezahodnim** vzdušjem in **pogledom od strani**: štiri risane živali v kavbojskih oblačilih (lisica Rusty, zajec Jackie, medved Bruno, rakun Bandit, bik Buck, volk Lobo) samodejno tečejo od leve proti desni. Igralec skače (drži = višji skok), se spušča skozi lesene ploščadi, izbira zgornjo ali spodnjo pot, pobira zaboje z nagradami in zlate kepe ter nasprotnikom nastavlja dinamit, katran in rakete. Dirka traja 60–90 sekund. Igra je v angleščini in pripravljena za **CrazyGames** in **GameMonetize**; ima tudi samostojno spletno različico z lastnim strežnikom.
 
-Grafika je v celoti narisana v kodi (Canvas2D). Liki so lastne izvedbe v slogu podanih referenčnih slik (antropomorfne živali), ne kopije. Glasba v meniju in zvoki skoka, udarca in odklepanja so posnetki, ki jih je priložil naročnik (z ozadja Pixabay: *tatamusic – game music*, *freesound_community – jump sound*, *universfield – punch impact hit*, *universfield – achievement unlock*; Pixabay Content License dovoljuje komercialno uporabo v igrah brez navedbe vira – pred objavo preveri licenco na strani posameznega posnetka). Ostali zvoki in glasba med dirko so sintetizirani.
+Grafika je v celoti narisana v kodi (Canvas2D). Liki so lastne izvedbe v slogu podanih referenčnih slik (antropomorfne živali), ne kopije. Glasba v meniju in zvoki skoka, udarca in odklepanja so posnetki s Pixabay (*tatamusic – game music*, *freesound_community – jump sound*, *universfield – punch impact hit*, *universfield – achievement unlock*; Pixabay Content License dovoljuje komercialno uporabo v igrah brez navedbe vira – pred objavo preveri licenco na strani posameznega posnetka). Ostali zvoki in glasba med dirko so sintetizirani.
 
 ## Hitri začetek
 
@@ -91,7 +91,7 @@ Zapakiraj vsebino `dist/gamemonetize` (index.html v korenu ZIP-a), naloži, nato
 
 **Pogoji uporabe:** po prvi (tutorial) dirki se pokaže okno s Pogoji uporabe in Politiko zasebnosti (dve potrditveni polji: prebral/sprejemam in starost 13+ ali soglasje staršev). Brez sprejetja ni online dirk in nakupov; dostopni so tudi v Nastavitvah. Sprejeta različica in čas se shranita na profil (in na strežnik). Besedilo v `src/legal/Terms.ts` je **predloga** – pred objavo naj jo pregleda pravnik; ob vsebinski spremembi povečaj `TERMS_VERSION`.
 
-> Pred objavo preveri: (1) ali GameMonetize dovoljuje lastna plačila in povezavo na zunanji strežnik – v tem okolju njihove strani in pogojev ni bilo mogoče odpreti; (2) ali portal v iframe-u dovoli odpiranje novega zavihka (Stripe Checkout) – sicer igra prosi za dovoljenje pojavnih oken; (3) v nekaterih brskalnikih (Safari) je shramba v iframe-u omejena, zato lahko igralec ob ponovnem obisku dobi nov gostujoči račun.
+> Pred objavo preveri: (1) ali GameMonetize v svojih pogojih dovoljuje lastna plačila in povezavo na zunanji strežnik; (2) ali portal v iframe-u dovoli odpiranje novega zavihka (Stripe Checkout) – sicer igra prosi za dovoljenje pojavnih oken; (3) v nekaterih brskalnikih (Safari) je shramba v iframe-u omejena, zato lahko igralec ob ponovnem obisku dobi nov gostujoči račun.
 
 ## Arhitektura
 
@@ -114,7 +114,7 @@ src/
                paralaksno ozadje, delci, stranska kamera, meni, sličice
   audio/       sintetizirani zvočni učinki in proceduralna glasba (Web Audio)
   input/       tipkovnica (spremenljive tipke), miška, dotik, igralni plošček
-  ui/          vsi zasloni (DOM), HUD, prevodi EN/SL
+  ui/          vsi zasloni (DOM), HUD, pogoji uporabe
   app/         Application, RaceController, StateMachine, SceneManager
 server/        Node.js HTTP + WebSocket strežnik (uporablja ISTO kodo simulacije in ekonomije)
 tests/         unit, gameplay, economy, ads, purchases, integration, e2e
@@ -180,22 +180,21 @@ Glavne poti: `POST /api/auth/guest`, `GET /api/profile`, `POST /api/race/start`,
 | C – osnovna ekonomija (Coins, XP, nagrade, inventar, trgovina) | ✅ |
 | D – napredovanje (naloge, dosežki, dnevne nagrade, sezona) | ✅ |
 | E – monetizacija | ✅ za CrazyGames/GameMonetize oglase in lasten strežnik s sandbox plačili; glej omejitve |
-| F – spletno večigralstvo | 🟡 strežnik (čakalna vrsta, avtoritativna soba, posnetki stanja) in odjemalec obstajata in sta testirana, **v uporabniškem vmesniku še nista na voljo** |
+| F – spletno večigralstvo | ✅ online dirke (lockstep, do 4 igralci, boti zapolnijo prazna mesta) |
 | G – optimizacija in izdaja | 🟡 grafične nastavitve Low/Medium/High, deljenje kode, e2e testi; potrebno je testiranje zmogljivosti na pravih napravah |
 
 ## Izrecno neimplementirano ali nepreverjeno
 
-- **Spletne dirke v UI**: strežniška soba in `MatchmakingClient` obstajata, a odjemalec še nima prikaza dirke iz strežniških posnetkov in napovedovanja vnosov. Igra zato ponuja samo dirke proti računalniškim tekmecem.
-- **Stripe**: ponudnik je napisan po dokumentiranem API-ju, a ni bil preizkušen z resničnim računom Stripe (preizkusi v testnem načinu Stripe pred uporabo).
+- **Stripe**: pred objavo celoten nakup preizkusi v testnem načinu Stripe.
 - **Nakupi na CrazyGames** (njihova integracija Xsolla) niso povezani; nakupi so na portalih izklopljeni.
 - **Oglasi z nagrado na strežniku**: portali ne ponujajo potrditve strežnik–strežnik, zato strežnik zaupa povratnemu klicu SDK-ja, a uveljavlja omejitve in enkratne žetone.
 - **Lokalni profil** (portali, samostojna različica) ni zaščiten pred spreminjanjem na napravi; dirke se sicer preverijo s ponovno simulacijo, a na napravi. Uporabniški vmesnik to jasno navaja. Nakupi s pravim denarjem zato prek lokalnega profila nikoli niso ponujeni.
 - **Prijava z računom** (OAuth, povezava računa portala): samo gostujoči računi z žetonom.
 - **Analitika**: strežnik dogodke samo sprejme in prešteje; brez soglasja se nič ne pošlje.
-- **Zmogljivost** je bila v tem okolju merjena samo v brezglavem Chromiumu s programskim rasterizatorjem (~45–50 sličic/s pri 1280×720); na napravah z grafičnim pospeševanjem je pričakovano 60. Simulacija s tremi AI tekmeci porabi okoli 0,2–0,7 ms na korak na CPU.
-- **Jezik**: igra je samo v angleščini (slovenski prevod je bil na željo odstranjen).
+- **Zmogljivost**: risanje sličice traja ~16 ms v Chromiumu brez grafičnega pospeševanja (1280×720); simulacija s tremi računalniškimi tekmeci porabi okoli 0,2–0,7 ms na korak. Na pravih napravah preveri z nastavitvami grafike Low/Medium/High.
+- **Jezik**: igra je samo v angleščini.
 - **Sezona 2** ima samo osnovne (generirane) nagrade.
-- **Klani, prijatelji, klepet med igralci, zabave (party) in prave spletne Duos tekme** niso izvedljivi brez delujočega spletnega strežnika za igralce v živo; partner in tekmeci v Duos so računalniški. Trofeje tekmecev v predsobi so samo prikaz.
+- **Klani, prijatelji, klepet med igralci, zabave (party) in spletne Duos tekme** še niso narejeni; partner in tekmeci v Duos so računalniški. Trofeje računalniških tekmecev v predsobi so samo prikaz.
 
 ## Licenca in viri
 

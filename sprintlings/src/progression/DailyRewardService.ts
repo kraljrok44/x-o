@@ -4,17 +4,11 @@ import { EconomyError } from '../economy/EconomyError';
 import type { PlayerProfile } from '../economy/Profile';
 
 export interface DailyRewardInfo {
-  /** Index into the reward cycle for the next claim. */
   index: number;
   reward: (typeof EconomyConfig.daily.cycle)[number];
   available: boolean;
 }
 
-/**
- * Login calendar. Each new day (by the authority's clock) one step can be
- * claimed. Missed days never reset progress: the next claim simply
- * continues the cycle.
- */
 export function dailyInfo(profile: PlayerProfile, now: number): DailyRewardInfo {
   const cycle = EconomyConfig.daily.cycle;
   const index = profile.daily.claims % cycle.length;

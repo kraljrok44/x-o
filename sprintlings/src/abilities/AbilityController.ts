@@ -7,10 +7,6 @@ import type { Racer } from '../game/RaceState';
 
 export type UseResult = 'used' | 'noItem' | 'cooldown' | 'invalid';
 
-/**
- * Fires the racer's held ability if the current situation allows it.
- * Invalid uses never consume the charge (design doc section 5).
- */
 export function tryUseAbility(sim: RaceSimulation, racer: Racer): UseResult {
   const item = racer.item;
   if (!item) return 'noItem';
@@ -57,7 +53,6 @@ export function tryUseAbility(sim: RaceSimulation, racer: Racer): UseResult {
       if (b.stun > 0) return 'invalid';
       const target = nearestRivalAhead(sim, racer.index, AbilityTuning.lasso.range);
       if (target < 0) {
-        // Nobody to rope: lay it on the trail behind as a rope trap instead.
         const x = b.x - AbilityTuning.lasso.trapBehind;
         const g = sim.track.groundBelow(x, b.y + 0.4, -1, true);
         if (Number.isNaN(g) || b.y - g > 3) return 'invalid';
@@ -67,14 +62,12 @@ export function tryUseAbility(sim: RaceSimulation, racer: Racer): UseResult {
       const tr = sim.racers[target];
       const outcome = applyHit(tr.body, tr.mods, 320000 + sim.tick, AbilityTuning.lasso.stun, false);
       if (outcome === 'stunned') {
-        // Yanked back a little toward the thrower.
         tr.body.speed = 0;
         sim.emitAbilityHit(target, racer.index, 'lasso');
       } else if (outcome === 'blocked') sim.emit('shieldBlock', target, 0, tr.body);
       break;
     }
     case 'thunder': {
-      // Strikes whoever leads the race, unless that is you or your partner.
       const leader = sim.standings.find((i) => sim.racers[i].body.phase !== 'finished');
       if (leader === undefined || sim.sameTeam(leader, racer.index)) return 'invalid';
       const lb = sim.racers[leader].body;
@@ -103,13 +96,11 @@ export function tryUseAbility(sim: RaceSimulation, racer: Racer): UseResult {
   return 'used';
 }
 
-/** Rolls a Rune Box ability for the racer at standings position `place` (0 = leader). */
 export function rollItem(sim: RaceSimulation, place: number): AbilityId {
   const table = ITEM_WEIGHTS_BY_POSITION[Math.min(place, ITEM_WEIGHTS_BY_POSITION.length - 1)];
   return sim.rng.weighted(table);
 }
 
-/** Handles Rune Box pickups for every racer this tick. */
 export function collectItemBoxes(sim: RaceSimulation): void {
   const boxes = sim.track.data.itemBoxes;
   const r = GameplayConfig.itemBox.pickupRadius;

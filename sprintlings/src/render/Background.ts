@@ -3,29 +3,15 @@ import type { GraphicsQuality } from './GameRenderer';
 import { BIOME_THEMES, type BiomeTheme } from './BiomeTheme';
 import { ellipse, hash, mix, rgba, shade, star, tint, type Ctx } from './draw';
 
-/**
- * Parallax backdrop drawn in screen space: sky gradient, sun or moon,
- * drifting clouds and three silhouette layers (far, mid, near) with biome
- * motifs. Layers are pre-rendered into seamless tiles once per resize so a
- * frame is just a handful of drawImage calls.
- *
- * The look is painterly: every layer is lit from above, fogged toward its
- * feet and textured with soft brush dabs; sun rays and drifting light motes
- * add depth. The course itself stays crisp so hazards always read first.
- */
-
 interface Layer {
   canvas: HTMLCanvasElement;
-  /** Horizontal and vertical parallax factors (0 = fixed, 1 = moves with the world). */
   px: number;
   py: number;
-  /** Tile top relative to the horizon line (px). */
   offset: number;
 }
 
 const TILE_W = 1600;
 
-/** Periodic noise over one tile so tiles wrap seamlessly. */
 function ridge(x: number, seed: number, octaves: number[]): number {
   let v = 0;
   let norm = 0;
@@ -130,7 +116,6 @@ export class Background {
     c.closePath();
     c.fillStyle = color;
     c.fill();
-    // Sunlit rim along the ridge line.
     c.save();
     c.globalCompositeOperation = 'source-atop';
     c.beginPath();
@@ -142,10 +127,6 @@ export class Background {
     return tops;
   }
 
-  /**
-   * Painterly finish for a layer tile, touching only what is already drawn:
-   * warm light from above, fog toward the feet and soft brush dabs.
-   */
   private paint(c: Ctx, lh: number, top: number, unit: number, fog: number, seed: number): void {
     const th = this.theme;
     c.save();
@@ -177,14 +158,12 @@ export class Background {
     const th = this.theme;
     const base = lh * 0.45;
     if (this.biome === 'forest' || this.biome === 'snow') {
-      // Distant ranges over the prairie / snowy peaks.
       this.silhouette(c, lh, base, unit * 1.3, 2, [1, 3, 7], th.far);
       c.save();
       c.globalAlpha = 0.45;
       this.silhouette(c, lh, base - unit * 0.05, unit * 1.3, 2, [1, 3, 7], tint(th.far, 0.4));
       c.restore();
     } else {
-      // Flat-topped mesas and buttes.
       this.silhouette(c, lh, base, unit * 1.7, this.biome === 'canyon' ? 1 : 4, [2, 5, 9], th.far, true);
     }
     this.silhouette(c, lh, base + unit * 0.45, unit * 0.9, 3, [2, 4, 9], mix(th.far, th.mid, 0.4), this.biome !== 'forest' && this.biome !== 'snow');
@@ -197,7 +176,6 @@ export class Background {
     const at = (x: number) => tops[Math.max(0, Math.min(tops.length - 1, Math.round(x / 8)))];
     const col = shade(th.mid, 0.28);
     const glow = th.night ? '#ffcf5a' : null;
-    // A few landmarks per tile, the rest small fillers.
     const marks =
       this.biome === 'forest'
         ? ['windmill', 'barn', 'fence', 'tree', 'fence', 'windmill', 'tree', 'fence']
@@ -268,7 +246,6 @@ export class Background {
         case 'shack': {
           const w = marks[i] === 'saloon' ? s * 1.5 : s * 0.9;
           const hgt = marks[i] === 'saloon' ? s * 1.25 : s * 0.75;
-          // False-front facade.
           c.fillRect(x - w / 2, y - hgt, w, hgt);
           c.fillRect(x - w * 0.35, y - hgt - s * 0.25, w * 0.7, s * 0.3);
           if (glow) {
@@ -347,7 +324,6 @@ export class Background {
       const s = unit * (0.3 + hash(i * 3.3) * 0.3);
       const kind = i % 3;
       if (this.biome === 'snow') {
-        // Snowy pines and drifts.
         if (kind !== 1) drawPine(c, x, y, s * 1.5, shade(th.near, 0.1));
         else {
           c.beginPath();
@@ -357,7 +333,6 @@ export class Background {
         }
       } else if (this.biome === 'forest') {
         if (kind === 0) {
-          // Round hay bale.
           c.beginPath();
           ellipse(c, x, y - s * 0.4, s * 0.55, s * 0.42);
           c.fillStyle = '#d9b45a';
@@ -381,13 +356,11 @@ export class Background {
         }
       } else if (kind === 0) drawCactus(c, x, y, s * 1.2, shade(th.near, this.theme.night ? 0.35 : 0.2));
       else if (kind === 1) {
-        // Tumbleweed / boulder.
         c.beginPath();
         ellipse(c, x, y - s * 0.3, s * 0.35, s * 0.3);
         c.fillStyle = shade(th.near, 0.15);
         c.fill();
       } else if (this.theme.night) {
-        // Lantern post.
         c.fillStyle = shade(th.near, 0.4);
         c.fillRect(x - 2, y - s * 1.4, 4, s * 1.4);
         const g = c.createRadialGradient(x, y - s * 1.4, 0, x, y - s * 1.4, s * 0.6);
@@ -414,7 +387,6 @@ export class Background {
       for (const [x, y, r] of parts) ellipse(c, (x + dx) * unit, cy + (y + dy) * unit, r * k * unit, r * k * unit * 0.78);
     };
     c.globalAlpha = th.night ? 0.3 : 0.95;
-    // Shaded belly, sunlit body, then a bright crown: soft painted volume.
     puffs(0, 0.04, 1);
     c.fillStyle = mix(th.cloud, th.sky[0], th.night ? 0.2 : 0.32);
     c.fill();
@@ -431,7 +403,6 @@ export class Background {
   draw(ctx: Ctx, w: number, h: number, pr: number, camX: number, camY: number, scale: number, time: number): void {
     this.build(ctx, w, h, pr);
     const th = this.theme;
-    // Sky, sun or moon, rays and horizon haze come pre-rendered in one opaque copy.
     ctx.drawImage(this.sky!, 0, 0, w, h);
     if (th.night) {
       for (const s of this.stars) {
@@ -444,7 +415,6 @@ export class Background {
       ctx.globalAlpha = 1;
     }
 
-    // Clouds drift on their own and with a little parallax.
     if (this.cloud) {
       const cw = this.cloud.width / pr;
       const ch = this.cloud.height / pr;
@@ -457,12 +427,10 @@ export class Background {
       }
     }
 
-    // Silhouette layers, tiled.
     const horizon = h * 0.62;
     for (const l of this.layers) {
       const lw = l.canvas.width / pr;
       const lh = l.canvas.height / pr;
-      // Whole device pixels: a 1:1 copy skips the costly resampling of a fractional offset.
       const top = Math.round((horizon + l.offset + camY * scale * l.py) * pr) / pr;
       let x0 = Math.round((-(((camX * scale * l.px) % lw) + lw) % lw) * pr) / pr;
       for (; x0 < w; x0 += lw) ctx.drawImage(l.canvas, x0, top, lw, lh);
@@ -473,10 +441,6 @@ export class Background {
     }
   }
 
-  /**
-   * Screen-space finish drawn over the world: drifting light motes and a soft
-   * vignette. Both stay clear of the middle of the screen where racing happens.
-   */
   drawOverlay(ctx: Ctx, w: number, h: number, camX: number, scale: number, time: number): void {
     if (this.quality === 'low' || !this.mote) return;
     const u = h / 720;
@@ -493,7 +457,6 @@ export class Background {
     if (this.vignetteCanvas) ctx.drawImage(this.vignetteCanvas, 0, 0, w, h);
   }
 
-  /** The static sky: gradient, horizon haze, sun glow and disc (or moon) and sun rays. */
   private buildSky(w: number, h: number, pr: number): HTMLCanvasElement {
     const th = this.theme;
     const c = document.createElement('canvas');
@@ -513,7 +476,6 @@ export class Background {
     ctx.fillStyle = glow;
     ctx.fillRect(sunX - h * 0.25, sunY - h * 0.25, h * 0.5, h * 0.5);
     if (th.night) {
-      // Crescent moon: the disc minus an offset disc (even-odd fill inside a clip).
       ctx.save();
       ctx.beginPath();
       ellipse(ctx, sunX, sunY, h * 0.07, h * 0.07);
@@ -525,7 +487,6 @@ export class Background {
       ctx.fill('evenodd');
       ctx.restore();
     } else {
-      // Soft painted sun: a bright core melting into its halo.
       const sg = ctx.createRadialGradient(sunX - h * 0.01, sunY - h * 0.01, 0, sunX, sunY, h * 0.085);
       sg.addColorStop(0, tint(th.sun, 0.7));
       sg.addColorStop(0.75, th.sun);
@@ -542,7 +503,6 @@ export class Background {
     return c;
   }
 
-  /** Quarter-resolution canvas: full-screen soft effects are fill-rate heavy on phones. */
   private lowRes(w: number, h: number, draw: (c: Ctx) => void): HTMLCanvasElement {
     const c = document.createElement('canvas');
     c.width = Math.max(1, Math.ceil(w / 4));
@@ -554,7 +514,6 @@ export class Background {
   }
 
   private buildVignette(w: number, h: number, pr: number): HTMLCanvasElement {
-    // Full resolution: a 1:1 copy is far cheaper than a scaled one every frame.
     const c = document.createElement('canvas');
     c.width = Math.ceil(w * pr);
     c.height = Math.ceil(h * pr);
@@ -580,7 +539,6 @@ export class Background {
       for (let i = 0; i < 4; i++) {
         const a = Math.PI * 0.68 + (i - 1.5) * 0.22 + (hash(i * 7.7) - 0.5) * 0.06;
         const half = 0.06 + hash(i * 3.3) * 0.05;
-        // Nested wedges give each ray soft edges.
         for (const k of [1, 0.75, 0.5, 0.25]) {
           c.beginPath();
           c.moveTo(sunX + Math.cos(a) * r0, sunY + Math.sin(a) * r0);
@@ -604,7 +562,6 @@ function roundRectPath(c: Ctx, x: number, y: number, w: number, h: number, r: nu
   c.closePath();
 }
 
-/** Saguaro silhouette standing on (x, y) in screen space (y down). */
 export function drawCactus(c: Ctx, x: number, y: number, s: number, color: string): void {
   c.strokeStyle = color;
   c.lineCap = 'round';
@@ -619,10 +576,6 @@ export function drawCactus(c: Ctx, x: number, y: number, s: number, color: strin
   c.stroke();
 }
 
-/**
- * Rounded painted tree (or bush when `bush`): a clump of leafy blobs, darker
- * underneath and lit on top, standing on (x, y) in screen space.
- */
 function drawCanopy(c: Ctx, x: number, y: number, s: number, color: string, seed: number, bush = false): void {
   if (!bush) {
     c.fillStyle = shade(color, 0.45);
@@ -655,7 +608,6 @@ function drawCanopy(c: Ctx, x: number, y: number, s: number, color: string, seed
   c.fill();
 }
 
-/** Pine tree silhouette with snow on each tier. */
 function drawPine(c: Ctx, x: number, y: number, s: number, color: string): void {
   c.fillStyle = color;
   c.fillRect(x - s * 0.05, y - s * 0.25, s * 0.1, s * 0.25);

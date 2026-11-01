@@ -10,24 +10,15 @@ import type { CharacterId } from '../player/CharacterDefinition';
 export interface ValidationReport {
   ok: boolean;
   problems: string[];
-  /** Finish time of the perfect solver, if it finished. */
   solverTime: number | null;
   solverIncidents: number;
 }
 
-/** Widest pit a normal running jump must clear (a full jump travels ~7.5 u). */
 const MAX_PIT = 4.6;
 const MAX_SPRUNG_PIT = 10;
 const MIN_HURDLE_GAP = 6;
-/** Characters whose passives change movement physics or timing. */
 const SOLVER_CHARACTERS: readonly CharacterId[] = ['moss', 'kip', 'pebble', 'ember'];
 
-/**
- * Proves a track is passable at normal speed:
- *  1. static rules (pit widths, segment adjacency, lead-ins, landing room),
- *  2. a "perfect" planner bot must finish solo with zero hits and falls,
- *     for every character (passives change physics slightly).
- */
 export function validateTrack(
   track: Track,
   opts: { solver?: boolean; characters?: readonly CharacterId[] } = {},
@@ -35,10 +26,8 @@ export function validateTrack(
   const problems: string[] = [];
   const d = track.data;
 
-  // Pits must be jumpable at running speed unless a spring launches you across.
   let pitStart: number | null = null;
   for (let x = -10; x <= d.length + 20; x += 0.25) {
-    // Clouds and planks over a pit count as stepping stones.
     const solid = !Number.isNaN(track.groundBelow(x, 1e9, -1, true));
     if (!solid && pitStart === null) pitStart = x;
     if (solid && pitStart !== null) {
@@ -52,7 +41,6 @@ export function validateTrack(
   if (pitStart !== null) problems.push('track ends over a pit');
   if (Number.isNaN(track.solidTop(d.length)) || Number.isNaN(track.solidTop(d.length + 10))) problems.push('no ground after the finish line');
 
-  // Segment adjacency and lead-in rules.
   for (let i = 0; i < d.segments.length; i++) {
     const seg = SEGMENT_BY_ID[d.segments[i].templateId];
     const prev = i > 0 ? SEGMENT_BY_ID[d.segments[i - 1].templateId] : null;
@@ -70,7 +58,6 @@ export function validateTrack(
     }
   }
 
-  // Two ground hurdles on the same level need landing room between them.
   const jumpers = d.hazards.filter((h) => h.kind === 'log' || h.kind === 'spikes');
   for (let i = 1; i < jumpers.length; i++) {
     const a = jumpers[i - 1];
@@ -108,16 +95,11 @@ export function validateTrack(
 
 const remixCache = new Map<string, Track>();
 
-/**
- * The Daily Remix for a UTC day key. Tries successive seeds until one passes
- * validation, falling back to a hand-made track (which is validated in tests).
- */
 export function getValidatedRemix(day: string): Track {
   const hit = remixCache.get(day);
   if (hit) return hit;
   for (let attempt = 0; attempt < 6; attempt++) {
     const track = buildTrack(remixRecipe(day, attempt));
-    // Runtime check uses the neutral-physics monster; the test suite covers all passives.
     if (validateTrack(track, { characters: ['moss'] }).ok) {
       remixCache.set(day, track);
       return track;

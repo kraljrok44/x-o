@@ -18,11 +18,9 @@ export interface SeasonTier {
 export interface SeasonDefinition {
   id: string;
   name: string;
-  /** ISO dates, inclusive start, exclusive end (UTC). */
   start: string;
   end: string;
   tiers: SeasonTier[];
-  /** What happens at the end: unclaimed reached rewards are granted, progress is archived. */
   endRule: string;
 }
 
@@ -77,16 +75,10 @@ export function tierForPoints(points: number): number {
 
 export interface SeasonRollover {
   ended: SeasonDefinition | null;
-  /** Season points the profile had in the season that ended. */
   endedPoints: number;
-  /** Rewards granted automatically for the season that ended. */
   autoRewards: { tier: number; track: 'free' | 'premium'; reward: SeasonReward }[];
 }
 
-/**
- * Moves the profile into the current season. If the previous season ended,
- * its reached-but-unclaimed rewards are returned for automatic granting.
- */
 export function syncSeason(profile: PlayerProfile, now: number): SeasonRollover {
   const current = seasonAt(now);
   const st = profile.season;

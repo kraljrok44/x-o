@@ -4,11 +4,6 @@ import { describeAdReward, placementLimits } from '../ads/AdRewardService';
 import { h } from './dom';
 import { t } from './i18n';
 
-/**
- * Explains a rewarded video before anything plays (what plays, how long,
- * what you get, limits, and what happens if it can't play). The ad starts
- * only after the player presses "Watch video".
- */
 export async function offerRewardedAd(ctx: AppContext, placement: RewardedPlacement, raceId?: string): Promise<boolean> {
   const can = ctx.rewarded.canOffer(placement, raceId);
   if (!can.ok) {

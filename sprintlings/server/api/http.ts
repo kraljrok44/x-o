@@ -31,7 +31,6 @@ interface Route {
   raw?: boolean;
 }
 
-/** Minimal router: "/api/purchases/:id" style paths, JSON in/out. */
 export class Router {
   private readonly routes: Route[] = [];
 
@@ -78,7 +77,6 @@ export function send(res: ServerResponse, status: number, body: unknown, content
   res.end(payload);
 }
 
-/** Fixed-window rate limiter per key. */
 export class RateLimiter {
   private readonly hits = new Map<string, { count: number; reset: number }>();
   constructor(

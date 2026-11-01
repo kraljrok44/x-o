@@ -45,7 +45,6 @@ function createProvider(cfg: ServerConfig): PaymentProvider | null {
   return null;
 }
 
-/** Sandbox checkout page: plainly a TEST, with buttons for every outcome. */
 function sandboxPage(ref: string, productName: string, price: string): string {
   const esc = (s: string) => s.replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]!);
   return `<!doctype html><meta name=viewport content="width=device-width,initial-scale=1"><title>Sandbox checkout (TEST)</title>
@@ -118,7 +117,6 @@ export async function startServer(overrides: Partial<ServerConfig> = {}, opts: {
     }
   });
 
-  // Clients (and load balancers) reuse idle sockets; Node's 5 s default closes them under a request in flight.
   server.keepAliveTimeout = 65_000;
   server.headersTimeout = 66_000;
 

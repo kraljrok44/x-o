@@ -8,7 +8,6 @@ export interface RacerResult {
   name: string;
   characterId: CharacterId;
   isPlayer: boolean;
-  /** 1-based final position. */
   place: number;
   team: number;
   finishTime: number | null;
@@ -21,11 +20,9 @@ export interface RaceResultSummary {
   seed: number;
   ticks: number;
   racers: RacerResult[];
-  /** Duos: the winning team id (more placing points; ties go to the first finisher's team). */
   winningTeam: number | null;
 }
 
-/** Placing points for team races: 1st 4, 2nd 3, 3rd 2, 4th 1. */
 export function teamWinner(results: readonly { team: number; place: number }[]): number | null {
   const teams = new Set(results.map((r) => r.team));
   if (teams.size === results.length) return null;
@@ -43,7 +40,6 @@ export function teamWinner(results: readonly { team: number; place: number }[]):
   return best;
 }
 
-/** Final classification: finishers by time, then the rest by distance covered. */
 export function summarizeRace(sim: RaceSimulation): RaceResultSummary {
   const order = [...sim.standings];
   const summary: RaceResultSummary = {

@@ -1,26 +1,14 @@
 export type DifficultyId = 'rookie' | 'racer' | 'ace' | 'perfect';
 
-/**
- * How skilled a computer racer is. Bots use the same movement code and the
- * same look-ahead planner; difficulty only changes how often they re-think,
- * how precisely they execute, and how often they overlook a hazard.
- */
 export interface DifficultyProfile {
   id: DifficultyId;
   label: string;
-  /** Ticks between plans (lower = reacts faster). */
   replanInterval: number;
-  /** Planner horizon in ticks. */
   horizon: number;
-  /** Max random offset (ticks) applied to planned jump timing. */
   jumpJitter: number;
-  /** Chance per evasive decision to not notice the danger. */
   mistakeChance: number;
-  /** Ticks a missed hazard stays unnoticed. */
   mistakeTicks: number;
-  /** Seconds a fresh ability is held before the bot considers using it. */
   itemDelay: number;
-  /** 0..1 how eagerly the bot hunts glimmers and boxes. */
   greed: number;
 }
 

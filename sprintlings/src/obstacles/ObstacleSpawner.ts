@@ -17,16 +17,10 @@ export interface TrackRecipe {
   segments: SegmentPlacement[];
 }
 
-/**
- * Builds a playable Track from a recipe: lays segments end to end and lets
- * each place its ground, hazards and pickups. A run-out of flat ground
- * follows the finish line.
- */
 export function buildTrack(recipe: TrackRecipe): Track {
   const draft = emptyDraft();
   const rng = new Rng(recipe.seed);
   const placed: PlacedSegment[] = [];
-  // Lead-in behind the start line.
   draft.pieces.push({ id: draft.nextId++, x0: -20, x1: 0, y0: 0, y1: 0, oneWay: false });
   let x = 0;
   for (const placement of recipe.segments) {
@@ -55,15 +49,8 @@ export function buildTrack(recipe: TrackRecipe): Track {
   return new Track(data);
 }
 
-/** Hills: length range (u), height range (u) and the clear margin kept around hazards. */
 const HILL = { minLen: 9, maxLen: 13, minRise: 0.8, maxRise: 1.5, dipChance: 0.35, margin: 1.5, sub: 12 } as const;
 
-/**
- * Rolls long flat stretches into smooth hills and dips so the run goes up and
- * down on its own, not only by jumping and climbing. Only hazard-free ground
- * with nothing hanging low above it is reshaped; pickups there ride the new
- * surface. The level at either end is unchanged, so the course stays valid.
- */
 function addHills(draft: TrackDraft, rng: Rng, length: number): void {
   const busy: [number, number][] = draft.hazards.map((h) => hazardExtent(h));
   const flats = draft.pieces.filter((p) => !p.oneWay && p.y0 === p.y1 && p.x1 - p.x0 >= HILL.minLen + 2 && p.x0 >= 12 && p.x1 <= length - 6);

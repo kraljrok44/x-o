@@ -17,10 +17,6 @@ interface Conn {
   player: RoomPlayer | null;
 }
 
-/**
- * Online matchmaking over WebSocket (/ws). Players queue; a room starts
- * when 4 players are waiting or after a short wait (bots fill the rest).
- */
 export class MatchmakingService {
   private readonly wss: WebSocketServer;
   private queue: Conn[] = [];
@@ -77,7 +73,6 @@ export class MatchmakingService {
     ws.on('close', () => {
       this.queue = this.queue.filter((x) => x !== c);
       if (c.player) {
-        // Disconnected racers keep running with no input; rewards are still settled.
         c.player.connected = false;
         c.player.input.jumpHeld = false;
         c.room?.markReady(c.index);

@@ -1,4 +1,3 @@
--- Sprintlings server schema v1.
 CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now());
 
 CREATE TABLE IF NOT EXISTS accounts (
@@ -7,7 +6,6 @@ CREATE TABLE IF NOT EXISTS accounts (
   created_at BIGINT NOT NULL
 );
 
--- Whole profile as JSONB with an optimistic-lock version.
 CREATE TABLE IF NOT EXISTS profiles (
   account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
   version INTEGER NOT NULL,
@@ -15,8 +13,6 @@ CREATE TABLE IF NOT EXISTS profiles (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Full, append-only economic audit log. The event id is globally unique: the same
--- economic event can never be recorded (or paid) twice.
 CREATE TABLE IF NOT EXISTS ledger (
   id TEXT NOT NULL,
   account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,

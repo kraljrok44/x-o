@@ -18,16 +18,9 @@ import type { Camera2D } from './Camera2D';
 import type { BiomeTheme } from './BiomeTheme';
 import { ellipse, hash, mix, noise1, rgba, roundRect, shade, star, tint, type Ctx } from './draw';
 
-/**
- * Paints the course in world space (+y up): terrain runs with grass caps,
- * floating platforms, decorations, every hazard in its current state,
- * pickups and ability entities. Reads the track and the race clock only.
- */
-
 const OL_W = 0.055;
 
 interface Run {
-  /** Polyline of the walkable top, including vertical step faces. */
   pts: number[];
   x0: number;
   x1: number;
@@ -37,7 +30,6 @@ interface Run {
 interface Chunk {
   canvas: HTMLCanvasElement | null;
   x0: number;
-  /** World y of the canvas top and bottom rows. */
   top: number;
   bot: number;
 }
@@ -55,9 +47,7 @@ export class WorldPainter {
   private readonly runs: Run[] = [];
   private readonly platforms: GroundPiece[] = [];
   private readonly decor: Decor[] = [];
-  /** Time each spring was last bounced on (for its squash animation). */
   private readonly springBounce = new Map<number, number>();
-  /** Item boxes popped this session: when (for the pop/respawn animation). */
   private readonly boxPopped = new Map<number, number>();
 
   constructor(
@@ -94,11 +84,9 @@ export class WorldPainter {
       const jx = x + hash(x * 1.7) * step * 0.8;
       const y = this.track.solidTop(jx);
       if (Number.isNaN(y)) continue;
-      // Keep decorations off hazards so they never hide a threat.
       let clear = true;
       this.track.forHazardsNear(jx - 0.8, jx + 0.8, () => (clear = false));
       if (!clear) continue;
-      // Skip slopes' steep parts and edges.
       const yl = this.track.solidTop(jx - 0.3);
       const yr = this.track.solidTop(jx + 0.3);
       if (Number.isNaN(yl) || Number.isNaN(yr) || Math.abs(yl - yr) > 0.25) continue;
@@ -114,7 +102,6 @@ export class WorldPainter {
     this.boxPopped.set(index, time);
   }
 
-  /** Scorch marks and splats left on the ground (kept for the rest of the race). */
   private readonly decals: { x: number; y: number; r: number; color: string; seed: number }[] = [];
 
   addScorch(x: number, y: number): void {
@@ -147,8 +134,6 @@ export class WorldPainter {
     }
   }
 
-  // --- terrain ---------------------------------------------------------------------
-
   drawPitShade(ctx: Ctx, left: number, right: number, bottom: number): void {
     const top = -0.4;
     const g = ctx.createLinearGradient(0, top, 0, Math.min(bottom, top - 3));
@@ -158,11 +143,6 @@ export class WorldPainter {
     ctx.fillRect(left, bottom, right - left, top - bottom);
   }
 
-  /**
-   * Terrain. With a camera, the static details (strata, pebbles, grass,
-   * flowers) come from pre-rendered chunks and only the soil body is drawn
-   * live; without one everything is drawn directly.
-   */
   drawTerrain(ctx: Ctx, left: number, right: number, bottom: number, cam?: Camera2D, pr = 1): void {
     if (!cam || this.quality === 'low') {
       this.paintTerrain(ctx, left, right, bottom, 'all');
@@ -178,13 +158,10 @@ export class WorldPainter {
     for (const run of this.runs) {
       if (run.x1 < left || run.x0 > right) continue;
       const pts = run.pts;
-      // Paths cover only the visible stretch (plus a margin so cut ends stay off screen):
-      // a run can span the whole course and clipping to it is costly.
       let i0 = 0;
       while (i0 + 2 < pts.length && pts[i0 + 2] < left - 2) i0 += 2;
       let i1 = i0;
       while (i1 + 2 < pts.length && pts[i1] < right + 2) i1 += 2;
-      // Soil body.
       ctx.beginPath();
       ctx.moveTo(pts[i0], bottom);
       for (let i = i0; i <= i1; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
@@ -215,7 +192,6 @@ export class WorldPainter {
       ctx.save();
       ctx.clip();
       if (!flat) this.paintSoil(ctx, run, left, right);
-      // Specks (pebbles, roots, gems) at deterministic world positions.
       if (!flat) {
         const x0 = Math.max(run.x0, left);
         const x1 = Math.min(run.x1, right);
@@ -227,7 +203,6 @@ export class WorldPainter {
             const sy = top - 0.55 - hash(x * 3.7 + k * 11) * 3.2;
             const r = 0.05 + hash(x * 9.3 + k) * 0.08;
             const col = th.speck[(((k + Math.floor(x * 5)) % th.speck.length) + th.speck.length) % th.speck.length];
-            // Pebble with a shadowed underside and a lit top.
             ctx.beginPath();
             ellipse(ctx, sx + r * 0.15, sy - r * 0.2, r * 1.35, r);
             ctx.fillStyle = rgba(th.soilDeep, 0.45);
@@ -243,7 +218,6 @@ export class WorldPainter {
           }
         }
       }
-      // Grass cap: a thick band along non-vertical segments, scalloped underneath.
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
       ctx.beginPath();
@@ -256,7 +230,6 @@ export class WorldPainter {
       ctx.strokeStyle = th.grass;
       ctx.stroke();
       if (!flat && th.id === 'snow') {
-        // Snow lumps hanging under the cap.
         ctx.fillStyle = th.grass;
         for (let i = 0; i + 3 < pts.length; i += 2) {
           const ax = pts[i];
@@ -272,7 +245,6 @@ export class WorldPainter {
             ctx.fill();
           }
         }
-        // Light strip on top of the grass.
         ctx.beginPath();
         for (let i = i0; i < i1; i += 2) {
           if (Math.abs(pts[i + 2] - pts[i]) < 1e-6) continue;
@@ -285,9 +257,7 @@ export class WorldPainter {
       }
       ctx.restore();
 
-      // Outline: top polyline and both ends down to the bottom.
       outline();
-      // Tufts soften the outline, so they go on top of it.
       if (!flat && th.id !== 'snow') {
         this.paintGrass(ctx, pts, left, right);
         this.drawFlowers(ctx, pts, left, right);
@@ -295,7 +265,6 @@ export class WorldPainter {
     }
   }
 
-  /** Chunks right of the view kept ready; built one per frame so the race never stalls on them. */
   private static readonly CHUNK = 8;
   private readonly chunks = new Map<number, Chunk>();
   private chunkPx = 0;
@@ -337,7 +306,6 @@ export class WorldPainter {
     return ch;
   }
 
-  /** Builds missing chunks from x forward within a time budget; returns the share ready (0..1). */
   prepareChunks(x: number, ahead: number, px: number, budgetMs: number): number {
     if (this.quality === 'low') return 1;
     if (px !== this.chunkPx) {
@@ -378,7 +346,6 @@ export class WorldPainter {
       ctx.drawImage(ch.canvas, 0, 0, C * px, (ch.top - ch.bot) * px, dx, dy, dx2 - dx, dy2 - dy);
     }
     ctx.restore();
-    // Stay ahead: at most one new chunk per frame, and forget the ones far behind.
     for (let i = last + 1; i <= last + 3; i++) {
       if (!this.chunks.has(i)) {
         this.chunk(i, px);
@@ -388,11 +355,9 @@ export class WorldPainter {
     for (const k of this.chunks.keys()) if (k < first - 2 || k > last + 12) this.chunks.delete(k);
   }
 
-  /** Painted soil: strata following the surface, soft brush dabs and a shadow under the grass lip. */
   private paintSoil(ctx: Ctx, run: Run, left: number, right: number): void {
     const th = this.th;
     const pts = run.pts;
-    // Only the visible stretch: runs can span the whole course.
     let i0 = 0;
     while (i0 + 2 < pts.length && pts[i0 + 2] < left - 1) i0 += 2;
     let i1 = i0;
@@ -427,14 +392,12 @@ export class WorldPainter {
       ctx.fillStyle = hash(x * 4.4) > 0.5 ? 'rgba(255,240,210,0.08)' : rgba(th.soilDeep, 0.16);
       ctx.fill();
     }
-    // Ambient shadow tucked under the grass cap.
     along(-0.42, 0);
     ctx.lineWidth = 0.42;
     ctx.strokeStyle = rgba(th.soilDeep, 0.5);
     ctx.stroke();
   }
 
-  /** Tufted grass: clumps of blades rising from the cap and soft wisps hanging under it. */
   private paintGrass(ctx: Ctx, pts: number[], left: number, right: number): void {
     const th = this.th;
     const fills = [shade(th.grass, 0.28), mix(th.grass, th.grassLight, 0.55), shade(th.grass, 0.12)];
@@ -452,7 +415,6 @@ export class WorldPainter {
           const k = (x - ax) / (bx - ax);
           const y = pts[i + 1] + (pts[i + 3] - pts[i + 1]) * k;
           const r = hash(n * 1.37 + pass * 17);
-          // Clumps: blade height swells and fades along the ground.
           const clump = noise1(x * 0.9, 3 + pass);
           if (pass === 2) {
             if (x - ax < 0.15 || bx - x < 0.15 || r > 0.75) continue;
@@ -476,7 +438,6 @@ export class WorldPainter {
     }
   }
 
-  /** Tiny wildflowers dotted along the grass. */
   private drawFlowers(ctx: Ctx, pts: number[], left: number, right: number): void {
     const colors = this.th.decor;
     for (let i = 0; i + 3 < pts.length; i += 2) {
@@ -513,7 +474,6 @@ export class WorldPainter {
       }
       const y = p.y0;
       const h = 0.32;
-      // Hanging vines/ropes for floaty charm.
       ctx.strokeStyle = shade(th.plankEdge, 0.2);
       ctx.lineWidth = 0.04;
       for (let x = p.x0 + 0.6; x < p.x1 - 0.3; x += 2.2) {
@@ -535,7 +495,6 @@ export class WorldPainter {
       ctx.lineWidth = OL_W;
       ctx.strokeStyle = th.outline;
       ctx.stroke();
-      // Plank seams.
       ctx.beginPath();
       for (let x = p.x0 + 1.1; x < p.x1 - 0.3; x += 1.1) {
         ctx.moveTo(x, y - 0.04);
@@ -544,7 +503,6 @@ export class WorldPainter {
       ctx.lineWidth = 0.03;
       ctx.strokeStyle = th.plankEdge;
       ctx.stroke();
-      // Moss/grass lip so it reads as a surface to land on.
       ctx.beginPath();
       ctx.moveTo(p.x0 + 0.08, y - 0.02);
       ctx.lineTo(p.x1 - 0.08, y - 0.02);
@@ -555,7 +513,6 @@ export class WorldPainter {
     }
   }
 
-  /** Standable cloud: flat walkable top at y, puffy underside, a soft shadow below. */
   private drawCloudPlatform(ctx: Ctx, x0: number, x1: number, y: number): void {
     const w = x1 - x0;
     const n = Math.max(2, Math.round(w / 0.9));
@@ -569,14 +526,12 @@ export class WorldPainter {
       }
       ctx.rect(x0, y - 0.28 - grow, w, 0.28 + grow * 2);
     };
-    // Outline pass, then fill, so the merged puffs share one outline.
     puffs(0.06);
     ctx.fillStyle = this.th.outline;
     ctx.fill();
     puffs(0);
     ctx.fillStyle = '#ffffff';
     ctx.fill();
-    // Blue-grey belly and a bright top edge to read as the surface.
     ctx.beginPath();
     for (let k = 0; k <= n; k++) {
       const x = x0 + (k / n) * w;
@@ -603,7 +558,6 @@ export class WorldPainter {
       switch (d.kind) {
         case 0:
         case 1: {
-          // Grass tuft.
           ctx.beginPath();
           for (let k = -1; k <= 1; k++) {
             ctx.moveTo(d.x + k * 0.07 * s, d.y);
@@ -617,7 +571,6 @@ export class WorldPainter {
         }
         case 2: {
           if (th.night) {
-            // Small crystal.
             ctx.beginPath();
             ctx.moveTo(d.x - 0.09 * s, d.y);
             ctx.lineTo(d.x - 0.04 * s, d.y + 0.32 * s);
@@ -630,7 +583,6 @@ export class WorldPainter {
             ctx.strokeStyle = th.outline;
             ctx.stroke();
           } else {
-            // Flower.
             ctx.beginPath();
             ctx.moveTo(d.x, d.y);
             ctx.quadraticCurveTo(d.x + sway, d.y + 0.15 * s, d.x + sway * 1.5, d.y + 0.3 * s);
@@ -654,7 +606,6 @@ export class WorldPainter {
           break;
         }
         case 3: {
-          // Pebble.
           ctx.beginPath();
           ellipse(ctx, d.x, d.y + 0.05 * s, 0.14 * s, 0.09 * s);
           ctx.fillStyle = mix(th.hazard.stone, '#ffffff', 0.15);
@@ -665,7 +616,6 @@ export class WorldPainter {
           break;
         }
         case 4: {
-          // Little barrel cactus with a flower.
           ctx.beginPath();
           ellipse(ctx, d.x, d.y + 0.1 * s, 0.1 * s, 0.11 * s);
           ctx.fillStyle = '#5aa040';
@@ -680,7 +630,6 @@ export class WorldPainter {
           break;
         }
         case 5: {
-          // Bleached longhorn skull (prairie and canyon) or a gold-flecked rock at the mine.
           if (th.night) {
             ctx.beginPath();
             ellipse(ctx, d.x, d.y + 0.06 * s, 0.13 * s, 0.08 * s);
@@ -713,7 +662,6 @@ export class WorldPainter {
     }
   }
 
-  /** Cheering critter spectators lined up at the start and the finish. */
   private drawCrowd(ctx: Ctx, x0: number, x1: number, left: number, right: number, time: number): void {
     const colors = ['#f08a3c', '#c9b59a', '#9a6338', '#9aa0ac', '#a8522f', '#7f8ba0', '#e8c27a', '#5f5a72'];
     const shirts = ['#d8343a', '#3f6fb0', '#4f9e5a', '#f2b233', '#8e5ad6', '#f3e1b6'];
@@ -729,7 +677,6 @@ export class WorldPainter {
       const by = g + hop + (back ? 0.25 : 0);
       ctx.save();
       ctx.globalAlpha = back ? 0.75 : 1;
-      // Body with shirt.
       ctx.beginPath();
       roundRect(ctx, cx - 0.22 * sc, by, 0.44 * sc, 0.75 * sc, 0.15 * sc);
       ctx.fillStyle = shirts[k % shirts.length];
@@ -737,7 +684,6 @@ export class WorldPainter {
       ctx.lineWidth = 0.04;
       ctx.strokeStyle = this.th.outline;
       ctx.stroke();
-      // Waving arms.
       const wave = Math.sin(time * 9 + k) * 0.4;
       ctx.beginPath();
       ctx.moveTo(cx - 0.2 * sc, by + 0.6 * sc);
@@ -747,7 +693,6 @@ export class WorldPainter {
       ctx.lineWidth = 0.09 * sc;
       ctx.strokeStyle = colors[k % colors.length];
       ctx.stroke();
-      // Head with ears.
       const hy = by + 0.98 * sc;
       ctx.fillStyle = colors[(k >> 2) % colors.length];
       ctx.beginPath();
@@ -780,7 +725,6 @@ export class WorldPainter {
     if (len > left - 4 && len < right + 4) {
       const y = this.track.solidTop(len);
       const h = 3.3;
-      // Ranch gate: two posts and a carved crossbar.
       for (const dx of [-1.7, 1.7]) {
         ctx.beginPath();
         roundRect(ctx, len + dx - 0.13, y, 0.26, h, 0.05);
@@ -797,7 +741,6 @@ export class WorldPainter {
       ctx.lineWidth = OL_W;
       ctx.stroke();
       worldText(ctx, 'FINISH', len, y + h + 0.2, 0.42, '#fff1cf', this.th.outline);
-      // Chequered bunting under the bar.
       for (let i = 0; i < 10; i++) {
         const x = len - 1.55 + (i / 10) * 3.1;
         const wave = Math.sin(time * 4 + i * 0.7) * 0.04;
@@ -809,7 +752,6 @@ export class WorldPainter {
         ctx.fillStyle = i % 2 ? '#ffffff' : '#2a1d2e';
         ctx.fill();
       }
-      // Gold horseshoe for luck.
       ctx.beginPath();
       ctx.arc(len, y + h + 0.75, 0.16, Math.PI * 1.15, Math.PI * 1.85, true);
       ctx.lineWidth = 0.07;
@@ -818,9 +760,6 @@ export class WorldPainter {
     }
   }
 
-  // --- hazards -----------------------------------------------------------------------
-
-  /** `viewer` is the racer whose own rolling barrels are shown. */
   drawHazards(ctx: Ctx, left: number, right: number, time: number, viewer: BarrelState): void {
     const track = this.track;
     const hz = track.data.hazards;
@@ -834,11 +773,6 @@ export class WorldPainter {
 
   private readonly dangerPt: Point = { x: 0, y: 0 };
 
-  /**
-   * Pulsing red glow behind everything that can knock you over, plus hazard
-   * tape on the ground under ground obstacles, so hazards never blend into
-   * the scenery (which uses similar shapes, e.g. background cacti).
-   */
   private drawDanger(ctx: Ctx, h: Hazard, t: number, viewer: BarrelState): void {
     let cx = h.x;
     let cy = h.y;
@@ -915,7 +849,6 @@ export class WorldPainter {
       ctx.restore();
     }
     if (tape > 0) {
-      // Yellow/black hazard tape across the ground.
       const y = h.y + 0.015;
       ctx.save();
       ctx.beginPath();
@@ -945,12 +878,10 @@ export class WorldPainter {
     ctx.strokeStyle = ol;
     switch (h.kind) {
       case 'log': {
-        // A sturdy wooden barrel to hop over.
         drawBarrel(ctx, h.x, h.y, h.halfWidth + 0.06, h.height, th.hazard.wood, ol, 0);
         break;
       }
       case 'spikes': {
-        // Prickly cactus patch: two or three squat cacti with needles.
         const n = Math.max(2, Math.round(h.halfWidth / 0.3));
         for (let i = 0; i < n; i++) {
           const cx = h.x - h.halfWidth + ((i + 0.5) / n) * h.halfWidth * 2;
@@ -974,7 +905,6 @@ export class WorldPainter {
           ctx.lineWidth = 0.02;
           ctx.strokeStyle = '#3a7a2a';
           ctx.stroke();
-          // Needles.
           ctx.strokeStyle = '#fff4c8';
           ctx.lineWidth = 0.014;
           ctx.beginPath();
@@ -1039,7 +969,6 @@ export class WorldPainter {
         ctx.fill();
         ctx.stroke();
         ctx.restore();
-        // Half-buried saws sit in a dark slot.
         if (h.lift < h.radius) {
           ctx.beginPath();
           roundRect(ctx, h.x - h.radius - 0.1 - (h.axis === 'x' ? h.amplitude : 0), h.y - 0.06, (h.radius + 0.1 + (h.axis === 'x' ? h.amplitude : 0)) * 2, 0.1, 0.05);
@@ -1054,10 +983,8 @@ export class WorldPainter {
         const shake = warn ? Math.sin(t * 70) * 0.04 : 0;
         const x0 = h.x - h.halfWidth + shake;
         const yb = h.y + lift;
-        // Rails up to the sky.
         ctx.fillStyle = shade(th.hazard.metal, 0.4);
         for (const dx of [0.15, h.halfWidth * 2 - 0.25]) ctx.fillRect(h.x - h.halfWidth + dx, yb + CRUSHER_BLOCK, 0.1, 12);
-        // Danger zone on the ground when about to slam.
         if (warn || lift < 0.4) {
           ctx.fillStyle = rgba(th.hazard.danger, warn ? 0.25 + 0.2 * Math.abs(Math.sin(t * 12)) : 0.15);
           ctx.fillRect(h.x - h.halfWidth, h.y - 0.02, h.halfWidth * 2, 0.06);
@@ -1067,7 +994,6 @@ export class WorldPainter {
         ctx.fillStyle = th.hazard.stone;
         ctx.fill();
         ctx.stroke();
-        // Angry carved face.
         const fx = x0 + h.halfWidth;
         const fy = yb + CRUSHER_BLOCK * 0.55;
         ctx.fillStyle = shade(th.hazard.stone, 0.55);
@@ -1088,7 +1014,6 @@ export class WorldPainter {
         ctx.moveTo(fx - 0.25, fy - 0.3);
         ctx.quadraticCurveTo(fx, fy - (warn ? 0.2 : 0.36), fx + 0.25, fy - 0.3);
         ctx.stroke();
-        // Rivets.
         ctx.fillStyle = shade(th.hazard.metal, 0.1);
         for (const [dx, dy] of [
           [0.15, 0.15],
@@ -1104,7 +1029,6 @@ export class WorldPainter {
       }
       case 'flame': {
         const st = flameState(h, t);
-        // Stone fire ring with crossed logs.
         ctx.strokeStyle = shade(th.hazard.wood, 0.25);
         ctx.lineWidth = 0.09;
         ctx.beginPath();
@@ -1122,13 +1046,11 @@ export class WorldPainter {
           ctx.strokeStyle = ol;
           ctx.stroke();
         }
-        // Embers glow even when idle so the vent is recognisable.
         ctx.beginPath();
         ellipse(ctx, h.x, h.y + 0.14, h.halfWidth * 0.7, 0.06);
         ctx.fillStyle = st === 'idle' ? '#a8401f' : '#ff8a1f';
         ctx.fill();
         if (st === 'warn') {
-          // Sputtering sparks and smoke: the tell.
           for (let i = 0; i < 4; i++) {
             const k = (t * 1.8 + i / 4) % 1;
             ctx.beginPath();
@@ -1171,7 +1093,6 @@ export class WorldPainter {
         ctx.fillStyle = th.hazard.wood;
         ctx.fill();
         ctx.stroke();
-        // Chain links.
         const links = 9;
         ctx.lineWidth = 0.05;
         ctx.strokeStyle = shade(th.hazard.metal, 0.3);
@@ -1183,7 +1104,6 @@ export class WorldPainter {
         }
         ctx.strokeStyle = ol;
         ctx.lineWidth = 0.04;
-        // Spiked ball.
         ctx.save();
         ctx.translate(b.x, b.y);
         ctx.rotate(t * 2);
@@ -1211,7 +1131,6 @@ export class WorldPainter {
         const fade = Math.min(1, (h.x + h.travel - bx) / 1.2, (bx - (h.x - h.travel / 3)) / 0.8 + 0.2);
         ctx.save();
         ctx.globalAlpha *= Math.max(0, Math.min(1, fade));
-        // A barrel rolling on its side, seen end-on: hoops and staves spin.
         ctx.translate(bx, h.y + r);
         ctx.rotate((h.x + h.travel - bx) / r);
         ctx.beginPath();
@@ -1240,7 +1159,6 @@ export class WorldPainter {
         ctx.fillStyle = shade(th.hazard.wood, 0.4);
         ctx.fill();
         ctx.restore();
-        // Dust kicked up under it.
         ctx.beginPath();
         ellipse(ctx, bx + r * 0.6, h.y + 0.08, 0.16, 0.08);
         ctx.fillStyle = 'rgba(230,200,150,0.5)';
@@ -1274,7 +1192,6 @@ export class WorldPainter {
         const y = h.y;
         const bottom = y + h.clearance;
         const top = y + h.top;
-        // Gallows-style frame posts, then the hanging board.
         for (const dx of [-1.3, 1.3]) {
           ctx.beginPath();
           roundRect(ctx, h.x + dx - 0.09, y, 0.18, top - y + 0.45, 0.04);
@@ -1297,7 +1214,6 @@ export class WorldPainter {
         ctx.lineWidth = 0.05;
         ctx.strokeStyle = th.hazard.metal;
         ctx.stroke();
-        // Board: striped red/white so it pops, with a big down arrow.
         ctx.save();
         ctx.beginPath();
         roundRect(ctx, h.x - h.halfWidth - 0.2, bottom, (h.halfWidth + 0.2) * 2, top - bottom, 0.08);
@@ -1320,7 +1236,6 @@ export class WorldPainter {
         ctx.lineWidth = 0.07;
         ctx.strokeStyle = ol;
         ctx.stroke();
-        // Down arrow under the board: slide!
         const bob = Math.sin(t * 6) * 0.06;
         ctx.beginPath();
         ctx.moveTo(h.x - 0.28, bottom - 0.08 + bob);
@@ -1359,7 +1274,6 @@ export class WorldPainter {
         const since = t - (this.springBounce.get(h.id) ?? -10);
         const squash = since < 0.5 ? Math.exp(-since * 8) * Math.cos(since * 30) : 0;
         const hgt = 0.32 * (1 - squash * 0.5);
-        // Steel coil under a painted wooden springboard.
         ctx.beginPath();
         for (let i = 0; i <= 6; i++) ctx.lineTo(h.x + (i % 2 ? 0.2 : -0.2), h.y + (i / 6) * hgt);
         ctx.lineWidth = 0.06;
@@ -1385,8 +1299,6 @@ export class WorldPainter {
     }
   }
 
-  // --- pickups & entities ------------------------------------------------------------
-
   drawItemBoxes(ctx: Ctx, left: number, right: number, time: number, readyAt: Float64Array, raceTime: number): void {
     const boxes = this.track.data.itemBoxes;
     for (let i = 0; i < boxes.length; i++) {
@@ -1404,12 +1316,10 @@ export class WorldPainter {
       ctx.save();
       ctx.translate(b.x, b.y + 0.1 + bob);
       ctx.rotate(Math.sin(time * 2 + i) * 0.1);
-      // Glow so loot reads against any backdrop.
       ctx.beginPath();
       ellipse(ctx, 0, 0, s * 1.7, s * 1.7);
       ctx.fillStyle = 'rgba(255,220,90,0.25)';
       ctx.fill();
-      // Wooden loot crate.
       ctx.beginPath();
       roundRect(ctx, -s, -s, s * 2, s * 2, s * 0.15);
       ctx.fillStyle = '#c98a4b';
@@ -1446,7 +1356,6 @@ export class WorldPainter {
       ctx.save();
       ctx.translate(g.x, g.y + Math.sin(time * 3 + g.x * 0.7) * 0.05);
       ctx.rotate(Math.sin(time * 2 + g.x) * 0.25);
-      // Gold nugget: a lumpy polygon with a shine.
       ctx.beginPath();
       const pts = 7;
       for (let k = 0; k < pts; k++) {
@@ -1475,16 +1384,10 @@ export class WorldPainter {
     }
   }
 
-  /**
-   * Rival-placed traps are drawn loud on purpose: saturated colours, a
-   * white rim, a pulsing danger ring and a warning sign above, so they never
-   * blend into the scenery.
-   */
   drawEntities(ctx: Ctx, entities: readonly Entity[], time: number): void {
     for (const e of entities) {
       if (!e.alive) continue;
       const pulse = 0.5 + 0.5 * Math.sin(time * 10);
-      // Rival traps get a big pulsing danger halo of their own.
       if (e.kind === 'snare' || e.kind === 'sap' || e.kind === 'bomb' || (e.kind === 'noose' && e.sprung < 0)) {
         const cx = e.kind === 'sap' ? (e.x0 + e.x1) / 2 : e.x;
         const cy = e.y + (e.kind === 'bomb' ? 0.25 : 0.35);
@@ -1503,7 +1406,6 @@ export class WorldPainter {
         ctx.restore();
       }
       if (e.kind === 'seeker') {
-        // Smoke trail.
         for (let k = 1; k <= 6; k++) {
           ctx.beginPath();
           ellipse(ctx, e.x - 0.3 - k * 0.2, e.y + Math.sin(time * 20 + k) * 0.03, 0.08 + k * 0.03, 0.08 + k * 0.03);
@@ -1513,14 +1415,12 @@ export class WorldPainter {
         ctx.save();
         ctx.translate(e.x, e.y);
         ctx.rotate(Math.sin(time * 14) * 0.08);
-        // Exhaust flame.
         ctx.beginPath();
         ctx.moveTo(-0.32, 0.08);
         ctx.lineTo(-0.55 - pulse * 0.15, 0);
         ctx.lineTo(-0.32, -0.08);
         ctx.fillStyle = '#ffb020';
         ctx.fill();
-        // White rim then the body.
         rocketPath(ctx);
         ctx.lineWidth = 0.12;
         ctx.strokeStyle = '#ffffff';
@@ -1541,7 +1441,6 @@ export class WorldPainter {
       } else if (e.kind === 'snare') {
         ctx.save();
         ctx.translate(e.x, e.y);
-        // Danger ring on the ground.
         ctx.beginPath();
         ctx.ellipse(0, 0.02, 0.75 + pulse * 0.08, 0.14, 0, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(255,46,46,${0.25 + pulse * 0.3})`;
@@ -1549,7 +1448,6 @@ export class WorldPainter {
         ctx.lineWidth = 0.04;
         ctx.strokeStyle = '#ff2e2e';
         ctx.stroke();
-        // Dynamite bundle: three red sticks, a tape band, a timer and a lit fuse.
         for (const [dx, h] of [
           [-0.16, 0.58],
           [0, 0.66],
@@ -1586,7 +1484,6 @@ export class WorldPainter {
         ctx.fill();
         ctx.fillStyle = pulse > 0.5 ? '#ff3d2e' : '#ffcf33';
         ctx.fillRect(-0.08, 0.34, 0.16, 0.06);
-        // Fuse with a spark.
         ctx.beginPath();
         ctx.moveTo(0, 0.68);
         ctx.quadraticCurveTo(0.12, 0.82, 0.05, 0.92);
@@ -1622,7 +1519,6 @@ export class WorldPainter {
         ctx.fill();
         ctx.restore();
       } else if (e.kind === 'noose') {
-        // Rope trap: a bent sapling held down by a peg, its noose laid on the trail.
         const rope = (path: () => void, w: number) => {
           ctx.beginPath();
           path();
@@ -1646,7 +1542,6 @@ export class WorldPainter {
             ctx.moveTo(tipX, tipY);
             ctx.lineTo(e.x + 0.02, e.y + 0.1);
           }, 0.03);
-          // The noose: a loose loop lying on the ground, with a trigger peg.
           rope(() => ctx.ellipse(e.x, e.y + 0.05, 0.42 + pulse * 0.04, 0.09, 0, 0, Math.PI * 2), 0.045);
           ctx.beginPath();
           roundRect(ctx, e.x + 0.45, e.y, 0.08, 0.28, 0.02);
@@ -1655,7 +1550,6 @@ export class WorldPainter {
           ctx.lineWidth = 0.03;
           ctx.strokeStyle = '#2a1a10';
           ctx.stroke();
-          // Sapling leaves.
           for (const [dx, dy] of [
             [-0.1, 0.05],
             [0.08, -0.04],
@@ -1667,7 +1561,6 @@ export class WorldPainter {
           }
           drawWarning(ctx, e.x, e.y + 1.25 + Math.sin(time * 6) * 0.05);
         } else {
-          // Snapped upright, swinging, the noose pulled tight up in the air.
           ctx.globalAlpha *= Math.min(1, e.ttl / 0.3);
           const sway = Math.sin(e.sprung * 22) * 0.35 * Math.exp(-e.sprung * 4);
           const topX = base + 0.15 + sway;
@@ -1685,7 +1578,6 @@ export class WorldPainter {
         }
         ctx.restore();
       } else if (e.kind === 'thunder') {
-        // Storm cloud hovering over the leader, then a red warning beam.
         const cy = e.y + 4.2;
         ctx.save();
         const warn = 1 - Math.max(0, e.ttl) / 1.0;
@@ -1723,7 +1615,6 @@ export class WorldPainter {
         const fade = Math.min(1, e.ttl / 0.6);
         ctx.save();
         ctx.globalAlpha *= fade;
-        // Hazard-striped border makes the tar pool pop.
         const x0 = e.x0;
         const x1 = e.x1;
         ctx.beginPath();
@@ -1756,7 +1647,6 @@ export class WorldPainter {
         ctx.closePath();
         ctx.fillStyle = '#2a2238';
         ctx.fill();
-        // Bubbles and shine.
         for (let k = 0; k < 4; k++) {
           const ph = (time * 0.8 + k * 0.27) % 1;
           ctx.beginPath();
@@ -1765,7 +1655,6 @@ export class WorldPainter {
           ctx.strokeStyle = `rgba(190,160,255,${0.8 * (1 - ph)})`;
           ctx.stroke();
         }
-        // Tipped-over barrel at the far end.
         ctx.save();
         ctx.translate(x1 + 0.2, e.y);
         ctx.rotate(-Math.PI / 2 + 0.25);
@@ -1778,7 +1667,6 @@ export class WorldPainter {
   }
 }
 
-/** Upright wooden barrel standing at (x, y) in world space. */
 export function drawBarrel(ctx: Ctx, x: number, y: number, hw: number, height: number, wood: string, ol: string, _t: number): void {
   ctx.beginPath();
   ctx.moveTo(x - hw * 0.85, y);
@@ -1818,7 +1706,6 @@ function rocketPath(ctx: Ctx): void {
   ctx.closePath();
 }
 
-/** Yellow warning triangle with "!" (world space). */
 function drawWarning(ctx: Ctx, x: number, y: number): void {
   ctx.beginPath();
   ctx.moveTo(x, y + 0.24);
@@ -1833,7 +1720,6 @@ function drawWarning(ctx: Ctx, x: number, y: number): void {
   worldText(ctx, '!', x, y - 0.13, 0.3, '#2a1a1e', null);
 }
 
-/** Text in world space (+y up): flips locally so it reads correctly. */
 export function worldText(ctx: Ctx, text: string, x: number, y: number, size: number, fill: string, stroke: string | null): void {
   ctx.save();
   ctx.translate(x, y);
@@ -1852,7 +1738,6 @@ export function worldText(ctx: Ctx, text: string, x: number, y: number, size: nu
   ctx.restore();
 }
 
-/** Wooden arrow sign on a post (world space). */
 function drawSign(ctx: Ctx, x: number, y: number, label: string, time: number, ol: string): void {
   ctx.beginPath();
   roundRect(ctx, x - 0.06, y, 0.12, 1.5, 0.03);
