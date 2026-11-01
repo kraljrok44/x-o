@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Block World - Sandbox Builder</title>
+<meta name="description" content="Block World: build, dig and explore an endless blocky sandbox world. Customise your character skin.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud" class="hidden">
+  <div id="cross"></div>
+  <div id="hotbar"></div>
+  <div id="blockname"></div>
+  <div id="info"></div>
+  <button id="menu-btn" class="tbtn" aria-label="Menu">☰</button>
+  <div id="touch" class="hidden">
+    <button class="tbtn tp" id="t-up">▲</button>
+    <button class="tbtn tp" id="t-left">◀</button>
+    <button class="tbtn tp" id="t-down">▼</button>
+    <button class="tbtn tp" id="t-right">▶</button>
+    <button class="tbtn" id="t-jump">⤒</button>
+    <button class="tbtn" id="t-break">⛏</button>
+    <button class="tbtn" id="t-place">▣</button>
+    <button class="tbtn" id="t-view">👁</button>
+  </div>
+</div>
+<div id="menu" class="overlay">
+  <div class="panel">
+    <h1>BLOCK <span>WORLD</span></h1>
+    <p class="sub">Build, dig and explore an endless world of blocks.</p>
+    <div class="cols">
+      <div class="col">
+        <button class="btn primary" id="play">▶ Play</button>
+        <canvas id="preview" width="260" height="300"></canvas>
+        <button class="btn" id="newworld">New world</button>
+        <div class="help" id="help"></div>
+      </div>
+      <div class="col skin">
+        <h2>Your character <small>drag the preview to turn it</small></h2>
+        <div id="skinui"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
