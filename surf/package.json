@@ -1,0 +1,21 @@
+{
+  "name": "glidezone",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GLIDEZONE - multiplayer surf game for web portals (CrazyGames)",
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "dev": "node tools/build.mjs && node server/index.js",
+    "start": "node server/index.js",
+    "test": "node --test test/*.test.js",
+    "package": "bash tools/package.sh"
+  },
+  "dependencies": {
+    "ws": "8.18.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.0",
+    "three": "0.170.0"
+  }
+}
