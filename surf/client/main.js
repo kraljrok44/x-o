@@ -17,6 +17,7 @@ import { WsTransport, LocalTransport, defaultServerUrl, probeServer } from './ne
 import { MAP_LIST } from '../shared/maps/index.js';
 import { PRIVACY } from './privacy.js';
 import { skyTexture } from './render/skybox.js';
+import { SkinEditor, loadSkin } from './ui/skin.js';
 import { CATALOG_TOTAL } from '../shared/catalog.js';
 import { GAME } from '../shared/config.js';
 
@@ -164,10 +165,11 @@ window.addEventListener('gz-inventory', () => {
 async function helloBase() {
   const cgToken = await sdk.userToken();
   const name = (sdk.user && sdk.user.username) || settings.name || '';
-  return { name, token: guestToken(), cgToken };
+  return { name, token: guestToken(), cgToken, skin: loadSkin() || undefined };
 }
 
 // ------------------------------------------------------------------ panels
+const skinEditor = new SkinEditor($('#skin'), (sk) => { if (app.state === 'game' && game.net) game.sendSkin(sk); });
 function openPanel(which) {
   audio.ensure();
   show('#panels', true);
@@ -177,6 +179,7 @@ function openPanel(which) {
   if (which === 'leaderboard') leaderboard.open(app.state === 'game' && game.map ? game.map.id : undefined);
   if (which === 'maps') renderMaps();
   if (which === 'privacy') renderPrivacy();
+  if (which === 'skin') { show('#skin', true); skinEditor.open(); }
   app.panel = which;
   game.input.unlock();
   sdk.gameplayStop(); // a panel over the game is a break (resumed from the pause menu)
@@ -189,6 +192,8 @@ function closePanels() {
   show('#settings', false);
   show('#maps', false);
   show('#privacy', false);
+  show('#skin', false);
+  skinEditor.close();
   show('#panels', false);
   app.panel = null;
   if (app.state === 'game') showPause(true);
@@ -228,6 +233,7 @@ function renderMenu() {
         <div class="menu-col">
           <button class="btn primary big" id="m-play">${t('play')}</button>
           ${app.online ? `<button class="btn big" id="m-friends">👥 ${t('friends')}</button>` : ''}
+          <button class="btn big" id="m-skin">🧑 ${t('skin')}</button>
           <button class="btn big" id="m-practice">${t('practice')}</button>
           <button class="btn big" id="m-spec">${t('spectate')}</button>
           <div class="row">
@@ -259,6 +265,7 @@ function renderMenu() {
   bind('m-spec', () => startGame('public', true));
   bind('m-friends', () => startGame('party', false));
   bind('m-privacy', () => openPanel('privacy'));
+  bind('m-skin', () => openPanel('skin'));
   bind('m-practice', () => openPanel('maps'));
   bind('m-vault', () => openPanel('vault'));
   bind('m-inv', () => openPanel('inventory'));
@@ -493,6 +500,7 @@ function showPause(on) {
       ${game.voting !== false ? `<button class="btn" id="p-rtv" ${v && v.state !== 'playing' ? 'disabled' : ''}>${t('rtv')} ${v && v.rtv ? `(${v.rtv}/${v.needed})` : ''}</button>` : ''}`}
     ${app.roomCode ? `<div class="invite-row"><div class="dim small">👥 ${t('inviteHint')}</div>
       <div class="row"><input id="p-link" readonly value="${esc(sdk.inviteLink(app.roomCode))}"><button class="btn" id="p-copy">${t('copy')}</button></div></div>` : ''}
+    <div class="row"><button class="btn" id="p-skin">🧑 ${t('skin')}</button></div>
     <div class="row"><button class="btn" id="p-vault">🔓 ${t('vault')}</button><button class="btn" id="p-inv">${t('inventory')}</button></div>
     <div class="row"><button class="btn" id="p-lb">🏆 ${t('leaderboard')}</button><button class="btn ghost" id="p-settings">⚙ ${t('settings')}</button></div>
     ${sensRow()}
@@ -506,6 +514,7 @@ function showPause(on) {
   bind('p-rtv', () => { game.requestRtv(); show('#pause', false); game.input.lock(); });
   bind('p-maps', () => openPanel('maps'));
   bind('p-vault', () => openPanel('vault'));
+  bind('p-skin', () => openPanel('skin'));
   bind('p-inv', () => openPanel('inventory'));
   bind('p-settings', () => openPanel('settings'));
   bind('p-lb', () => openPanel('leaderboard'));

@@ -163,3 +163,18 @@ test('a time outside the kept top list is not a personal best on the board', asy
   const slower = submitTime(store, { key: 'slow', name: 'slow', mapId: 'surf_aurora_dawn', ticks: 10500 });
   assert.equal(slower.personalBest, false);
 });
+
+test('skins: hostile input is cleaned and a change reaches the whole room', async () => {
+  const { cleanSkin, skinForId, TONES } = await import('../shared/skin.js');
+  const c1 = cleanSkin({ tone: 99, hat: { x: 1 }, cape: 'yes', shirt: -5, extra: 'x' });
+  assert.equal(c1.tone, TONES.length - 1); assert.equal(c1.hat, 0); assert.equal(c1.cape, false); assert.equal(c1.shirt, 0); assert.equal(c1.extra, undefined);
+  assert.deepEqual(skinForId(7), skinForId(7));
+  const { room, mk, adv } = setup();
+  const a = mk('Alice'), b = mk('Bob');
+  await flush();
+  room.handleMessage(a.c, { t: 'skin', skin: { tone: 3, hat: 3, cape: true } });
+  const upd = [...b.inbox].reverse().find((m) => m.t === 'pinfo' && m.p.name === 'Alice');
+  assert.equal(upd.p.skin.hat, 3); assert.equal(upd.p.skin.cape, true);
+  adv(10);
+  room.handleMessage(a.c, { t: 'skin', skin: 'not a skin' }); // never throws, falls back to defaults
+});

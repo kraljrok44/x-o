@@ -342,12 +342,15 @@ export function skyTexture(map) {
   fg.addColorStop(1, css(hex(th.fog), 1));
   g.fillStyle = fg;
   g.fillRect(0, HZ + 30, W, H);
-  const tex = new THREE.CanvasTexture(cv);
+  // blocky sky: shrink the painted panorama to a few big pixels and show them unsmoothed
+  const small = document.createElement('canvas'); small.width = 256; small.height = 128;
+  const sg = small.getContext('2d'); sg.imageSmoothingQuality = 'high'; sg.drawImage(cv, 0, 0, 256, 128);
+  const tex = new THREE.CanvasTexture(small);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = THREE.RepeatWrapping;
   tex.generateMipmaps = false;          // no mip seam where the panorama wraps
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.magFilter = THREE.NearestFilter;
   cache.set(map.id, tex);
   return tex;
 }

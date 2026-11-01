@@ -491,6 +491,7 @@ export class Game extends Emitter {
   // ------------------------------------------------------------------ controls (called by UI)
   restart() { this.restartQueued = true; }
   setSpectate(on) { this.send({ t: 'spectate', on }); }
+  sendSkin(skin) { this.send({ t: 'skin', skin }); }
   requestRtv() { this.send({ t: 'rtv' }); }
   castVote(i) {
     if (!this.vote || this.vote.state !== 'voting' || i < 0 || i >= this.vote.options.length) return;
@@ -648,14 +649,17 @@ export class Game extends Emitter {
         const info = this.roster.get(id);
         const label = info ? (info.rank ? `${info.rank} · ${info.name}` : info.name) : 'player';
         if (!av) {
-          av = new Avatar(id, label);
+          av = new Avatar(id, label, info && info.skin);
           this.avatars.set(id, av);
           this.scene.add(av.root);
         }
+        if (info) av.setSkin(info.skin);
         av.setKnife(info ? info.knife : null);
         if (info && av.name !== label) av.setName(label);
         const hidden = (this.spectator && this.spec.mode === 'first' && this.spec.target === id) || (this.hideOthers && !this.spectator);
-        av.root.visible = !hidden;
+        // a player standing on top of you would fill the screen with their model: hide them when that close
+        const near = this.ps && !this.spectator && Math.hypot(st.x - this.ps.pos.x, st.y - this.ps.pos.y) < 36 && Math.abs(st.z - this.ps.pos.z) < 90;
+        av.root.visible = !hidden && !near;
         av.update(st, dt, true);
       }
       for (const [id, av] of this.avatars) if (!remotes.has(id)) av.root.visible = false;

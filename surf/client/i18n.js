@@ -5,6 +5,7 @@ import { settings } from './settings.js';
 const STR = {
   en: {
     tagline: 'Multiplayer surf. Hold the ramp, chase the flow.',
+    skin: 'Character', skinHint: 'Drag to turn. Other players see you like this.', skinTone: 'Skin', hair: 'Hair', hairColor: 'Hair colour', eyes: 'Eyes', eyeColor: 'Eye colour', shirt: 'Shirt', pants: 'Pants', shoes: 'Shoes', hat: 'Hat', hatColor: 'Hat colour', cape: 'Cape', capeColor: 'Cape colour', off: 'Off', on: 'On', random: 'Random', resetSkin: 'Default', copyCode: 'Copy code', pasteCode: 'Paste skin code', load: 'Load', badCode: 'Invalid code',
     partyOpen: 'Your room for friends is open - the invite link is in the menu', privacy: 'Privacy & Terms', friends: 'Play with friends', invite: 'Invite friends', copy: 'Copy', inviteCopied: 'Invite link copied, send it to your friends', inviteHint: 'Friends who open this link join your room',
     play: 'Play online', practice: 'Practice', spectate: 'Spectate', vault: 'Knife Vault', inventory: 'Inventory', settings: 'Settings',
     name: 'Name', server: 'Server', online: 'online', offline: 'offline', players: 'players', connecting: 'Connecting…',
@@ -61,6 +62,7 @@ const STR = {
   },
   sl: {
     tagline: 'Večigralski surf. Drži rampo, lovi tok.',
+    skin: 'Lik', skinHint: 'Vleci za obračanje. Drugi igralci te vidijo tako.', skinTone: 'Koža', hair: 'Lasje', hairColor: 'Barva las', eyes: 'Oči', eyeColor: 'Barva oči', shirt: 'Majica', pants: 'Hlače', shoes: 'Čevlji', hat: 'Klobuk', hatColor: 'Barva klobuka', cape: 'Plašč', capeColor: 'Barva plašča', off: 'Izklj.', on: 'Vklj.', random: 'Naključno', resetSkin: 'Privzeto', copyCode: 'Kopiraj kodo', pasteCode: 'Prilepi kodo skina', load: 'Naloži', badCode: 'Neveljavna koda',
     partyOpen: 'Soba za prijatelje je odprta - povezava za vabilo je v meniju', privacy: 'Zasebnost in pogoji', friends: 'Igraj s prijatelji', invite: 'Povabi prijatelje', copy: 'Kopiraj', inviteCopied: 'Povezava za vabilo je kopirana, pošlji jo prijateljem', inviteHint: 'Prijatelji, ki odprejo to povezavo, pridejo v tvojo sobo',
     play: 'Igraj na strežniku', practice: 'Trening', spectate: 'Opazuj', vault: 'Trezor nožev', inventory: 'Inventar', settings: 'Nastavitve',
     name: 'Ime', server: 'Strežnik', online: 'povezan', offline: 'nedosegljiv', players: 'igralcev', connecting: 'Povezujem…',

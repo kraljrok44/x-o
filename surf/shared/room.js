@@ -10,6 +10,7 @@ import { openCrate, equipKnife, emptyProfile, CRATE_STATUS } from './crate.js';
 import { CATALOG_TOTAL, getCollectible } from './catalog.js';
 import { submitTime, queryBoard, mapRecords, loadGhost, saveGhost, POINTS_BOARD } from './leaderboard.js';
 import { awardXp, levelFor, rankFor } from './xp.js';
+import { cleanSkin } from './skin.js';
 
 export const GHOST_EVERY = 5; // ghost samples every 5 ticks (20 per second)
 import { filterChat, badName } from './chatfilter.js';
@@ -113,7 +114,7 @@ export class Room {
     const best = this.records.find((r) => r.key === c.key);
     const prof = c.profile || emptyProfile();
     const lvl = levelFor(prof.xp || 0);
-    return { id: c.id, name: c.name, spec: c.spectator, knife: prof.equipped, best: best ? best.ticks : null, ping: c.ping, lvl, rank: rankFor(lvl).short };
+    return { id: c.id, name: c.name, spec: c.spectator, skin: c.skin || null, knife: prof.equipped, best: best ? best.ticks : null, ping: c.ping, lvl, rank: rankFor(lvl).short };
   }
 
   /** Never throws: a malformed message from one client must not affect the room or the host. */
@@ -152,6 +153,13 @@ export class Room {
         }
         return;
       }
+      case 'skin':
+        // everybody in the room sees the new look at once
+        if (now - (c.lastSkin || 0) < 300) return;
+        c.lastSkin = now;
+        c.skin = cleanSkin(msg.skin);
+        this.broadcast({ t: 'pinfo', p: this.rosterEntry(c) });
+        return;
       case 'crate': return this._crate(c, msg);
       case 'chat': return this._chat(c, msg);
       case 'inventory':
@@ -187,6 +195,7 @@ export class Room {
     c.name = sanitizeName(who.name || msg.name);
     c.profile = this.store.load(c.key) || emptyProfile();
     c.spectator = !!msg.spectate;
+    c.skin = msg.skin ? cleanSkin(msg.skin) : null; // null: the client picks one from the id
     c.ps = createPlayerState(this.map);
     c.ready = true;
     this.send(c, this._welcome(c));

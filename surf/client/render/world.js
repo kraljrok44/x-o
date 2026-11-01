@@ -7,31 +7,28 @@ import { skyDome } from './skybox.js';
 
 const ZONE_COLORS = { start: '#2bff88', checkpoint: '#3ab7ff', end: '#b06bff', finish: '#ffcc33' };
 
-function gridTexture(lineAlpha = 0.22, panel = true) {
-  const s = 256;
+// Blocky 16x16 texture, one tile = one block (about 52 units): speckled stone with a darker rim,
+// drawn per pixel and sampled without smoothing, so every surface reads as a wall of blocks.
+function gridTexture(lineAlpha = 0.22) {
+  const s = 16;
   const cv = document.createElement('canvas');
   cv.width = cv.height = s;
   const g = cv.getContext('2d');
-  g.fillStyle = '#ffffff';
-  g.fillRect(0, 0, s, s);
-  if (panel) {
-    const rnd = rng32(42);
-    for (let i = 0; i < 1800; i++) {
-      g.fillStyle = `rgba(0,0,0,${rnd() * 0.035})`;
-      g.fillRect(rnd() * s, rnd() * s, 2 + rnd() * 6, 2 + rnd() * 6);
-    }
+  const rnd = rng32(42);
+  for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) {
+    let v = 236 + Math.floor((rnd() - 0.5) * 34);
+    if (rnd() < 0.08) v -= 26;
+    if (x === 0 || y === 0) v += 14;                                    // lit rim
+    if (x === s - 1 || y === s - 1) v -= 30 * (0.6 + lineAlpha);        // shaded rim
+    v = Math.max(0, Math.min(255, v));
+    g.fillStyle = `rgb(${v},${v},${v})`;
+    g.fillRect(x, y, 1, 1);
   }
-  g.strokeStyle = `rgba(0,0,0,${lineAlpha})`;
-  g.lineWidth = 3;
-  g.strokeRect(1.5, 1.5, s - 3, s - 3);
-  g.strokeStyle = `rgba(0,0,0,${lineAlpha * 0.45})`;
-  g.lineWidth = 1.5;
-  g.beginPath();
-  g.moveTo(s / 2, 0); g.lineTo(s / 2, s); g.moveTo(0, s / 2); g.lineTo(s, s / 2);
-  g.stroke();
   const tex = new THREE.CanvasTexture(cv);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.anisotropy = 8;
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestMipmapLinearFilter;
+  tex.anisotropy = 4;
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
@@ -78,7 +75,7 @@ function buildSurfaces(map, theme) {
       if (Math.abs(n.z) > 0.95) u = { x: 1, y: 0, z: 0 };
       else { const l = Math.hypot(n.y, n.x); u = { x: -n.y / l, y: n.x / l, z: 0 }; }
       const v = { x: n.y * u.z - n.z * u.y, y: n.z * u.x - n.x * u.z, z: n.x * u.y - n.y * u.x };
-      const scale = b.mat === 'ramp' ? 1 / 192 : 1 / 256;
+      const scale = 1 / 52; // one texture tile per block
       if (b.mat === 'ramp') {
         col.copy(rampCols[(b.rampIndex || 0) % rampCols.length]);
         if (n.z < -0.2) col.multiplyScalar(0.35); // underside
@@ -392,7 +389,7 @@ export function buildWorld(map, opts = {}) {
 
   const surfaces = buildSurfaces(map, theme);
   const albedo = gridTexture(theme.neon ? 0.15 : 0.22);
-  const emiss = theme.neon ? emissiveGridTexture() : null;
+  const emiss = null; // no glowing grid: surfaces look like plain blocks
   for (const [name, geo] of Object.entries(surfaces)) {
     if (name === 'glass') {
       // corridor ceilings: see-through so the corridor stays bright and readable
@@ -415,7 +412,7 @@ export function buildWorld(map, opts = {}) {
     group.add(mesh);
     const edges = new THREE.LineSegments(
       new THREE.EdgesGeometry(geo, 25),
-      new THREE.LineBasicMaterial({ color: new THREE.Color(name === 'ramp' ? theme.edge : theme.accent), transparent: true, opacity: name === 'ramp' ? 0.9 : 0.55, toneMapped: false }),
+      new THREE.LineBasicMaterial({ color: new THREE.Color(name === 'ramp' ? theme.edge : theme.accent), transparent: true, opacity: name === 'ramp' ? 0.55 : 0.28, toneMapped: false }),
     );
     group.add(edges);
   }
