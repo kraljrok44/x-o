@@ -2,7 +2,8 @@ import { SPECIAL_IDS } from '../abilities/SpecialAbility';
 import { ABILITIES } from '../abilities/AbilityDefinition';
 import { CHARACTERS } from '../player/CharacterDefinition';
 import type { RaceSimulation } from '../game/RaceManager';
-import type { RaceEvent, Racer } from '../game/RaceState';
+import { NOOSE_HIT, SNARE_HIT, type RaceEvent, type Racer } from '../game/RaceState';
+import { GameplayConfig } from '../config/GameplayConfig';
 import { Background } from './Background';
 import { BIOME_THEMES } from './BiomeTheme';
 import { Camera2D } from './Camera2D';
@@ -37,6 +38,10 @@ class RacerVisual {
   bubbleT = 0;
   readonly mount: ReturnType<typeof mountKind>;
   readonly holding: boolean;
+  /** Current knock-out animation (what hit this racer) and its clock. */
+  ko: KoKind | null = null;
+  koT = 0;
+  koDur = 0;
 
   constructor(readonly racer: Racer) {
     const def = CHARACTERS[racer.characterId];
@@ -80,6 +85,24 @@ class RacerVisual {
 const SHADOW_SKIP = 1e9;
 
 /**
+ * How a racer goes down, chosen from what hit them: blown up and sooty,
+ * electrocuted, strung up by a rope, flattened, singed, cut, bonked, or
+ * tumbling into a pit. Purely visual; the simulation decides the stun.
+ */
+type KoKind = 'blast' | 'shock' | 'rope' | 'squash' | 'burn' | 'cut' | 'bonk' | 'fall';
+
+const KO_FOR_HAZARD: Record<string, KoKind> = {
+  log: 'bonk',
+  beam: 'bonk',
+  pendulum: 'bonk',
+  spikes: 'cut',
+  saw: 'cut',
+  crusher: 'squash',
+  boulder: 'squash',
+  flame: 'burn',
+};
+
+/**
  * Everything visual for one race, drawn with Canvas2D from the side: the
  * parallax backdrop, the course, hazards, pickups, the monsters and all
  * effects. Reads the simulation, never writes it.
@@ -98,6 +121,117 @@ export class RaceScene {
   /** Short-lived lasso ropes (racer indices) and lightning bolts. */
   private readonly ropes: { from: number; to: number; life: number }[] = [];
   private readonly bolts: { x: number; y: number; life: number }[] = [];
+  private readonly hazardKind = new Map<number, string>();
+
+  private knockOut(v: RacerVisual | null, kind: KoKind): void {
+    if (!v) return;
+    v.ko = kind;
+    v.koT = 0;
+    v.koDur = Math.max(0.55, Math.min(1.1, v.racer.body.stun || 0.7));
+    const b = v.racer.body;
+    const p = this.particles;
+    switch (kind) {
+      case 'blast':
+        p.emit({ kind: 'puff', x: b.x, y: b.y + 0.6, color: 'rgba(60,52,50,0.85)', count: 12, speed: 2.8, dir: Math.PI / 2, spread: 2.2, size: 0.26, life: 0.9 });
+        p.emit({ kind: 'flame', x: b.x, y: b.y + 0.5, color: '#ffb020', count: 8, speed: 3.5, size: 0.16, life: 0.4 });
+        break;
+      case 'shock':
+        p.emit({ kind: 'spark', x: b.x, y: b.y + 0.7, color: '#bfe8ff', count: 16, speed: 4, size: 0.1, life: 0.5 });
+        break;
+      case 'burn':
+        p.emit({ kind: 'flame', x: b.x, y: b.y + 0.3, color: '#ff8a1c', count: 10, speed: 2.2, dir: Math.PI / 2, spread: 0.8, size: 0.16, life: 0.5 });
+        break;
+      case 'squash':
+        p.emit({ kind: 'puff', x: b.x, y: b.y + 0.05, color: 'rgba(230,210,170,0.9)', count: 10, speed: 2.6, dir: 0, spread: Math.PI * 2, size: 0.16, life: 0.45 });
+        break;
+      case 'cut':
+        p.emit({ kind: 'spark', x: b.x, y: b.y + 0.4, color: '#ffffff', count: 8, speed: 3, size: 0.08, life: 0.35 });
+        break;
+      default:
+        break;
+    }
+  }
+
+  /**
+   * Applies the knock-out pose (transform and tint) around the racer's feet.
+   * Returns the canvas filter to draw the monster with, or '' for none.
+   */
+  private koPose(ctx: Ctx, v: RacerVisual, dt: number): string {
+    const b = v.racer.body;
+    if (b.phase === 'fall') {
+      // Tumbling into the pit: spin and shrink away.
+      const k = 1 - Math.max(0, b.phaseTimer) / GameplayConfig.fall.fallDuration;
+      ctx.translate(0, 0.55);
+      ctx.rotate(k * Math.PI * 2.5);
+      ctx.scale(1 - k * 0.45, 1 - k * 0.45);
+      ctx.translate(0, -0.55);
+      return '';
+    }
+    if (!v.ko) return '';
+    v.koT += dt;
+    const t = v.koT;
+    const k = Math.min(1, t / v.koDur);
+    if (k >= 1 || b.phase !== 'run') {
+      v.ko = null;
+      return '';
+    }
+    const fade = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1;
+    const soot = (a: number) => `brightness(${(1 - 0.65 * a * fade).toFixed(2)}) saturate(${(1 - 0.6 * a * fade).toFixed(2)})`;
+    switch (v.ko) {
+      case 'blast': {
+        // Blown up: a sooty somersault with a little hop.
+        const s = Math.min(1, t / 0.45);
+        ctx.translate(0, Math.sin(s * Math.PI) * 0.7 + 0.55);
+        ctx.rotate(-s * Math.PI * 2);
+        ctx.translate(0, -0.55);
+        if (Math.floor(t * 12) % 3 === 0) this.particles.emit({ kind: 'puff', x: b.x, y: b.y + 1.1, color: 'rgba(70,62,60,0.6)', count: 1, speed: 0.8, dir: Math.PI / 2, spread: 0.6, size: 0.14, life: 0.6 });
+        return soot(1);
+      }
+      case 'shock': {
+        // Zapped: jitter and flicker between a bright flash and charred.
+        ctx.translate((Math.floor(t * 40) % 2 ? 1 : -1) * 0.04, 0);
+        if (t < 0.45) return Math.floor(t * 16) % 2 ? 'brightness(2.4) contrast(1.3)' : soot(1);
+        return soot(1);
+      }
+      case 'rope': {
+        // Strung up by a rope: upside down, swinging.
+        const up = Math.min(1, t / 0.15);
+        ctx.translate(0, 0.55 + up * 0.5);
+        ctx.rotate(Math.PI * up + Math.sin(t * 9) * 0.25 * up);
+        ctx.translate(0, -0.55);
+        return '';
+      }
+      case 'squash': {
+        // Flattened like a pancake, then popping back.
+        const sq = k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4;
+        const wob = k >= 0.6 ? Math.sin((k - 0.6) * 30) * 0.12 * (1 - k) : 0;
+        ctx.scale(1 + 0.5 * sq + wob, 1 - 0.68 * sq - wob);
+        return '';
+      }
+      case 'burn': {
+        // Singed: hot-foot hopping, smoking and sooty.
+        ctx.translate(0, Math.abs(Math.sin(t * 16)) * 0.18 * fade);
+        if (Math.floor(t * 10) % 2 === 0) this.particles.emit({ kind: 'puff', x: b.x, y: b.y + 1.2, color: 'rgba(80,72,70,0.55)', count: 1, speed: 0.7, dir: Math.PI / 2, spread: 0.4, size: 0.12, life: 0.7 });
+        return soot(0.8);
+      }
+      case 'cut': {
+        // Yelp: jolted backwards.
+        const j = Math.sin(Math.min(1, t / 0.3) * Math.PI);
+        ctx.translate(-j * 0.15, j * 0.25 + 0.55);
+        ctx.rotate(j * 0.5);
+        ctx.translate(0, -0.55);
+        return '';
+      }
+      case 'bonk': {
+        // Bonked: a quick squash on impact.
+        const s = Math.max(0, 1 - t / 0.25);
+        ctx.scale(1 + 0.25 * s, 1 - 0.25 * s);
+        return '';
+      }
+      default:
+        return '';
+    }
+  }
   /** Racer the camera follows (the local one, or whoever is spectated after finishing). */
   follow: number;
   /** Camera shake on hits (Settings: camera shake / reduced motion). */
@@ -114,6 +248,7 @@ export class RaceScene {
     this.bg = new Background(sim.track.biome, gr.quality);
     this.world = new WorldPainter(sim.track, BIOME_THEMES[sim.track.biome], gr.quality);
     this.visuals = sim.racers.map((r) => new RacerVisual(r));
+    for (const h of sim.track.data.hazards) this.hazardKind.set(h.id, h.kind);
     this.particles = new Particles(gr.quality === 'low' ? 140 : gr.quality === 'medium' ? 320 : 600);
     this.resize();
     const me = sim.racers[localIndex].body;
@@ -163,6 +298,10 @@ export class RaceScene {
       case 'bonk':
       case 'seekerHit':
         v?.anim.onHit();
+        this.knockOut(
+          v,
+          e.type === 'seekerHit' ? 'blast' : e.type === 'bonk' ? 'bonk' : e.value >= NOOSE_HIT ? 'rope' : e.value >= SNARE_HIT ? 'blast' : (KO_FOR_HAZARD[this.hazardKind.get(e.value) ?? ''] ?? 'bonk'),
+        );
         p.emit({ kind: 'star', x: e.x, y: e.y + 0.8, color: '#ffe14d', count: 6, speed: 3, size: 0.14, life: 0.6, gravity: 4 });
         if (e.type === 'seekerHit') {
           p.emit({ kind: 'puff', x: e.x, y: e.y + 0.6, color: '#ff7a3d', count: 8, speed: 3, size: 0.18, life: 0.4 });
@@ -176,6 +315,7 @@ export class RaceScene {
           break;
         }
         v?.anim.onHit();
+        this.knockOut(v, e.ability === 'bomb' ? 'blast' : e.ability === 'thunder' ? 'shock' : e.ability === 'lasso' ? 'rope' : 'bonk');
         p.emit({ kind: 'star', x: e.x, y: e.y + 0.8, color: '#ffe14d', count: 6, speed: 3, size: 0.14, life: 0.6, gravity: 4 });
         if (e.ability === 'lasso') {
           const from = this.sim.racers[e.value]?.body;
@@ -472,7 +612,7 @@ export class RaceScene {
     ctx.translate(v.x, v.y);
     // Respawn: pop in. Invulnerable: blink.
     if (b.phase === 'respawn') {
-      const k = Math.max(0.05, 1 - b.phaseTimer / 0.7);
+      const k = Math.max(0.05, 1 - b.phaseTimer / GameplayConfig.fall.respawnDelay);
       ctx.translate(0, 0.6);
       ctx.scale(k, k);
       ctx.translate(0, -0.6);
@@ -481,7 +621,10 @@ export class RaceScene {
     if (!local) ctx.globalAlpha *= 0.92;
     const ground = this.sim.track.groundBelow(v.x, v.y + 0.05, b.dropTimer > 0 ? b.dropId : -1, true);
     const drop = Number.isNaN(ground) ? -SHADOW_SKIP : ground - v.y;
-    drawMonster(ctx, v.plan, v.palette, pose, { flat: this.lowQ, shadow: drop > -3.5, shadowDrop: drop }, v.layers, v.anchors);
+    const tint = this.koPose(ctx, v, dt);
+    if (tint && !this.lowQ) ctx.filter = tint;
+    drawMonster(ctx, v.plan, v.palette, pose, { flat: this.lowQ, shadow: drop > -3.5 && !v.ko, shadowDrop: drop }, v.layers, v.anchors);
+    ctx.filter = 'none';
     ctx.restore();
 
     // Shield bubble.

@@ -74,8 +74,8 @@ export const GameplayConfig = {
   fall: {
     /** Below this height the racer has fallen off the course. */
     killY: -7,
-    fallDuration: 0.5,
-    respawnDelay: 0.7,
+    fallDuration: 0.3,
+    respawnDelay: 0.35,
     respawnInvulnerability: 1.0,
     respawnOffset: 0.6,
   },
