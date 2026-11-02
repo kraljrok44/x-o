@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Wingborne: BASE Flight</title>
+<!--PLATFORM_HEAD-->
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="ui">
+  <!-- LOADING -->
+  <section id="loading" class="screen show">
+    <div class="logo"><span class="l1">WINGBORNE</span><span class="l2">BASE FLIGHT</span></div>
+    <div class="bar"><div id="loadBar"></div></div>
+    <div id="loadText" class="muted">Preparing the mountains…</div>
+  </section>
+
+  <!-- MAIN MENU -->
+  <section id="menu" class="screen">
+    <div class="menu-col">
+      <div class="logo small"><span class="l1">WINGBORNE</span><span class="l2">BASE FLIGHT</span></div>
+      <button class="mbtn primary" data-act="start">Start Flight</button>
+      <button class="mbtn" data-act="worlds">World Select</button>
+      <button class="mbtn" data-act="garage">Gear Garage</button>
+      <button class="mbtn" data-act="missions">Mission Center</button>
+      <button class="mbtn" data-act="records">Records</button>
+      <button class="mbtn" data-act="archive">Flight Archive</button>
+      <button class="mbtn" data-act="settings">Settings</button>
+    </div>
+    <div class="menu-foot muted" id="menuFoot"></div>
+  </section>
+
+  <!-- TOP BAR (coins / user) -->
+  <div id="topbar" class="hidden">
+    <div id="userBox"></div>
+    <div class="coins"><span class="coin-ico"></span><span id="coinVal">0</span></div>
+  </div>
+
+  <!-- MODE SELECT -->
+  <section id="modes" class="screen panel-screen">
+    <header><button class="back" data-act="back">‹ Back</button><h2>Start Flight</h2></header>
+    <div id="modeList" class="cards"></div>
+  </section>
+
+  <!-- WORLD SELECT -->
+  <section id="worlds" class="screen panel-screen">
+    <header><button class="back" data-act="back">‹ Back</button><h2 id="worldsTitle">World Select</h2></header>
+    <div id="worldList" class="cards worlds"></div>
+    <div class="row opts">
+      <div><label>Time of day</label><div id="timeSel" class="seg"></div></div>
+      <div><label>Weather</label><div id="weatherSel" class="seg"></div></div>
+    </div>
+    <div class="row end"><button id="flyBtn" class="mbtn primary">Fly ›</button></div>
+  </section>
+
+  <!-- MISSIONS -->
+  <section id="missions" class="screen panel-screen">
+    <header><button class="back" data-act="back">‹ Back</button><h2>Mission Center</h2><div id="missionProg" class="muted"></div></header>
+    <div id="missionList" class="mission-list"></div>
+  </section>
+
+  <!-- GARAGE -->
+  <section id="garage" class="screen panel-screen garage">
+    <header><button class="back" data-act="back">‹ Back</button><h2>Gear Garage</h2></header>
+    <div class="tabs" id="garageTabs"></div>
+    <div id="garageList" class="items"></div>
+    <div id="garageInfo" class="muted"></div>
+  </section>
+
+  <!-- RECORDS -->
+  <section id="records" class="screen panel-screen">
+    <header><button class="back" data-act="back">‹ Back</button><h2>Records</h2></header>
+    <div class="muted small">Personal bests on this device / account.</div>
+    <div id="recordList"></div>
+  </section>
+
+  <!-- ARCHIVE -->
+  <section id="archive" class="screen panel-screen">
+    <header><button class="back" data-act="back">‹ Back</button><h2>Flight Archive</h2></header>
+    <div id="archiveList"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="settings" class="screen panel-screen">
+    <header><button class="back" data-act="back">‹ Back</button><h2>Settings</h2></header>
+    <div class="tabs" id="setTabs"></div>
+    <div id="setBody" class="set-body"></div>
+  </section>
+
+  <!-- LAUNCH PREP -->
+  <section id="prep" class="screen">
+    <div class="prep-top">
+      <div class="prep-map" id="prepMap"></div>
+      <div class="prep-obj" id="prepObj"></div>
+    </div>
+    <div class="prep-bottom">
+      <button class="mbtn ghost" data-act="menu">Menu</button>
+      <button class="mbtn ghost" data-act="preview">Preview Route</button>
+      <button class="mbtn ghost" data-act="cam" id="prepCam">Camera</button>
+      <button class="mbtn primary big" data-act="jump" id="jumpBtn">Jump</button>
+    </div>
+    <div class="prep-hint muted" id="prepHint">Drag to look around</div>
+  </section>
+
+  <!-- HUD -->
+  <section id="hud" class="hidden">
+    <div class="h-ul">
+      <div class="h-big"><span id="hSpeed">0</span><small>km/h</small></div>
+      <div class="h-sub">MAX <b id="hMax">0</b> · TIME <b id="hTime">0:00.0</b></div>
+    </div>
+    <div class="h-ur">
+      <div class="h-big right"><span id="hAlt">0</span><small>m AGL</small></div>
+      <div class="h-sub right">ASL <b id="hAsl">0</b> m · TARGET <b id="hDist">0</b> m</div>
+      <div class="h-obj" id="hObj"></div>
+    </div>
+    <div class="h-ll">
+      <div class="h-lab">STABILITY</div>
+      <div class="stab"><div id="hStab"></div></div>
+      <div class="wind"><div class="wind-arrow" id="hWindArrow">➤</div><span id="hWind">0 km/h</span></div>
+    </div>
+    <div class="h-lr">
+      <div class="chute" id="hChute"><span class="dot"></span><span id="hChuteTxt">PARACHUTE PACKED</span></div>
+      <div class="h-sub right" id="hChuteKey"></div>
+      <div class="land-ind"><span id="hLandArrow">▲</span> LANDING <b id="hLandDist">0</b> m</div>
+    </div>
+    <div id="fpv"></div>
+    <div id="gateMark"></div>
+    <div id="edgeArrow">➤</div>
+    <div id="warn"></div>
+    <div id="flash"></div>
+    <div id="hint" class="hidden"><div id="hintTxt"></div><button id="hintSkip">Skip tutorial</button></div>
+    <button id="pauseBtn" class="icon-btn" aria-label="Pause">❚❚</button>
+    <div id="camLabel"></div>
+  </section>
+
+  <!-- TOUCH CONTROLS -->
+  <section id="touch" class="hidden">
+    <div id="stickZone"><div id="stickBase"><div id="stickKnob"></div></div></div>
+    <div id="tbtns">
+      <button data-t="chute" class="tb big">CHUTE</button>
+      <button data-t="stab" class="tb">STAB</button>
+      <button data-t="tuck" class="tb">TUCK</button>
+      <button data-t="spread" class="tb">SPREAD</button>
+      <button data-t="rollL" class="tb sm">⟲</button>
+      <button data-t="rollR" class="tb sm">⟳</button>
+      <button data-t="camera" class="tb sm">CAM</button>
+    </div>
+  </section>
+
+  <!-- PAUSE -->
+  <section id="pause" class="screen modal">
+    <div class="modal-box">
+      <h2>Paused</h2>
+      <button class="mbtn primary" data-act="resume">Resume</button>
+      <button class="mbtn" data-act="restart">Restart Flight</button>
+      <button class="mbtn" data-act="settings">Settings</button>
+      <button class="mbtn" data-act="menu">Main Menu</button>
+      <div id="pauseKeys" class="keys-list"></div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="results" class="screen modal">
+    <div class="modal-box wide">
+      <div class="res-head"><h2 id="resTitle">Landed</h2><div id="resSub" class="muted"></div></div>
+      <div class="res-main">
+        <div class="res-score"><div id="resScore">0</div><div id="resRank" class="rank"></div><div id="resRec" class="muted"></div></div>
+        <div id="resBars" class="res-bars"></div>
+      </div>
+      <div id="resStats" class="res-stats"></div>
+      <div class="res-coins"><span class="coin-ico"></span> +<b id="resCoins">0</b> <span id="resReward"></span></div>
+      <div class="res-btns">
+        <button class="mbtn primary" data-act="retry">Retry</button>
+        <button class="mbtn" data-act="next" id="resNext">Next Mission</button>
+        <button class="mbtn" data-act="watch">Watch Replay</button>
+        <button class="mbtn" data-act="saveReplay" id="resSave">Save Replay</button>
+        <button class="mbtn" data-act="worlds">Change World</button>
+        <button class="mbtn" data-act="menu">Menu</button>
+      </div>
+      <div class="res-ad" id="resAd">
+        <button class="mbtn ad" data-act="double"><span class="vid">▶</span> Watch ad: double coins</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- REPLAY -->
+  <section id="replay" class="hidden">
+    <div class="rp-top"><span id="rpTitle"></span><span id="rpStats"></span></div>
+    <div class="rp-bar">
+      <button class="icon-btn" data-rp="rew" title="Rewind (hold)">⏪</button>
+      <button class="icon-btn" data-rp="play" id="rpPlay">❚❚</button>
+      <input type="range" id="rpSlider" min="0" max="1000" value="0">
+      <span id="rpTime">0:00</span>
+      <button class="icon-btn small" data-rp="speed" id="rpSpeed">1×</button>
+      <button class="icon-btn small" data-rp="cam" id="rpCam">Chase</button>
+      <button class="icon-btn small" data-rp="exit">Exit</button>
+    </div>
+  </section>
+
+  <div id="toast"></div>
+  <div id="adlock" class="hidden"></div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
